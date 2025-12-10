@@ -234,6 +234,11 @@ async function selectUser(userId, username) {
   document.querySelectorAll('.user-item').forEach(i => i.classList.remove('active'));
   document.querySelector(`[data-id="${userId}"]`)?.classList.add('active');
   
+  // Убираем badge непрочитанных сообщений при открытии чата
+  const userItem = document.querySelector(`[data-id="${userId}"]`);
+  const badge = userItem?.querySelector('.unread-badge');
+  if (badge) badge.remove();
+  
   const isOnline = onlineUsers.includes(userId);
   document.querySelector('.chat-user-name').textContent = username;
   document.querySelector('.chat-user-status').textContent = isOnline ? 'В сети' : 'Не в сети';
@@ -969,12 +974,17 @@ toggleVideoBtn.addEventListener('click', async () => {
   const videoTrack = localStream.getVideoTracks()[0];
   
   if (videoTrack) {
+    // Есть видео - переключаем
     videoTrack.enabled = !videoTrack.enabled;
     if (videoTrack.enabled) {
       callVideos.classList.remove('hidden');
       localVideo.srcObject = localStream;
+    } else {
+      // Проверяем нужно ли скрыть видео окно
+      checkHideVideos();
     }
   } else {
+    // Нет видео - добавляем и пересогласовываем
     try {
       const newStream = await navigator.mediaDevices.getUserMedia({ video: true });
       const newVideoTrack = newStream.getVideoTracks()[0];
@@ -983,12 +993,18 @@ toggleVideoBtn.addEventListener('click', async () => {
       localVideo.srcObject = localStream;
       callVideos.classList.remove('hidden');
       
-      const sender = peerConnection.getSenders().find(s => s.track?.kind === 'video');
-      if (sender) {
-        sender.replaceTrack(newVideoTrack);
-      } else {
-        peerConnection.addTrack(newVideoTrack, localStream);
-      }
+      // Добавляем трек и пересогласовываем
+      peerConnection.addTrack(newVideoTrack, localStream);
+      
+      // Создаём новый offer для пересогласования
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      
+      socket.emit('video-renegotiate', {
+        to: currentCallUser.id,
+        offer: offer
+      });
+      
     } catch (e) {
       console.error('Не удалось включить видео:', e);
       alert('Не удалось получить доступ к камере');
@@ -997,6 +1013,44 @@ toggleVideoBtn.addEventListener('click', async () => {
   }
   
   updateVideoButtonState();
+});
+
+// Проверка нужно ли скрыть видео окно
+function checkHideVideos() {
+  const localHasVideo = localStream?.getVideoTracks().some(t => t.enabled);
+  const remoteHasVideo = remoteVideo.srcObject?.getVideoTracks().some(t => t.enabled);
+  
+  if (!localHasVideo && !remoteHasVideo && !isScreenSharing) {
+    callVideos.classList.add('hidden');
+  }
+}
+
+// Обработка пересогласования видео
+socket.on('video-renegotiate', async (data) => {
+  if (!peerConnection) return;
+  
+  try {
+    await peerConnection.setRemoteDescription(data.offer);
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    
+    socket.emit('video-renegotiate-answer', {
+      to: currentCallUser.id,
+      answer: answer
+    });
+  } catch (e) {
+    console.error('Renegotiate error:', e);
+  }
+});
+
+socket.on('video-renegotiate-answer', async (data) => {
+  if (!peerConnection) return;
+  
+  try {
+    await peerConnection.setRemoteDescription(data.answer);
+  } catch (e) {
+    console.error('Renegotiate answer error:', e);
+  }
 });
 
 if (screenShareBtn) {
@@ -1046,12 +1100,15 @@ async function stopScreenShare() {
   }
   
   const videoTrack = localStream?.getVideoTracks()[0];
-  if (videoTrack) {
+  if (videoTrack && videoTrack.enabled) {
     const sender = peerConnection.getSenders().find(s => s.track?.kind === 'video');
     if (sender) {
       sender.replaceTrack(videoTrack);
     }
     localVideo.srcObject = localStream;
+  } else {
+    // Нет активного видео - скрываем окно
+    checkHideVideos();
   }
   
   isScreenSharing = false;

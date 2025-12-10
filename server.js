@@ -204,6 +204,23 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Пересогласование видео (когда включают камеру во время звонка)
+  socket.on('video-renegotiate', (data) => {
+    const { to, offer } = data;
+    const otherSocket = onlineUsers.get(to);
+    if (otherSocket) {
+      io.to(otherSocket).emit('video-renegotiate', { offer });
+    }
+  });
+
+  socket.on('video-renegotiate-answer', (data) => {
+    const { to, answer } = data;
+    const otherSocket = onlineUsers.get(to);
+    if (otherSocket) {
+      io.to(otherSocket).emit('video-renegotiate-answer', { answer });
+    }
+  });
+
   // Проверка активного звонка
   socket.on('check-active-call', (data) => {
     const { oderId, userId } = data;
