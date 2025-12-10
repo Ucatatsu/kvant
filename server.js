@@ -43,6 +43,20 @@ app.get('/api/contacts/:userId', async (req, res) => {
   res.json(contacts);
 });
 
+// Получить профиль пользователя
+app.get('/api/user/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const user = await db.getUser(userId);
+  res.json(user);
+});
+
+// Обновить профиль
+app.put('/api/user/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const result = await db.updateUser(userId, req.body);
+  res.json(result);
+});
+
 app.get('/api/messages/:oderId', async (req, res) => {
   const { oderId } = req.params;
   const userId = req.query.userId;

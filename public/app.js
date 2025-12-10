@@ -138,17 +138,7 @@ function showChat() {
   loadContacts();
 }
 
-// Выход
-logoutBtn.addEventListener('click', () => {
-  currentUser = null;
-  selectedUser = null;
-  localStorage.removeItem('kvant_user');
-  chatScreen.classList.add('hidden');
-  loginScreen.classList.remove('hidden');
-  loginUsername.value = '';
-  loginPassword.value = '';
-  messagesDiv.innerHTML = '';
-});
+// Выход (перенесён в настройки)
 
 // Загрузка контактов (с кем есть переписка)
 async function loadContacts() {
@@ -333,19 +323,136 @@ function appendMessage(msg) {
 const profileModal = document.getElementById('profile-modal');
 const closeProfileBtn = document.getElementById('close-profile');
 const currentUserAvatarBtn = document.getElementById('current-user-avatar');
+const editProfileBtn = document.getElementById('edit-profile-btn');
+const editProfileModal = document.getElementById('edit-profile-modal');
+const closeEditProfileBtn = document.getElementById('close-edit-profile');
+const saveProfileBtn = document.getElementById('save-profile-btn');
 
-currentUserAvatarBtn.addEventListener('click', () => {
+let currentUserProfile = null;
+
+async function loadMyProfile() {
+  const res = await fetch(`/api/user/${currentUser.id}`);
+  currentUserProfile = await res.json();
+  return currentUserProfile;
+}
+
+async function showMyProfile() {
+  const profile = await loadMyProfile();
+  
   document.getElementById('profile-avatar').textContent = currentUser.username[0].toUpperCase();
-  document.getElementById('profile-name').textContent = currentUser.username;
+  document.getElementById('profile-avatar').style.background = profile?.avatar_color || '#4fc3f7';
+  document.getElementById('profile-banner').style.background = profile?.banner_color || 'linear-gradient(135deg, #4fc3f7, #1976d2)';
+  document.getElementById('profile-name').textContent = profile?.display_name || currentUser.username;
+  document.getElementById('profile-username').textContent = '@' + currentUser.username;
+  document.getElementById('profile-bio').textContent = profile?.bio || '';
+  document.getElementById('profile-phone').textContent = profile?.phone || 'Не указан';
+  
   profileModal.classList.remove('hidden');
-});
+}
+
+currentUserAvatarBtn.addEventListener('click', showMyProfile);
 
 closeProfileBtn.addEventListener('click', () => {
   profileModal.classList.add('hidden');
 });
 
-document.querySelector('.modal-overlay')?.addEventListener('click', () => {
+// Edit profile
+editProfileBtn.addEventListener('click', () => {
   profileModal.classList.add('hidden');
+  document.getElementById('edit-display-name').value = currentUserProfile?.display_name || '';
+  document.getElementById('edit-phone').value = currentUserProfile?.phone || '';
+  document.getElementById('edit-bio').value = currentUserProfile?.bio || '';
+  document.getElementById('edit-avatar-color').value = currentUserProfile?.avatar_color || '#4fc3f7';
+  document.getElementById('edit-banner-color').value = currentUserProfile?.banner_color || '#1976d2';
+  editProfileModal.classList.remove('hidden');
+});
+
+closeEditProfileBtn.addEventListener('click', () => {
+  editProfileModal.classList.add('hidden');
+});
+
+saveProfileBtn.addEventListener('click', async () => {
+  const data = {
+    display_name: document.getElementById('edit-display-name').value,
+    phone: document.getElementById('edit-phone').value,
+    bio: document.getElementById('edit-bio').value,
+    avatar_color: document.getElementById('edit-avatar-color').value,
+    banner_color: document.getElementById('edit-banner-color').value
+  };
+  
+  await fetch(`/api/user/${currentUser.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  
+  editProfileModal.classList.add('hidden');
+  showMyProfile();
+});
+
+// ===== SETTINGS MODAL =====
+const settingsModal = document.getElementById('settings-modal');
+const settingsBtn = document.getElementById('settings-btn');
+const closeSettingsBtn = document.getElementById('close-settings');
+const logoutBtn = document.getElementById('logout-btn');
+
+settingsBtn.addEventListener('click', () => {
+  settingsModal.classList.remove('hidden');
+});
+
+closeSettingsBtn.addEventListener('click', () => {
+  settingsModal.classList.add('hidden');
+});
+
+logoutBtn.addEventListener('click', () => {
+  currentUser = null;
+  selectedUser = null;
+  localStorage.removeItem('kvant_user');
+  settingsModal.classList.add('hidden');
+  chatScreen.classList.add('hidden');
+  loginScreen.classList.remove('hidden');
+  loginUsername.value = '';
+  loginPassword.value = '';
+  messagesDiv.innerHTML = '';
+});
+
+// ===== USER PROFILE MODAL (собеседник) =====
+const userProfileModal = document.getElementById('user-profile-modal');
+const closeUserProfileBtn = document.getElementById('close-user-profile');
+const chatUserInfoBtn = document.getElementById('chat-user-info-btn');
+
+async function showUserProfile(userId) {
+  const res = await fetch(`/api/user/${userId}`);
+  const profile = await res.json();
+  
+  if (!profile) return;
+  
+  document.getElementById('user-profile-avatar').textContent = profile.username[0].toUpperCase();
+  document.getElementById('user-profile-avatar').style.background = profile.avatar_color || '#4fc3f7';
+  document.getElementById('user-profile-banner').style.background = profile.banner_color || 'linear-gradient(135deg, #4fc3f7, #1976d2)';
+  document.getElementById('user-profile-name').textContent = profile.display_name || profile.username;
+  document.getElementById('user-profile-username').textContent = '@' + profile.username;
+  document.getElementById('user-profile-bio').textContent = profile.bio || '';
+  document.getElementById('user-profile-phone').textContent = profile.phone || 'Не указан';
+  
+  userProfileModal.classList.remove('hidden');
+}
+
+chatUserInfoBtn.addEventListener('click', () => {
+  if (selectedUser) {
+    showUserProfile(selectedUser.id);
+  }
+});
+
+closeUserProfileBtn.addEventListener('click', () => {
+  userProfileModal.classList.add('hidden');
+});
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', () => {
+    document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
+  });
 });
 
 // ===== EMOJI PICKER =====

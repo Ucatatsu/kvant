@@ -16,9 +16,21 @@ async function initDB() {
         id TEXT PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
+        display_name TEXT,
+        phone TEXT,
+        bio TEXT,
+        avatar_color TEXT DEFAULT '#4fc3f7',
+        banner_color TEXT DEFAULT '#1976d2',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    
+    // Добавляем новые колонки если их нет (для существующих БД)
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_color TEXT DEFAULT '#4fc3f7'`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS banner_color TEXT DEFAULT '#1976d2'`);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS messages (
@@ -26,9 +38,12 @@ async function initDB() {
         sender_id TEXT NOT NULL REFERENCES users(id),
         receiver_id TEXT NOT NULL REFERENCES users(id),
         text TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    
+    await client.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE`);
 
     // Индексы для быстрого поиска
     await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id)`);
@@ -79,11 +94,44 @@ async function loginUser(username, password) {
 
 async function getAllUsers() {
   try {
-    const result = await pool.query('SELECT id, username FROM users');
+    const result = await pool.query('SELECT id, username, display_name, avatar_color FROM users');
     return result.rows;
   } catch (e) {
     console.error('Get users error:', e);
     return [];
+  }
+}
+
+async function getUser(userId) {
+  try {
+    const result = await pool.query(
+      'SELECT id, username, display_name, phone, bio, avatar_color, banner_color FROM users WHERE id = $1',
+      [userId]
+    );
+    return result.rows[0] || null;
+  } catch (e) {
+    console.error('Get user error:', e);
+    return null;
+  }
+}
+
+async function updateUser(userId, data) {
+  try {
+    const { display_name, phone, bio, avatar_color, banner_color } = data;
+    await pool.query(
+      `UPDATE users SET 
+        display_name = COALESCE($2, display_name),
+        phone = COALESCE($3, phone),
+        bio = COALESCE($4, bio),
+        avatar_color = COALESCE($5, avatar_color),
+        banner_color = COALESCE($6, banner_color)
+      WHERE id = $1`,
+      [userId, display_name, phone, bio, avatar_color, banner_color]
+    );
+    return { success: true };
+  } catch (e) {
+    console.error('Update user error:', e);
+    return { success: false, error: 'Ошибка обновления' };
   }
 }
 
@@ -127,7 +175,10 @@ async function getMessages(userId1, userId2) {
 async function getContacts(userId) {
   try {
     const result = await pool.query(`
-      SELECT DISTINCT u.id, u.username FROM users u
+      SELECT DISTINCT u.id, u.username, u.display_name, u.avatar_color,
+        (SELECT COUNT(*) FROM messages m 
+         WHERE m.sender_id = u.id AND m.receiver_id = $1 AND m.is_read = FALSE) as unread_count
+      FROM users u
       WHERE u.id IN (
         SELECT DISTINCT sender_id FROM messages WHERE receiver_id = $1
         UNION
@@ -141,4 +192,29 @@ async function getContacts(userId) {
   }
 }
 
-module.exports = { initDB, createUser, loginUser, getAllUsers, searchUsers, saveMessage, getMessages, getContacts };
+async function markMessagesAsRead(senderId, receiverId) {
+  try {
+    await pool.query(
+      'UPDATE messages SET is_read = TRUE WHERE sender_id = $1 AND receiver_id = $2 AND is_read = FALSE',
+      [senderId, receiverId]
+    );
+    return { success: true };
+  } catch (e) {
+    console.error('Mark as read error:', e);
+    return { success: false };
+  }
+}
+
+async function getUnreadCount(userId) {
+  try {
+    const result = await pool.query(
+      'SELECT COUNT(*) as count FROM messages WHERE receiver_id = $1 AND is_read = FALSE',
+      [userId]
+    );
+    return parseInt(result.rows[0].count);
+  } catch (e) {
+    return 0;
+  }
+}
+
+module.exports = { initDB, createUser, loginUser, getAllUsers, getUser, updateUser, searchUsers, saveMessage, getMessages, getContacts, markMessagesAsRead, getUnreadCount };

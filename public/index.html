@@ -56,14 +56,14 @@
           <span class="current-user"></span>
           <span class="current-user-status">В сети</span>
         </div>
-        <button id="logout-btn" title="Выйти">⏻</button>
+        <button id="settings-btn" class="icon-btn" title="Настройки">⚙️</button>
       </div>
     </aside>
     
     <!-- Область чата - элементы напрямую в grid -->
     <div class="chat-header" id="chat-header">
       <button class="back-btn" id="back-btn">←</button>
-      <div class="chat-user-info">
+      <div class="chat-user-info" id="chat-user-info-btn"></div>
         <span class="chat-user-name">Выберите чат</span>
         <span class="chat-user-status"></span>
       </div>
@@ -80,20 +80,107 @@
     </form>
   </div>
 
-  <!-- Модальное окно профиля -->
+  <!-- Модальное окно своего профиля -->
   <div id="profile-modal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content profile-modal-content">
+      <div class="profile-banner" id="profile-banner"></div>
+      <div class="profile-avatar-wrapper">
+        <div class="profile-avatar-large" id="profile-avatar"></div>
+      </div>
+      <button class="modal-close" id="close-profile">&times;</button>
+      <div class="profile-body">
+        <div class="profile-name" id="profile-name"></div>
+        <div class="profile-username" id="profile-username"></div>
+        <div class="profile-bio" id="profile-bio"></div>
+        <div class="profile-info">
+          <div class="profile-info-item" id="profile-phone-item">
+            <span class="info-icon">📱</span>
+            <span id="profile-phone">Не указан</span>
+          </div>
+        </div>
+        <div class="profile-actions">
+          <button class="btn-primary" id="edit-profile-btn">Редактировать</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно редактирования профиля -->
+  <div id="edit-profile-modal" class="modal hidden">
     <div class="modal-overlay"></div>
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Профиль</h2>
-        <button class="modal-close" id="close-profile">&times;</button>
+        <h2>Редактировать профиль</h2>
+        <button class="modal-close" id="close-edit-profile">&times;</button>
       </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Имя</label>
+          <input type="text" id="edit-display-name" placeholder="Ваше имя">
+        </div>
+        <div class="form-group">
+          <label>Телефон</label>
+          <input type="tel" id="edit-phone" placeholder="+7 999 123 45 67">
+        </div>
+        <div class="form-group">
+          <label>О себе</label>
+          <textarea id="edit-bio" placeholder="Расскажите о себе..." rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Цвет аватарки</label>
+          <input type="color" id="edit-avatar-color" value="#4fc3f7">
+        </div>
+        <div class="form-group">
+          <label>Цвет баннера</label>
+          <input type="color" id="edit-banner-color" value="#1976d2">
+        </div>
+        <button class="btn-primary" id="save-profile-btn">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно настроек -->
+  <div id="settings-modal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Настройки</h2>
+        <button class="modal-close" id="close-settings">&times;</button>
+      </div>
+      <div class="modal-body settings-body">
+        <div class="settings-item" id="notifications-toggle">
+          <span>🔔 Уведомления</span>
+          <input type="checkbox" id="notifications-checkbox" checked>
+        </div>
+        <div class="settings-item" id="sounds-toggle">
+          <span>🔊 Звуки</span>
+          <input type="checkbox" id="sounds-checkbox" checked>
+        </div>
+        <div class="settings-divider"></div>
+        <button class="btn-danger" id="logout-btn">Выйти из аккаунта</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно профиля собеседника -->
+  <div id="user-profile-modal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content profile-modal-content">
+      <div class="profile-banner" id="user-profile-banner"></div>
+      <div class="profile-avatar-wrapper">
+        <div class="profile-avatar-large" id="user-profile-avatar"></div>
+      </div>
+      <button class="modal-close" id="close-user-profile">&times;</button>
       <div class="profile-body">
-        <div class="profile-avatar" id="profile-avatar"></div>
-        <div class="profile-name" id="profile-name"></div>
-        <div class="profile-status">🟢 В сети</div>
-        <div class="profile-actions">
-          <button class="btn-secondary" id="change-password-btn">Сменить пароль</button>
+        <div class="profile-name" id="user-profile-name"></div>
+        <div class="profile-username" id="user-profile-username"></div>
+        <div class="profile-bio" id="user-profile-bio"></div>
+        <div class="profile-info">
+          <div class="profile-info-item">
+            <span class="info-icon">📱</span>
+            <span id="user-profile-phone">Не указан</span>
+          </div>
         </div>
       </div>
     </div>
