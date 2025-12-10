@@ -3,6 +3,30 @@ const socket = io();
 let currentUser = null;
 let selectedUser = null;
 let onlineUsers = [];
+let notificationsEnabled = localStorage.getItem('notifications') !== 'false';
+
+// Запрос разрешения на уведомления
+async function requestNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    await Notification.requestPermission();
+  }
+}
+
+function showNotification(title, body, onClick) {
+  if (!notificationsEnabled) return;
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const notification = new Notification(title, {
+      body: body,
+      icon: '/icon.png',
+      badge: '/icon.png'
+    });
+    notification.onclick = () => {
+      window.focus();
+      if (onClick) onClick();
+      notification.close();
+    };
+  }
+}
 
 // Проверяем сохранённую сессию при загрузке
 const savedUser = localStorage.getItem('kvant_user');
@@ -136,6 +160,8 @@ function showChat() {
   socket.emit('user-online', currentUser.id);
   // Загружаем контакты (с кем есть переписка)
   loadContacts();
+  // Запрашиваем разрешение на уведомления
+  requestNotificationPermission();
 }
 
 // Выход (перенесён в настройки)
@@ -180,17 +206,19 @@ searchInput.addEventListener('input', (e) => {
 function renderUsers(users) {
   usersList.innerHTML = users.map(user => {
     const isOnline = onlineUsers.includes(user.id);
+    const unread = user.unread_count || 0;
     return `
       <div class="user-item ${isOnline ? '' : 'offline'} ${selectedUser?.id === user.id ? 'active' : ''}" 
            data-id="${user.id}" data-name="${user.username}">
-        <div class="user-avatar">
+        <div class="user-avatar" style="background: ${user.avatar_color || '#4fc3f7'}">
           ${user.username[0].toUpperCase()}
           <div class="online-indicator"></div>
         </div>
         <div class="user-info">
-          <div class="user-name">${user.username}</div>
+          <div class="user-name">${user.display_name || user.username}</div>
           <div class="user-last-message">${isOnline ? 'В сети' : 'Не в сети'}</div>
         </div>
+        ${unread > 0 ? `<div class="unread-badge">${unread}</div>` : ''}
       </div>
     `;
   }).join('');
@@ -294,6 +322,13 @@ socket.on('message-sent', (message) => {
 socket.on('new-message', (message) => {
   if (selectedUser && message.sender_id === selectedUser.id) {
     appendMessage(message);
+    // Помечаем как прочитанное если чат открыт
+    fetch(`/api/messages/${selectedUser.id}?userId=${currentUser.id}`);
+  } else {
+    // Показываем уведомление если чат не открыт
+    showNotification('Новое сообщение', message.text, () => {
+      // При клике на уведомление открываем чат
+    });
   }
   // Обновить контакты при получении сообщения
   if (!searchInput.value.trim()) {
@@ -394,10 +429,18 @@ saveProfileBtn.addEventListener('click', async () => {
 const settingsModal = document.getElementById('settings-modal');
 const settingsBtn = document.getElementById('settings-btn');
 const closeSettingsBtn = document.getElementById('close-settings');
-const logoutBtn = document.getElementById('logout-btn');
 
 settingsBtn.addEventListener('click', () => {
+  document.getElementById('notifications-checkbox').checked = notificationsEnabled;
   settingsModal.classList.remove('hidden');
+});
+
+document.getElementById('notifications-checkbox').addEventListener('change', (e) => {
+  notificationsEnabled = e.target.checked;
+  localStorage.setItem('notifications', notificationsEnabled);
+  if (notificationsEnabled) {
+    requestNotificationPermission();
+  }
 });
 
 closeSettingsBtn.addEventListener('click', () => {

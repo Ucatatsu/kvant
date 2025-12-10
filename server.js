@@ -61,6 +61,8 @@ app.get('/api/messages/:oderId', async (req, res) => {
   const { oderId } = req.params;
   const userId = req.query.userId;
   const messages = await db.getMessages(userId, oderId);
+  // Помечаем сообщения как прочитанные
+  await db.markMessagesAsRead(oderId, userId);
   res.json(messages);
 });
 
