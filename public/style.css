@@ -683,10 +683,12 @@ button {
     flex-direction: column;
     padding: 0;
     gap: 0;
+    height: 100vh;
+    height: 100dvh;
   }
 
   .sidebar {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     right: 0;
@@ -702,6 +704,7 @@ button {
   }
 
   .chat-header {
+    flex-shrink: 0;
     border-radius: 0;
     border: none;
     border-bottom: 1px solid var(--glass-border);
@@ -710,13 +713,17 @@ button {
   .messages {
     flex: 1;
     padding: 12px;
+    overflow-y: auto;
+    min-height: 0;
   }
 
   .message-form {
+    flex-shrink: 0;
     border-radius: 0;
     border: none;
     border-top: 1px solid var(--glass-border);
     padding: 8px 12px;
+    background: var(--bg-dark);
   }
 
   .message-form input {

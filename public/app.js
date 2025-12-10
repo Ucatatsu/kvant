@@ -4,6 +4,20 @@ let currentUser = null;
 let selectedUser = null;
 let onlineUsers = [];
 
+// Проверяем сохранённую сессию при загрузке
+const savedUser = localStorage.getItem('kvant_user');
+if (savedUser) {
+  try {
+    currentUser = JSON.parse(savedUser);
+    // Отложенный запуск после загрузки DOM
+    document.addEventListener('DOMContentLoaded', () => {
+      showChat();
+    });
+  } catch (e) {
+    localStorage.removeItem('kvant_user');
+  }
+}
+
 // DOM элементы - Auth
 const loginScreen = document.getElementById('login-screen');
 const registerScreen = document.getElementById('register-screen');
@@ -61,6 +75,7 @@ loginForm.addEventListener('submit', async (e) => {
   
   if (data.success) {
     currentUser = data.user;
+    localStorage.setItem('kvant_user', JSON.stringify(currentUser));
     showChat();
   } else {
     loginError.textContent = data.error;
@@ -127,6 +142,7 @@ function showChat() {
 logoutBtn.addEventListener('click', () => {
   currentUser = null;
   selectedUser = null;
+  localStorage.removeItem('kvant_user');
   chatScreen.classList.add('hidden');
   loginScreen.classList.remove('hidden');
   loginUsername.value = '';
