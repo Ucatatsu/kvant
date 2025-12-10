@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Квант</title>
+  <link rel="icon" href="icon.png" type="image/png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Экран входа -->
+  <div id="login-screen" class="screen">
+    <div class="auth-container">
+      <img src="icon.png" alt="Квант" class="logo-img">
+      <h1>Квант</h1>
+      <form id="login-form">
+        <input type="text" id="login-username" placeholder="Имя пользователя" required>
+        <input type="password" id="login-password" placeholder="Пароль" required>
+        <button type="submit" class="btn-primary">Войти</button>
+        <button type="button" id="to-register-btn" class="btn-secondary">Регистрация</button>
+      </form>
+      <p id="login-error" class="error"></p>
+    </div>
+  </div>
+
+  <!-- Экран регистрации -->
+  <div id="register-screen" class="screen hidden">
+    <div class="auth-container">
+      <img src="icon.png" alt="Квант" class="logo-img">
+      <h1>Регистрация</h1>
+      <form id="register-form">
+        <input type="text" id="reg-username" placeholder="Имя пользователя" required>
+        <input type="password" id="reg-password" placeholder="Пароль" required>
+        <input type="password" id="reg-password-confirm" placeholder="Подтвердите пароль" required>
+        <button type="submit" class="btn-primary">Зарегистрироваться</button>
+        <button type="button" id="to-login-btn" class="btn-secondary">Уже есть аккаунт</button>
+      </form>
+      <p id="register-error" class="error"></p>
+    </div>
+  </div>
+
+  <!-- Главный экран чата -->
+  <div id="chat-screen" class="screen hidden">
+    <!-- Боковая панель -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <img src="icon.png" alt="Квант" class="logo-mini-img">
+      </div>
+      <div class="chats-header">
+        <input type="text" class="search-input" placeholder="🔍 Поиск">
+      </div>
+      <div class="users-list" id="users-list"></div>
+      <div class="sidebar-footer">
+        <div class="current-user-avatar" id="current-user-avatar"></div>
+        <div class="current-user-details">
+          <span class="current-user"></span>
+          <span class="current-user-status">В сети</span>
+        </div>
+        <button id="logout-btn" title="Выйти">⏻</button>
+      </div>
+    </aside>
+    
+    <!-- Область чата - элементы напрямую в grid -->
+    <div class="chat-header" id="chat-header">
+      <div class="chat-user-info">
+        <span class="chat-user-name">Выберите чат</span>
+        <span class="chat-user-status"></span>
+      </div>
+      <div class="chat-actions">
+        <button class="action-btn" title="Аудиозвонок">📞</button>
+        <button class="action-btn" title="Видеозвонок">📹</button>
+      </div>
+    </div>
+    <div class="messages" id="messages"></div>
+    <form class="message-form" id="message-form">
+      <input type="text" id="message-input" placeholder="Сообщение..." autocomplete="off" disabled>
+      <button type="button" class="emoji-btn">😊</button>
+      <button type="submit" class="send-btn" disabled>➤</button>
+    </form>
+  </div>
+
+  <!-- Модальное окно профиля -->
+  <div id="profile-modal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Профиль</h2>
+        <button class="modal-close" id="close-profile">&times;</button>
+      </div>
+      <div class="profile-body">
+        <div class="profile-avatar" id="profile-avatar"></div>
+        <div class="profile-name" id="profile-name"></div>
+        <div class="profile-status">🟢 В сети</div>
+        <div class="profile-actions">
+          <button class="btn-secondary" id="change-password-btn">Сменить пароль</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Emoji Picker -->
+  <div id="emoji-picker" class="emoji-picker hidden">
+    <div class="emoji-grid"></div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
