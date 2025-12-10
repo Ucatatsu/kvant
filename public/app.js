@@ -720,18 +720,25 @@ function saveSettings() {
 }
 
 function applySettings() {
-  // Применяем фон
-  messagesDiv.className = 'messages';
-  if (userSettings.background && userSettings.background !== 'default') {
-    if (userSettings.background === 'custom' && userSettings.customBg) {
-      messagesDiv.style.backgroundImage = `url(${userSettings.customBg})`;
-      messagesDiv.style.backgroundSize = 'cover';
-      messagesDiv.style.backgroundPosition = 'center';
-    } else {
-      messagesDiv.classList.add(`bg-${userSettings.background}`);
-      messagesDiv.style.backgroundImage = '';
+  // Применяем фон ко всему экрану чата
+  const chatScreenEl = document.getElementById('chat-screen');
+  if (chatScreenEl) {
+    // Убираем старые классы фона
+    chatScreenEl.classList.remove('bg-gradient1', 'bg-gradient2', 'bg-gradient3', 'bg-solid', 'bg-custom');
+    chatScreenEl.style.backgroundImage = '';
+    
+    if (userSettings.background && userSettings.background !== 'default') {
+      if (userSettings.background === 'custom' && userSettings.customBg) {
+        chatScreenEl.classList.add('bg-custom');
+        chatScreenEl.style.backgroundImage = `url(${userSettings.customBg})`;
+      } else {
+        chatScreenEl.classList.add(`bg-${userSettings.background}`);
+      }
     }
   }
+  
+  // Настройки для messages
+  messagesDiv.className = 'messages';
   
   // Размер сообщений
   if (userSettings.messageSize && userSettings.messageSize !== 'medium') {

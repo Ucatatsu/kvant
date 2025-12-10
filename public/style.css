@@ -136,7 +136,7 @@ button {
   grid-template-columns: 320px 1fr;
   grid-template-rows: var(--panel-height) 1fr var(--panel-height);
   height: 100vh;
-  background: url('background.jpg') center/cover no-repeat fixed;
+  background: var(--chat-bg, url('background.jpg') center/cover no-repeat fixed);
   padding: 12px;
   gap: 12px;
 }
@@ -1443,7 +1443,8 @@ button {
 }
 
 .settings-sidebar {
-  width: 220px;
+  width: 240px;
+  min-width: 240px;
   background: rgba(0, 0, 0, 0.2);
   border-right: 1px solid var(--glass-border);
   display: flex;
@@ -1531,18 +1532,23 @@ button {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px;
+  padding: 12px 16px;
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: 10px;
   color: #ef4444;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .settings-logout-btn:hover {
   background: rgba(239, 68, 68, 0.2);
+}
+
+.settings-logout-btn span {
+  flex-shrink: 0;
 }
 
 .settings-content {
@@ -1894,11 +1900,12 @@ button {
   }
 }
 
-/* Custom background styles */
-.messages.bg-gradient1 { background: linear-gradient(135deg, #1a1a2e, #16213e) !important; }
-.messages.bg-gradient2 { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e) !important; }
-.messages.bg-gradient3 { background: linear-gradient(135deg, #232526, #414345) !important; }
-.messages.bg-solid { background: #0a1628 !important; }
+/* Custom background styles - применяются к chat-screen */
+#chat-screen.bg-gradient1 { background: linear-gradient(135deg, #1a1a2e, #16213e) !important; }
+#chat-screen.bg-gradient2 { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e) !important; }
+#chat-screen.bg-gradient3 { background: linear-gradient(135deg, #232526, #414345) !important; }
+#chat-screen.bg-solid { background: #0a1628 !important; }
+#chat-screen.bg-custom { background-size: cover !important; background-position: center !important; }
 
 /* Message size variants */
 .messages.size-small .message-bubble { font-size: 12px; padding: 8px 12px; }
