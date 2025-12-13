@@ -17,8 +17,44 @@ const state = {
     micMuted: false,
     camMuted: false,
     // Кэш DOM элементов
-    dom: {}
+    dom: {},
+    // Локальные данные пользователей (никнеймы, отключённые уведомления)
+    userLocalData: JSON.parse(localStorage.getItem('kvant_user_local_data') || '{}')
 };
+
+// Сохранение локальных данных пользователей
+function saveUserLocalData() {
+    localStorage.setItem('kvant_user_local_data', JSON.stringify(state.userLocalData));
+}
+
+// Получить локальный никнейм пользователя
+function getLocalNickname(userId) {
+    return state.userLocalData[userId]?.nickname || null;
+}
+
+// Установить локальный никнейм
+function setLocalNickname(userId, nickname) {
+    if (!state.userLocalData[userId]) {
+        state.userLocalData[userId] = {};
+    }
+    state.userLocalData[userId].nickname = nickname || null;
+    saveUserLocalData();
+}
+
+// Проверить отключены ли уведомления для пользователя
+function isUserMuted(userId) {
+    return state.userLocalData[userId]?.muted || false;
+}
+
+// Переключить уведомления для пользователя
+function toggleUserMuted(userId) {
+    if (!state.userLocalData[userId]) {
+        state.userLocalData[userId] = {};
+    }
+    state.userLocalData[userId].muted = !state.userLocalData[userId].muted;
+    saveUserLocalData();
+    return state.userLocalData[userId].muted;
+}
 
 // === ЗВУКОВАЯ СИСТЕМА ===
 const sounds = {
@@ -31,11 +67,17 @@ const sounds = {
 function initSounds() {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     
-    // Функция для создания звука уведомления (громче и длиннее)
+    // Получить текущую громкость (0-1)
+    function getVolume() {
+        const vol = state.settings.volume ?? 50;
+        return vol / 100;
+    }
+    
+    // Функция для создания звука уведомления
     function createNotificationSound() {
         const now = audioContext.currentTime;
+        const volume = getVolume();
         
-        // Два тона для более заметного звука
         [800, 1000].forEach((freq, i) => {
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
@@ -46,7 +88,7 @@ function initSounds() {
             oscillator.type = 'sine';
             oscillator.frequency.setValueAtTime(freq, now + i * 0.15);
             
-            gainNode.gain.setValueAtTime(0.8, now + i * 0.15);
+            gainNode.gain.setValueAtTime(0.8 * volume, now + i * 0.15);
             gainNode.gain.exponentialRampToValueAtTime(0.01, now + i * 0.15 + 0.2);
             
             oscillator.start(now + i * 0.15);
@@ -54,7 +96,7 @@ function initSounds() {
         });
     }
     
-    // Функция для создания звука звонка (громче и мелодичнее)
+    // Функция для создания звука звонка
     function createCallSound() {
         let isPlaying = true;
         let ringCount = 0;
@@ -63,8 +105,8 @@ function initSounds() {
             if (!isPlaying) return;
             
             const now = audioContext.currentTime;
+            const volume = getVolume();
             
-            // Двойной звонок как у телефона
             [0, 0.15].forEach((delay) => {
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
@@ -73,13 +115,11 @@ function initSounds() {
                 gainNode.connect(audioContext.destination);
                 
                 oscillator.type = 'sine';
-                // Чередуем частоты для мелодичности
                 oscillator.frequency.setValueAtTime(440, now + delay);
                 oscillator.frequency.setValueAtTime(520, now + delay + 0.1);
                 
-                // Громкость 1.0 (максимум)
-                gainNode.gain.setValueAtTime(1.0, now + delay);
-                gainNode.gain.exponentialRampToValueAtTime(0.3, now + delay + 0.15);
+                gainNode.gain.setValueAtTime(1.0 * volume, now + delay);
+                gainNode.gain.exponentialRampToValueAtTime(0.3 * volume, now + delay + 0.15);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, now + delay + 0.25);
                 
                 oscillator.start(now + delay);
@@ -87,7 +127,6 @@ function initSounds() {
             });
             
             ringCount++;
-            // Пауза между звонками
             setTimeout(playRing, ringCount % 2 === 0 ? 1500 : 400);
         };
         
@@ -477,15 +516,23 @@ function initSocket() {
     });
     
     state.socket.on('new-message', (message) => {
-        // Воспроизводим звук
-        ensureSoundsInitialized();
-        sounds.playMessage?.();
+        // Проверяем не отключены ли уведомления от этого пользователя
+        const isMuted = isUserMuted(message.sender_id);
+        
+        // Воспроизводим звук если не muted
+        if (!isMuted) {
+            ensureSoundsInitialized();
+            sounds.playMessage?.();
+        }
         
         if (state.selectedUser && message.sender_id === state.selectedUser.id) {
             appendMessage(message);
             markAsRead();
-        } else {
-            showNotification('Новое сообщение', message.text, () => {
+        } else if (!isMuted) {
+            // Показываем уведомление только если не muted
+            const localNickname = getLocalNickname(message.sender_id);
+            const senderName = localNickname || message.sender_name || 'Новое сообщение';
+            showNotification(senderName, message.text, () => {
                 openChatWithUser(message.sender_id);
             });
         }
@@ -816,7 +863,10 @@ function renderUsers(users) {
             ? `background-image: url(${escapeAttr(user.avatar_url)}); background-size: cover; background-position: center;`
             : 'background: var(--message-sent);';
         const avatarContent = user.avatar_url ? '' : user.username[0].toUpperCase();
-        const displayName = user.display_name || user.username;
+        // Используем локальный никнейм если есть
+        const localNickname = getLocalNickname(user.id);
+        const displayName = localNickname || user.display_name || user.username;
+        const isMuted = isUserMuted(user.id);
         const isPremium = user.isPremium || user.role === 'admin';
         const avatarClass = 'user-avatar';
         const nameStyle = user.name_color ? `style="--name-color: ${escapeAttr(user.name_color)}" data-name-color` : '';
@@ -827,8 +877,8 @@ function renderUsers(users) {
                 <div class="online-indicator ${userStatus || 'offline'}"></div>
             </div>
             <div class="user-info">
-                <div class="user-name" ${nameStyle}>${escapeHtml(displayName)}${isPremium ? ' <span class="premium-indicator">👑</span>' : ''}</div>
-                <div class="user-last-message">${user.custom_tag ? `@${escapeHtml(user.custom_tag)} · ` : ''}${statusText}</div>
+                <div class="user-name" ${nameStyle}>${escapeHtml(displayName)}${isPremium ? ' <span class="premium-indicator">👑</span>' : ''}${isMuted ? ' <span class="muted-indicator">🔕</span>' : ''}</div>
+                <div class="user-last-message">${localNickname ? `@${escapeHtml(user.username)} · ` : ''}${statusText}</div>
             </div>
             ${unread > 0 ? `<div class="unread-badge">${unread}</div>` : ''}
         `;
@@ -871,7 +921,9 @@ async function selectUser(userId, username) {
     const badge = document.querySelector(`[data-id="${userId}"] .unread-badge`);
     if (badge) badge.remove();
     
-    const displayName = state.selectedUserProfile?.display_name || username;
+    // Используем локальный никнейм если есть
+    const localNickname = getLocalNickname(userId);
+    const displayName = localNickname || state.selectedUserProfile?.display_name || username;
     document.querySelector('.chat-user-name').textContent = displayName;
     updateChatStatus();
     updateChatHeaderAvatar();
@@ -1623,9 +1675,16 @@ async function initCall(video) {
         // Обработка изменения состояния ICE соединения
         peerConnection.oniceconnectionstatechange = () => {
             console.log('ICE state:', peerConnection.iceConnectionState);
-            if (peerConnection.iceConnectionState === 'failed') {
-                // Попытка перезапуска ICE
+            const statusEl = document.getElementById('call-status');
+            
+            if (peerConnection.iceConnectionState === 'connected' || peerConnection.iceConnectionState === 'completed') {
+                statusEl.textContent = 'Соединено';
+                if (!callTimer) startCallTimer();
+            } else if (peerConnection.iceConnectionState === 'failed') {
+                statusEl.textContent = 'Ошибка соединения';
                 peerConnection.restartIce();
+            } else if (peerConnection.iceConnectionState === 'disconnected') {
+                statusEl.textContent = 'Переподключение...';
             }
         };
         
@@ -1734,9 +1793,16 @@ async function acceptCall() {
         // Обработка изменения состояния ICE соединения
         peerConnection.oniceconnectionstatechange = () => {
             console.log('ICE state:', peerConnection.iceConnectionState);
-            if (peerConnection.iceConnectionState === 'failed') {
-                // Попытка перезапуска ICE
+            const statusEl = document.getElementById('call-status');
+            
+            if (peerConnection.iceConnectionState === 'connected' || peerConnection.iceConnectionState === 'completed') {
+                statusEl.textContent = 'Соединено';
+                if (!callTimer) startCallTimer();
+            } else if (peerConnection.iceConnectionState === 'failed') {
+                statusEl.textContent = 'Ошибка соединения';
                 peerConnection.restartIce();
+            } else if (peerConnection.iceConnectionState === 'disconnected') {
+                statusEl.textContent = 'Переподключение...';
             }
         };
         
@@ -1750,9 +1816,6 @@ async function acceptCall() {
             callId: currentCallId
         });
         
-        // Обновляем статус на "Соединено"
-        document.getElementById('call-status').textContent = 'Соединено';
-        startCallTimer();
         updateVideoButtonState();
     } catch (err) {
         console.error('Ошибка:', err);
@@ -1780,12 +1843,12 @@ async function handleCallAnswered(data) {
         try {
             const answer = new RTCSessionDescription(data.answer);
             await peerConnection.setRemoteDescription(answer);
+            // Статус обновится через oniceconnectionstatechange когда соединение установится
+            document.getElementById('call-status').textContent = 'Подключение...';
         } catch (e) {
             console.error('Error setting remote description:', e);
         }
     }
-    document.getElementById('call-status').textContent = 'Соединено';
-    startCallTimer();
 }
 
 function handleCallDeclined() {
@@ -1890,24 +1953,42 @@ function cleanupCall() {
     }
     
     if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
+        localStream.getTracks().forEach(track => {
+            track.stop();
+            track.enabled = false;
+        });
         localStream = null;
     }
     
     if (screenStream) {
-        screenStream.getTracks().forEach(track => track.stop());
+        screenStream.getTracks().forEach(track => {
+            track.stop();
+            track.enabled = false;
+        });
         screenStream = null;
     }
     
     if (peerConnection) {
+        // Удаляем все обработчики
+        peerConnection.ontrack = null;
+        peerConnection.onicecandidate = null;
+        peerConnection.oniceconnectionstatechange = null;
         peerConnection.close();
         peerConnection = null;
     }
     
+    // Очищаем видео элементы
+    const localVideo = document.getElementById('local-video');
+    const remoteVideo = document.getElementById('remote-video');
+    if (localVideo) localVideo.srcObject = null;
+    if (remoteVideo) remoteVideo.srcObject = null;
+    
     isScreenSharing = false;
     isMuted = false;
+    isVideoCall = false;
     currentCallUser = null;
     currentCallId = null;
+    incomingCallData = null;
     hideCallBar();
 }
 
@@ -2185,6 +2266,20 @@ document.addEventListener('DOMContentLoaded', () => {
         registerError.textContent = '';
     });
     
+    // Галочки согласия при регистрации
+    const agreeTerms = document.getElementById('agree-terms');
+    const agreePrivacy = document.getElementById('agree-privacy');
+    const registerBtn = document.getElementById('register-btn');
+    
+    function updateRegisterButton() {
+        if (registerBtn) {
+            registerBtn.disabled = !(agreeTerms?.checked && agreePrivacy?.checked);
+        }
+    }
+    
+    agreeTerms?.addEventListener('change', updateRegisterButton);
+    agreePrivacy?.addEventListener('change', updateRegisterButton);
+    
     // Вход
     loginForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -2309,10 +2404,101 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('edit-avatar-input')?.addEventListener('change', handleAvatarChange);
     document.getElementById('edit-banner-input')?.addEventListener('change', handleBannerChange);
     
-    // Профиль собеседника
-    document.getElementById('chat-user-info-btn')?.addEventListener('click', () => {
+    // Профиль собеседника (клик на аватар/имя)
+    document.querySelector('.chat-header-info')?.addEventListener('click', (e) => {
+        e.stopPropagation();
         if (state.selectedUser) {
             showUserProfile(state.selectedUser.id);
+        }
+    });
+    
+    document.querySelector('.chat-header-avatar')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (state.selectedUser) {
+            showUserProfile(state.selectedUser.id);
+        }
+    });
+    
+    // Контекстное меню чата (3 точки)
+    const chatMenuBtn = document.getElementById('chat-menu-btn');
+    const chatContextMenu = document.getElementById('chat-context-menu');
+    
+    chatMenuBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!state.selectedUser) return;
+        
+        // Обновляем состояние уведомлений
+        const isMuted = isUserMuted(state.selectedUser.id);
+        document.getElementById('ctx-notif-icon').textContent = isMuted ? '🔕' : '🔔';
+        document.getElementById('ctx-notif-text').textContent = isMuted ? 'Включить уведомления' : 'Отключить уведомления';
+        
+        chatContextMenu?.classList.toggle('hidden');
+    });
+    
+    // Закрытие меню при клике вне
+    document.addEventListener('click', (e) => {
+        if (chatContextMenu && !chatContextMenu.contains(e.target) && e.target !== chatMenuBtn) {
+            chatContextMenu.classList.add('hidden');
+        }
+    });
+    
+    // Пункты контекстного меню
+    document.getElementById('ctx-view-profile')?.addEventListener('click', () => {
+        chatContextMenu?.classList.add('hidden');
+        if (state.selectedUser) {
+            showUserProfile(state.selectedUser.id);
+        }
+    });
+    
+    document.getElementById('ctx-set-nickname')?.addEventListener('click', async () => {
+        chatContextMenu?.classList.add('hidden');
+        if (!state.selectedUser) return;
+        
+        const currentNickname = getLocalNickname(state.selectedUser.id);
+        const nickname = await customPrompt({
+            title: 'Записать как...',
+            message: 'Этот никнейм будете видеть только вы',
+            icon: '✏️',
+            placeholder: 'Введите никнейм',
+            defaultValue: currentNickname || '',
+            okText: 'Сохранить',
+            cancelText: 'Отмена'
+        });
+        
+        if (nickname !== null) {
+            setLocalNickname(state.selectedUser.id, nickname);
+            // Обновляем отображение
+            const displayName = nickname || state.selectedUserProfile?.display_name || state.selectedUser.username;
+            document.querySelector('.chat-user-name').textContent = displayName;
+            updateContactsList();
+            showToast(nickname ? 'Никнейм сохранён' : 'Никнейм удалён');
+        }
+    });
+    
+    document.getElementById('ctx-toggle-notifications')?.addEventListener('click', () => {
+        chatContextMenu?.classList.add('hidden');
+        if (!state.selectedUser) return;
+        
+        const isMuted = toggleUserMuted(state.selectedUser.id);
+        showToast(isMuted ? 'Уведомления отключены' : 'Уведомления включены');
+    });
+    
+    document.getElementById('ctx-clear-chat')?.addEventListener('click', async () => {
+        chatContextMenu?.classList.add('hidden');
+        if (!state.selectedUser) return;
+        
+        const confirmed = await customConfirm({
+            title: 'Очистить чат',
+            message: 'Сообщения будут удалены только у вас',
+            icon: '🗑️',
+            variant: 'danger',
+            okText: 'Очистить',
+            cancelText: 'Отмена'
+        });
+        
+        if (confirmed) {
+            document.getElementById('messages').innerHTML = '';
+            showToast('Чат очищен');
         }
     });
     
@@ -2572,8 +2758,18 @@ async function showMyProfile() {
     await loadMyProfile();
     
     const profile = state.currentUserProfile;
+    const modalContent = document.querySelector('#profile-modal .profile-modal-content');
     const avatarEl = document.getElementById('profile-avatar');
     const bannerEl = document.getElementById('profile-banner');
+    
+    // Применяем кастомный цвет фона профиля к модалке
+    if (profile?.profile_color && modalContent) {
+        modalContent.style.setProperty('--profile-color', profile.profile_color);
+        modalContent.setAttribute('data-profile-color', '');
+    } else if (modalContent) {
+        modalContent.style.removeProperty('--profile-color');
+        modalContent.removeAttribute('data-profile-color');
+    }
     
     if (profile?.avatar_url) {
         avatarEl.style.backgroundImage = `url(${profile.avatar_url})`;
@@ -2594,10 +2790,6 @@ async function showMyProfile() {
     } else if (profile?.profile_theme && profile.profile_theme !== 'default') {
         bannerEl.style.backgroundImage = '';
         bannerEl.className = `profile-banner theme-${profile.profile_theme}`;
-    } else if (profile?.profile_color) {
-        bannerEl.style.backgroundImage = '';
-        bannerEl.style.background = profile.profile_color;
-        bannerEl.className = 'profile-banner';
     } else {
         bannerEl.style.backgroundImage = '';
         bannerEl.style.background = 'linear-gradient(135deg, #4fc3f7, #1976d2)';
@@ -2607,14 +2799,14 @@ async function showMyProfile() {
     document.getElementById('profile-name').textContent = profile?.display_name || state.currentUser.username;
     document.getElementById('profile-username').textContent = '@' + state.currentUser.username;
     
-    // Отображаем тег (ID)
-    const tag = profile?.tag || state.currentUser.tag;
+    // Отображаем тег (ID) - используем custom_id если есть (Premium), иначе обычный tag
+    const displayTag = profile?.custom_id || profile?.tag || state.currentUser.tag;
     const tagEl = document.getElementById('profile-tag');
     if (tagEl) {
-        tagEl.textContent = tag ? `${state.currentUser.username}#${tag}` : '';
+        tagEl.textContent = displayTag ? `${state.currentUser.username}#${displayTag}` : '';
         tagEl.title = 'Нажмите чтобы скопировать';
         tagEl.onclick = () => {
-            navigator.clipboard.writeText(`${state.currentUser.username}#${tag}`);
+            navigator.clipboard.writeText(`${state.currentUser.username}#${displayTag}`);
             showToast('ID скопирован!');
         };
     }
@@ -2661,9 +2853,6 @@ function showEditProfile() {
     if (state.currentUserProfile?.banner_url) {
         bannerPreview.style.backgroundImage = `url(${state.currentUserProfile.banner_url})`;
         bannerPreview.style.background = '';
-    } else if (state.currentUserProfile?.profile_color) {
-        bannerPreview.style.backgroundImage = '';
-        bannerPreview.style.background = state.currentUserProfile.profile_color;
     } else {
         bannerPreview.style.backgroundImage = '';
         bannerPreview.style.background = 'linear-gradient(135deg, #4fc3f7, #1976d2)';
@@ -2681,7 +2870,7 @@ function showEditProfile() {
     if (premiumSection) {
         document.getElementById('edit-name-color').value = state.currentUserProfile?.name_color || '#4fc3f7';
         document.getElementById('edit-profile-color').value = state.currentUserProfile?.profile_color || '#1976d2';
-        document.getElementById('edit-custom-tag').value = state.currentUserProfile?.custom_tag || '';
+        document.getElementById('edit-custom-id').value = state.currentUserProfile?.custom_id || '';
         
         if (isPremium) {
             premiumSection.classList.remove('locked');
@@ -2773,12 +2962,12 @@ async function saveProfile() {
         if (isPremium) {
             const nameColor = document.getElementById('edit-name-color')?.value;
             const profileColor = document.getElementById('edit-profile-color')?.value;
-            const customTag = document.getElementById('edit-custom-tag')?.value?.trim();
+            const customId = document.getElementById('edit-custom-id')?.value?.trim();
             
             await api.put(`/api/user/${state.currentUser.id}/premium-settings`, {
                 name_color: nameColor !== '#4fc3f7' ? nameColor : null,
                 profile_color: profileColor !== '#1976d2' ? profileColor : null,
-                custom_tag: customTag || null
+                custom_id: customId || null
             });
         }
         
@@ -2803,8 +2992,18 @@ async function showUserProfile(userId) {
         
         if (!profile) return;
         
+        const modalContent = document.querySelector('#user-profile-modal .profile-modal-content');
         const avatarEl = document.getElementById('user-profile-avatar');
         const bannerEl = document.getElementById('user-profile-banner');
+        
+        // Применяем кастомный цвет фона профиля к модалке
+        if (profile.profile_color && modalContent) {
+            modalContent.style.setProperty('--profile-color', profile.profile_color);
+            modalContent.setAttribute('data-profile-color', '');
+        } else if (modalContent) {
+            modalContent.style.removeProperty('--profile-color');
+            modalContent.removeAttribute('data-profile-color');
+        }
         
         if (profile.avatar_url) {
             avatarEl.style.backgroundImage = `url(${profile.avatar_url})`;
@@ -2829,12 +3028,13 @@ async function showUserProfile(userId) {
         document.getElementById('user-profile-name').textContent = profile.display_name || profile.username;
         document.getElementById('user-profile-username').textContent = '@' + profile.username;
         
-        // Тег
+        // Тег - используем custom_id если есть (Premium), иначе обычный tag
         const tagEl = document.getElementById('user-profile-tag');
-        if (tagEl && profile.tag) {
-            tagEl.textContent = `${profile.username}#${profile.tag}`;
+        const userDisplayTag = profile.custom_id || profile.tag;
+        if (tagEl && userDisplayTag) {
+            tagEl.textContent = `${profile.username}#${userDisplayTag}`;
             tagEl.onclick = () => {
-                navigator.clipboard.writeText(`${profile.username}#${profile.tag}`);
+                navigator.clipboard.writeText(`${profile.username}#${userDisplayTag}`);
                 showToast('ID скопирован!');
             };
         }
@@ -3000,7 +3200,7 @@ function renderAdminUsers(users) {
                         ${user.isPremium ? '<span class="profile-badge premium">Premium</span>' : ''}
                     </span>
                 </div>
-                <div class="admin-user-tag">${user.username}#${user.tag || '????'}</div>
+                <div class="admin-user-tag">${user.username}#${user.custom_id || user.tag || '????'}</div>
             </div>
             <div class="admin-user-actions">
                 ${user.id !== state.currentUser.id ? `
@@ -3546,7 +3746,7 @@ async function performGlobalSearch(query) {
                         <div class="search-item-avatar" style="${avatarStyle}">${avatarText}</div>
                         <div class="search-item-info">
                             <div class="search-item-name">${highlightText(displayName, query)}</div>
-                            <div class="search-item-text">@${highlightText(user.username, query)}${user.tag ? `#${user.tag}` : ''}</div>
+                            <div class="search-item-text">@${highlightText(user.username, query)}#${user.custom_id || user.tag || '????'}</div>
                         </div>
                     </div>
                 `;
@@ -3860,6 +4060,21 @@ document.addEventListener('DOMContentLoaded', () => {
         saveSettings();
         showToast(e.target.checked ? 'Звуки включены' : 'Звуки выключены');
     });
+    
+    // Громкость
+    const volumeSlider = document.getElementById('volume-slider');
+    const volumeValue = document.getElementById('volume-value');
+    if (volumeSlider) {
+        volumeSlider.value = state.settings.volume ?? 50;
+        volumeValue.textContent = `${volumeSlider.value}%`;
+        
+        volumeSlider.addEventListener('input', (e) => {
+            const vol = parseInt(e.target.value);
+            state.settings.volume = vol;
+            volumeValue.textContent = `${vol}%`;
+            saveSettings();
+        });
+    }
     
     // Компактный режим
     document.getElementById('setting-compact')?.addEventListener('change', (e) => {

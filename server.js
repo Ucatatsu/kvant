@@ -173,11 +173,25 @@ io.use(socketAuthMiddleware);
 app.use(express.static('public'));
 app.use(express.json({ limit: '1mb' }));
 
-// Онлайн пользователи: userId -> { socketId, lastSeen, status }
+// Онлайн пользователи: userId -> { sockets: Set<socketId>, lastSeen, status, hideOnline }
 const onlineUsers = new Map();
 
 // Активные звонки
 const activeCalls = new Map();
+
+// Получить все сокеты пользователя
+function getUserSockets(userId) {
+    const userData = onlineUsers.get(userId);
+    return userData?.sockets || new Set();
+}
+
+// Отправить событие всем сокетам пользователя
+function emitToUser(userId, event, data) {
+    const sockets = getUserSockets(userId);
+    for (const socketId of sockets) {
+        io.to(socketId).emit(event, data);
+    }
+}
 
 // Функция для отправки списка онлайн пользователей с их статусами
 async function broadcastOnlineUsers() {
@@ -367,16 +381,16 @@ app.put('/api/user/:userId/premium-settings', authMiddleware, ownerMiddleware('u
             return res.status(403).json({ success: false, error: 'Требуется Premium подписка' });
         }
         
-        const { name_color, profile_theme, profile_color, custom_tag, hide_online } = req.body;
+        const { name_color, profile_theme, profile_color, custom_id, hide_online } = req.body;
         
-        // Проверка кастомного тега
-        if (custom_tag) {
-            if (!/^[a-zA-Z0-9_]{2,20}$/.test(custom_tag)) {
-                return res.status(400).json({ success: false, error: 'Тег: 2-20 символов, буквы, цифры и _' });
+        // Проверка кастомного ID (4 цифры)
+        if (custom_id) {
+            if (!/^\d{4}$/.test(custom_id)) {
+                return res.status(400).json({ success: false, error: 'ID должен быть 4 цифры (0000-9999)' });
             }
-            const available = await db.isCustomTagAvailable(custom_tag, req.user.id);
+            const available = await db.isCustomIdAvailable(custom_id, req.user.id);
             if (!available) {
-                return res.status(400).json({ success: false, error: 'Этот тег уже занят' });
+                return res.status(400).json({ success: false, error: 'Этот ID уже занят' });
             }
         }
         
@@ -384,7 +398,7 @@ app.put('/api/user/:userId/premium-settings', authMiddleware, ownerMiddleware('u
             name_color: name_color || null,
             profile_theme: profile_theme || null,
             profile_color: profile_color || null,
-            custom_tag: custom_tag || null,
+            custom_id: custom_id || null,
             hide_online: hide_online !== undefined ? hide_online : null
         };
         
@@ -755,14 +769,28 @@ async function sendPushNotification(userId, payload) {
 
 io.on('connection', async (socket) => {
     const userId = socket.user.id;
-    console.log(`Пользователь подключился: ${userId}`);
+    console.log(`Пользователь подключился: ${userId} (socket: ${socket.id})`);
     
     // Загружаем настройки пользователя (включая hide_online)
     const userProfile = await db.getUser(userId);
     const hideOnline = userProfile?.hide_online || false;
     
-    // Регистрируем пользователя онлайн
-    onlineUsers.set(userId, { socketId: socket.id, lastSeen: Date.now(), status: 'online', hideOnline });
+    // Регистрируем пользователя онлайн (поддержка нескольких устройств)
+    let userData = onlineUsers.get(userId);
+    if (userData) {
+        // Добавляем новый сокет к существующему пользователю
+        userData.sockets.add(socket.id);
+        userData.lastSeen = Date.now();
+    } else {
+        // Новый пользователь
+        userData = { 
+            sockets: new Set([socket.id]), 
+            lastSeen: Date.now(), 
+            status: 'online', 
+            hideOnline 
+        };
+    }
+    onlineUsers.set(userId, userData);
     broadcastOnlineUsers();
     
     // Изменение статуса
@@ -789,9 +817,10 @@ io.on('connection', async (socket) => {
             
             const message = await db.saveMessage(userId, receiverId, sanitizedText, messageType);
             
+            // Отправляем получателю (все его устройства)
             const receiverData = onlineUsers.get(receiverId);
-            if (receiverData) {
-                io.to(receiverData.socketId).emit('new-message', message);
+            if (receiverData && receiverData.sockets.size > 0) {
+                emitToUser(receiverId, 'new-message', message);
             } else {
                 // Оффлайн - push уведомление
                 const notifBody = ['image', 'video', 'gif'].includes(messageType) 
@@ -805,7 +834,8 @@ io.on('connection', async (socket) => {
                 });
             }
             
-            socket.emit('message-sent', message);
+            // Отправляем отправителю на все его устройства (синхронизация)
+            emitToUser(userId, 'message-sent', message);
         } catch (error) {
             console.error('Send message error:', error);
             socket.emit('error', { message: 'Ошибка отправки' });
@@ -814,17 +844,11 @@ io.on('connection', async (socket) => {
 
     // Индикатор печати
     socket.on('typing-start', (data) => {
-        const receiverData = onlineUsers.get(data.receiverId);
-        if (receiverData) {
-            io.to(receiverData.socketId).emit('user-typing', { userId, typing: true });
-        }
+        emitToUser(data.receiverId, 'user-typing', { userId, typing: true });
     });
 
     socket.on('typing-stop', (data) => {
-        const receiverData = onlineUsers.get(data.receiverId);
-        if (receiverData) {
-            io.to(receiverData.socketId).emit('user-typing', { userId, typing: false });
-        }
+        emitToUser(data.receiverId, 'user-typing', { userId, typing: false });
     });
 
     // === РЕДАКТИРОВАНИЕ И УДАЛЕНИЕ СООБЩЕНИЙ ===
@@ -836,11 +860,9 @@ io.on('connection', async (socket) => {
             
             const result = await db.editMessage(messageId, userId, text.trim().substring(0, 5000));
             if (result.success) {
-                socket.emit('message-edited', { messageId, text: result.message.text, updated_at: result.message.updated_at });
-                const receiverData = onlineUsers.get(receiverId);
-                if (receiverData) {
-                    io.to(receiverData.socketId).emit('message-edited', { messageId, text: result.message.text, updated_at: result.message.updated_at });
-                }
+                const editData = { messageId, text: result.message.text, updated_at: result.message.updated_at };
+                emitToUser(userId, 'message-edited', editData);
+                emitToUser(receiverId, 'message-edited', editData);
             }
         } catch (error) {
             console.error('Edit message error:', error);
@@ -854,11 +876,9 @@ io.on('connection', async (socket) => {
             
             const result = await db.deleteMessage(messageId, userId);
             if (result.success) {
-                socket.emit('message-deleted', { messageId });
-                const receiverData = onlineUsers.get(receiverId);
-                if (receiverData) {
-                    io.to(receiverData.socketId).emit('message-deleted', { messageId });
-                }
+                const deleteData = { messageId };
+                emitToUser(userId, 'message-deleted', deleteData);
+                emitToUser(receiverId, 'message-deleted', deleteData);
             }
         } catch (error) {
             console.error('Delete message error:', error);
@@ -874,11 +894,8 @@ io.on('connection', async (socket) => {
             
             await db.addReaction(messageId, userId, emoji);
             const reaction = { messageId, odataId: userId, emoji };
-            socket.emit('reaction-added', reaction);
-            const receiverData = onlineUsers.get(receiverId);
-            if (receiverData) {
-                io.to(receiverData.socketId).emit('reaction-added', reaction);
-            }
+            emitToUser(userId, 'reaction-added', reaction);
+            emitToUser(receiverId, 'reaction-added', reaction);
         } catch (error) {
             console.error('Add reaction error:', error);
         }
@@ -891,11 +908,8 @@ io.on('connection', async (socket) => {
             
             await db.removeReaction(messageId, userId, emoji);
             const reaction = { messageId, odataId: userId, emoji };
-            socket.emit('reaction-removed', reaction);
-            const receiverData = onlineUsers.get(receiverId);
-            if (receiverData) {
-                io.to(receiverData.socketId).emit('reaction-removed', reaction);
-            }
+            emitToUser(userId, 'reaction-removed', reaction);
+            emitToUser(receiverId, 'reaction-removed', reaction);
         } catch (error) {
             console.error('Remove reaction error:', error);
         }
@@ -917,8 +931,9 @@ io.on('connection', async (socket) => {
             isVideo
         });
         
-        if (receiverData) {
-            io.to(receiverData.socketId).emit('incoming-call', { 
+        if (receiverData && receiverData.sockets.size > 0) {
+            // Отправляем на все устройства получателя
+            emitToUser(to, 'incoming-call', { 
                 from: userId, 
                 fromName: socket.user.username, 
                 offer, 
@@ -963,25 +978,19 @@ io.on('connection', async (socket) => {
 
     socket.on('call-answer', async (data) => {
         const { to, answer, callId } = data;
-        const callerData = onlineUsers.get(to);
         
-        if (callerData) {
-            const call = activeCalls.get(callId);
-            if (call) {
-                call.startTime = Date.now();
-                activeCalls.set(callId, call);
-            }
-            io.to(callerData.socketId).emit('call-answered', { answer, callId });
+        const call = activeCalls.get(callId);
+        if (call) {
+            call.startTime = Date.now();
+            call.answeredBy = socket.id; // Запоминаем кто ответил
+            activeCalls.set(callId, call);
         }
+        emitToUser(to, 'call-answered', { answer, callId });
     });
 
     socket.on('call-decline', (data) => {
         const { to, callId } = data;
-        const callerData = onlineUsers.get(to);
-        
-        if (callerData) {
-            io.to(callerData.socketId).emit('call-declined');
-        }
+        emitToUser(to, 'call-declined', { callId });
         if (callId) activeCalls.delete(callId);
     });
 
@@ -999,82 +1008,67 @@ io.on('connection', async (socket) => {
                 const receiver = call.participants.find(p => p !== call.caller);
                 const message = await db.saveMessage(call.caller, receiver, callText, callType, duration);
                 
-                const callerData = onlineUsers.get(call.caller);
-                const receiverData = onlineUsers.get(receiver);
-                
-                if (callerData) io.to(callerData.socketId).emit('call-message', message);
-                if (receiverData) io.to(receiverData.socketId).emit('call-message', message);
+                emitToUser(call.caller, 'call-message', message);
+                emitToUser(receiver, 'call-message', message);
             } catch (error) {
                 console.error('Save call message error:', error);
             }
         }
         
-        if (otherData) {
-            io.to(otherData.socketId).emit('call-ended', { callId });
-        }
+        emitToUser(to, 'call-ended', { callId });
         
         if (callId) activeCalls.delete(callId);
     });
 
     socket.on('ice-candidate', (data) => {
         const { to, candidate } = data;
-        const otherData = onlineUsers.get(to);
-        if (otherData) {
-            io.to(otherData.socketId).emit('ice-candidate', { candidate });
-        }
+        emitToUser(to, 'ice-candidate', { candidate });
     });
 
     socket.on('video-renegotiate', (data) => {
         const { to, offer } = data;
-        const otherData = onlineUsers.get(to);
-        if (otherData) {
-            io.to(otherData.socketId).emit('video-renegotiate', { offer });
-        }
+        emitToUser(to, 'video-renegotiate', { offer });
     });
 
     socket.on('video-renegotiate-answer', (data) => {
         const { to, answer } = data;
-        const otherData = onlineUsers.get(to);
-        if (otherData) {
-            io.to(otherData.socketId).emit('video-renegotiate-answer', { answer });
-        }
+        emitToUser(to, 'video-renegotiate-answer', { answer });
     });
 
     // Уведомление о демонстрации экрана
     socket.on('screen-share-started', (data) => {
         const { to } = data;
-        const otherData = onlineUsers.get(to);
-        if (otherData) {
-            io.to(otherData.socketId).emit('screen-share-started', { from: userId });
-        }
+        emitToUser(to, 'screen-share-started', { from: userId });
     });
 
     socket.on('screen-share-stopped', (data) => {
         const { to } = data;
-        const otherData = onlineUsers.get(to);
-        if (otherData) {
-            io.to(otherData.socketId).emit('screen-share-stopped', { from: userId });
-        }
+        emitToUser(to, 'screen-share-stopped', { from: userId });
     });
 
     // Отключение
     socket.on('disconnect', () => {
-        onlineUsers.delete(userId);
+        // Удаляем только этот сокет, не всего пользователя
+        const userData = onlineUsers.get(userId);
+        if (userData) {
+            userData.sockets.delete(socket.id);
+            if (userData.sockets.size === 0) {
+                // Все устройства отключены
+                onlineUsers.delete(userId);
+            }
+        }
         broadcastOnlineUsers();
         
-        // Завершаем активные звонки пользователя
+        // Завершаем активные звонки только если это был сокет звонка
         for (const [callId, call] of activeCalls.entries()) {
-            if (call.participants.includes(userId)) {
+            if (call.participants.includes(userId) && call.answeredBy === socket.id) {
                 const otherId = call.participants.find(p => p !== userId);
-                const otherData = onlineUsers.get(otherId);
-                if (otherData) {
-                    io.to(otherData.socketId).emit('call-ended', { callId, reason: 'disconnect' });
-                }
+                emitToUser(otherId, 'call-ended', { callId, reason: 'disconnect' });
                 activeCalls.delete(callId);
             }
         }
         
-        console.log(`Пользователь отключился: ${userId}`);
+        console.log(`Сокет отключился: ${userId} (socket: ${socket.id})`);
     });
 });
 

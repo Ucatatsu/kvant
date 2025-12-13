@@ -65,7 +65,8 @@ async function initDB() {
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS name_color TEXT',
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_theme TEXT DEFAULT \'default\'',
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_color TEXT',
-            'ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_tag TEXT',
+            'ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_tag TEXT', // deprecated, use custom_id
+            'ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_id TEXT',
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS hide_online BOOLEAN DEFAULT FALSE'
         ];
         
@@ -247,7 +248,7 @@ async function getUser(userId) {
     try {
         const result = await pool.query(
             `SELECT id, username, tag, role, premium_until, display_name, phone, bio, avatar_url, banner_url, 
-                    name_color, profile_theme, profile_color, custom_tag, hide_online, created_at 
+                    name_color, profile_theme, profile_color, custom_tag, custom_id, hide_online, created_at 
              FROM users WHERE id = $1`,
             [userId]
         );
@@ -376,17 +377,17 @@ async function updateUser(userId, data) {
 // Premium: обновление настроек профиля
 async function updatePremiumSettings(userId, data) {
     try {
-        const { name_color, profile_theme, profile_color, custom_tag, hide_online } = data;
+        const { name_color, profile_theme, profile_color, custom_id, hide_online } = data;
         await pool.query(
             `UPDATE users SET 
                 name_color = COALESCE($2, name_color),
                 profile_theme = COALESCE($3, profile_theme),
                 profile_color = COALESCE($4, profile_color),
-                custom_tag = COALESCE($5, custom_tag),
+                custom_id = COALESCE($5, custom_id),
                 hide_online = COALESCE($6, hide_online),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $1`,
-            [userId, name_color || null, profile_theme || null, profile_color || null, custom_tag || null, hide_online]
+            [userId, name_color || null, profile_theme || null, profile_color || null, custom_id || null, hide_online]
         );
         return { success: true };
     } catch (error) {
@@ -395,16 +396,16 @@ async function updatePremiumSettings(userId, data) {
     }
 }
 
-// Проверка уникальности кастомного тега
-async function isCustomTagAvailable(tag, excludeUserId) {
+// Проверка уникальности кастомного ID
+async function isCustomIdAvailable(customId, excludeUserId) {
     try {
         const result = await pool.query(
-            'SELECT id FROM users WHERE custom_tag = $1 AND id != $2',
-            [tag, excludeUserId]
+            'SELECT id FROM users WHERE custom_id = $1 AND id != $2',
+            [customId, excludeUserId]
         );
         return result.rows.length === 0;
     } catch (error) {
-        console.error('Check custom tag error:', error);
+        console.error('Check custom id error:', error);
         return false;
     }
 }
@@ -453,9 +454,9 @@ async function searchUsers(query, excludeUserId) {
         if (sanitized.length < 2) return [];
         
         const result = await pool.query(
-            `SELECT id, username, display_name, avatar_url, role, premium_until, name_color, custom_tag
+            `SELECT id, username, tag, display_name, avatar_url, role, premium_until, name_color, custom_id
              FROM users 
-             WHERE (username ILIKE $1 OR display_name ILIKE $1 OR custom_tag ILIKE $1) AND id != $2
+             WHERE (username ILIKE $1 OR display_name ILIKE $1 OR custom_id ILIKE $1 OR tag ILIKE $1) AND id != $2
              LIMIT 20`,
             [`%${sanitized}%`, excludeUserId]
         );
@@ -543,7 +544,7 @@ async function getMessages(userId1, userId2, limit = 50, before = null) {
 async function getContacts(userId) {
     try {
         const result = await pool.query(`
-            SELECT DISTINCT u.id, u.username, u.display_name, u.avatar_url, u.role, u.premium_until, u.name_color, u.custom_tag,
+            SELECT DISTINCT u.id, u.username, u.tag, u.display_name, u.avatar_url, u.role, u.premium_until, u.name_color, u.custom_id,
                 (SELECT COUNT(*) FROM messages m 
                  WHERE m.sender_id = u.id AND m.receiver_id = $1 AND m.is_read = FALSE) as unread_count,
                 (SELECT MAX(created_at) FROM messages m 
@@ -772,6 +773,7 @@ module.exports = {
     // Premium
     updatePremiumSettings,
     isCustomTagAvailable,
+    isCustomIdAvailable,
     // Сообщения
     editMessage,
     deleteMessage,
