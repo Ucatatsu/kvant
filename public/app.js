@@ -883,9 +883,12 @@ function createMessageElement(msg, isSent) {
     
     // Определяем контент в зависимости от типа сообщения
     let bubbleContent;
-    if (msg.message_type === 'image' || msg.message_type === 'gif') {
-        bubbleContent = `<img src="${escapeAttr(msg.text)}" class="message-media" alt="Изображение" loading="lazy" onclick="openMediaViewer('${escapeAttr(msg.text)}')">`;
-    } else if (msg.message_type === 'video') {
+    const isMedia = msg.message_type === 'image' || msg.message_type === 'gif';
+    const isVideo = msg.message_type === 'video';
+    
+    if (isMedia) {
+        bubbleContent = `<img src="${escapeAttr(msg.text)}" class="message-media" alt="Изображение" loading="lazy">`;
+    } else if (isVideo) {
         bubbleContent = `<video src="${escapeAttr(msg.text)}" class="message-media" controls preload="metadata"></video>`;
     } else {
         bubbleContent = escapeHtml(msg.text);
@@ -900,6 +903,13 @@ function createMessageElement(msg, isSent) {
             <button class="add-reaction-btn" title="Добавить реакцию">😊</button>
         </div>
     `;
+    
+    // Клик на изображение - открыть просмотр
+    if (isMedia) {
+        div.querySelector('.message-media')?.addEventListener('click', () => {
+            openMediaViewer(msg.text);
+        });
+    }
     
     // Контекстное меню по правому клику
     div.addEventListener('contextmenu', (e) => showMessageContextMenu(e, msg, isSent));
