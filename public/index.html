@@ -63,10 +63,13 @@
     <aside class="sidebar" role="navigation" aria-label="Контакты">
       <div class="sidebar-header">
         <img src="icon.png" alt="Квант" class="logo-mini-img">
+        <button class="global-search-btn" id="global-search-btn" title="Поиск" aria-label="Глобальный поиск">
+          🔍
+        </button>
       </div>
       <div class="chats-header">
-        <input type="search" class="search-input" placeholder="🔍 Поиск" 
-               aria-label="Поиск пользователей">
+        <input type="search" class="search-input" placeholder="Фильтр чатов..." 
+               aria-label="Фильтр чатов">
       </div>
       <div class="users-list" id="users-list" role="list" aria-label="Список контактов"></div>
       <div class="sidebar-footer" id="user-panel" role="button" tabindex="0" aria-label="Открыть карточку профиля">
@@ -285,7 +288,7 @@
             <span aria-hidden="true">👑</span> Админ-панель
           </button>
           <button class="settings-logout-btn" id="logout-btn">
-            <span aria-hidden="true">🚪</span> Выйти из аккаунта
+            <span aria-hidden="true">🚪</span> Выйти
           </button>
         </div>
       </div>
@@ -546,6 +549,24 @@
           <input type="text" id="admin-search" placeholder="Поиск по username или ID...">
         </div>
         <div class="admin-users" id="admin-users"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка глобального поиска -->
+  <div id="search-modal" class="modal hidden" role="dialog" aria-label="Поиск" aria-modal="true">
+    <div class="modal-overlay"></div>
+    <div class="search-modal-content">
+      <div class="search-input-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="global-search-input" placeholder="Поиск пользователей и сообщений..." 
+               autocomplete="off" autofocus>
+        <button class="search-close-btn" id="close-search" aria-label="Закрыть">✕</button>
+      </div>
+      <div class="search-results" id="search-results">
+        <div class="search-empty">
+          <div class="search-empty-text">Начните вводить для поиска</div>
+        </div>
       </div>
     </div>
   </div>

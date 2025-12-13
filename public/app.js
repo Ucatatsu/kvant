@@ -941,6 +941,8 @@ async function acceptCall() {
             callId: currentCallId
         });
         
+        // Обновляем статус на "Соединено"
+        document.getElementById('call-status').textContent = 'Соединено';
         startCallTimer();
         updateVideoButtonState();
     } catch (err) {
@@ -2412,5 +2414,197 @@ document.addEventListener('DOMContentLoaded', () => {
                 showUserProfile(state.selectedUser.id);
             }
         });
+    });
+});
+
+
+// === GLOBAL SEARCH ===
+
+let searchTimeout = null;
+
+function openSearchModal() {
+    document.getElementById('search-modal').classList.remove('hidden');
+    const input = document.getElementById('global-search-input');
+    input.value = '';
+    input.focus();
+    renderSearchEmpty();
+}
+
+function closeSearchModal() {
+    document.getElementById('search-modal').classList.add('hidden');
+    document.getElementById('global-search-input').value = '';
+}
+
+function renderSearchEmpty() {
+    document.getElementById('search-results').innerHTML = `
+        <div class="search-empty">
+            <div class="search-empty-text">Начните вводить для поиска</div>
+            <div class="search-empty-hint">Поиск по пользователям и сообщениям</div>
+        </div>
+    `;
+}
+
+function renderSearchLoading() {
+    document.getElementById('search-results').innerHTML = `
+        <div class="search-loading">Поиск...</div>
+    `;
+}
+
+function renderSearchNotFound() {
+    document.getElementById('search-results').innerHTML = `
+        <div class="search-empty">
+            <div class="search-empty-text">Ничего не найдено</div>
+            <div class="search-empty-hint">Попробуйте изменить запрос</div>
+        </div>
+    `;
+}
+
+function highlightText(text, query) {
+    if (!query) return escapeHtml(text);
+    const escaped = escapeHtml(text);
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return escaped.replace(regex, '<mark>$1</mark>');
+}
+
+async function performGlobalSearch(query) {
+    if (!query || query.length < 2) {
+        renderSearchEmpty();
+        return;
+    }
+    
+    renderSearchLoading();
+    
+    try {
+        const res = await api.get(`/api/search?q=${encodeURIComponent(query)}`);
+        if (!res.ok) throw new Error('Search failed');
+        
+        const { users, messages } = await res.json();
+        
+        if (users.length === 0 && messages.length === 0) {
+            renderSearchNotFound();
+            return;
+        }
+        
+        let html = '';
+        
+        // Пользователи
+        if (users.length > 0) {
+            html += `<div class="search-section">
+                <div class="search-section-title">Пользователи</div>`;
+            
+            users.forEach(user => {
+                const avatarStyle = user.avatar_url 
+                    ? `background-image: url(${escapeAttr(user.avatar_url)})`
+                    : '';
+                const avatarText = user.avatar_url ? '' : user.username[0].toUpperCase();
+                const displayName = user.display_name || user.username;
+                
+                html += `
+                    <div class="search-item" data-type="user" data-id="${escapeAttr(user.id)}" data-name="${escapeAttr(user.username)}">
+                        <div class="search-item-avatar" style="${avatarStyle}">${avatarText}</div>
+                        <div class="search-item-info">
+                            <div class="search-item-name">${highlightText(displayName, query)}</div>
+                            <div class="search-item-text">@${highlightText(user.username, query)}${user.tag ? `#${user.tag}` : ''}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+        }
+        
+        // Сообщения
+        if (messages.length > 0) {
+            html += `<div class="search-section">
+                <div class="search-section-title">Сообщения</div>`;
+            
+            messages.forEach(msg => {
+                const senderName = msg.sender_display_name || msg.sender_username;
+                const avatarStyle = msg.sender_avatar 
+                    ? `background-image: url(${escapeAttr(msg.sender_avatar)})`
+                    : '';
+                const avatarText = msg.sender_avatar ? '' : msg.sender_username[0].toUpperCase();
+                const time = formatTime(msg.created_at);
+                
+                // Определяем с кем был чат
+                const chatPartnerId = msg.sender_id === state.currentUser.id ? msg.receiver_id : msg.sender_id;
+                
+                html += `
+                    <div class="search-item" data-type="message" data-chat-id="${escapeAttr(chatPartnerId)}" data-sender="${escapeAttr(msg.sender_username)}">
+                        <div class="search-item-avatar" style="${avatarStyle}">${avatarText}</div>
+                        <div class="search-item-info">
+                            <div class="search-item-name">${escapeHtml(senderName)}</div>
+                            <div class="search-item-text">${highlightText(msg.text.substring(0, 100), query)}</div>
+                        </div>
+                        <div class="search-item-time">${time}</div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+        }
+        
+        document.getElementById('search-results').innerHTML = html;
+        
+        // Обработчики кликов
+        document.querySelectorAll('.search-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const type = item.dataset.type;
+                
+                if (type === 'user') {
+                    selectUser(item.dataset.id, item.dataset.name);
+                } else if (type === 'message') {
+                    // Открываем чат с этим пользователем
+                    selectUser(item.dataset.chatId, item.dataset.sender);
+                }
+                
+                closeSearchModal();
+            });
+        });
+        
+    } catch (error) {
+        console.error('Search error:', error);
+        renderSearchNotFound();
+    }
+}
+
+// Инициализация поиска
+document.addEventListener('DOMContentLoaded', () => {
+    // Кнопка открытия поиска
+    document.getElementById('global-search-btn')?.addEventListener('click', openSearchModal);
+    
+    // Закрытие поиска
+    document.getElementById('close-search')?.addEventListener('click', closeSearchModal);
+    
+    // Клик на overlay
+    document.querySelector('#search-modal .modal-overlay')?.addEventListener('click', closeSearchModal);
+    
+    // Ввод в поиск
+    document.getElementById('global-search-input')?.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            performGlobalSearch(e.target.value.trim());
+        }, 300);
+    });
+    
+    // Escape для закрытия
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const searchModal = document.getElementById('search-modal');
+            if (searchModal && !searchModal.classList.contains('hidden')) {
+                closeSearchModal();
+            }
+        }
+        
+        // Ctrl+K или Cmd+K для открытия поиска
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            const searchModal = document.getElementById('search-modal');
+            if (searchModal?.classList.contains('hidden')) {
+                openSearchModal();
+            } else {
+                closeSearchModal();
+            }
+        }
     });
 });

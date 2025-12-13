@@ -384,6 +384,22 @@ app.get('/api/messages/:oderId', authMiddleware, async (req, res) => {
     }
 });
 
+// Глобальный поиск (пользователи + сообщения)
+app.get('/api/search', authMiddleware, async (req, res) => {
+    try {
+        const { q } = req.query;
+        if (!q || q.length < 2) {
+            return res.json({ users: [], messages: [] });
+        }
+        
+        const results = await db.globalSearch(req.user.id, q);
+        res.json(results);
+    } catch (error) {
+        console.error('Global search error:', error);
+        res.status(500).json({ users: [], messages: [] });
+    }
+});
+
 // Поиск по тегу (username#tag)
 app.get('/api/user/tag/:username/:tag', authMiddleware, async (req, res) => {
     try {

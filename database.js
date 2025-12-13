@@ -533,6 +533,46 @@ async function deletePushSubscription(endpoint) {
     }
 }
 
+// === ГЛОБАЛЬНЫЙ ПОИСК ===
+
+async function globalSearch(userId, query) {
+    try {
+        const sanitized = query.replace(/[%_]/g, '').substring(0, 100);
+        if (sanitized.length < 2) return { users: [], messages: [] };
+        
+        // Поиск пользователей
+        const usersResult = await pool.query(
+            `SELECT id, username, tag, display_name, avatar_url 
+             FROM users 
+             WHERE (username ILIKE $1 OR display_name ILIKE $1) AND id != $2
+             LIMIT 10`,
+            [`%${sanitized}%`, userId]
+        );
+        
+        // Поиск сообщений (только в чатах текущего пользователя)
+        const messagesResult = await pool.query(
+            `SELECT m.id, m.text, m.created_at, m.sender_id, m.receiver_id,
+                    u.username as sender_username, u.display_name as sender_display_name, u.avatar_url as sender_avatar
+             FROM messages m
+             JOIN users u ON u.id = m.sender_id
+             WHERE (m.sender_id = $1 OR m.receiver_id = $1)
+               AND m.text ILIKE $2
+               AND m.message_type = 'text'
+             ORDER BY m.created_at DESC
+             LIMIT 20`,
+            [userId, `%${sanitized}%`]
+        );
+        
+        return {
+            users: usersResult.rows,
+            messages: messagesResult.rows
+        };
+    } catch (error) {
+        console.error('Global search error:', error);
+        return { users: [], messages: [] };
+    }
+}
+
 module.exports = { 
     initDB, 
     createUser, 
@@ -555,5 +595,7 @@ module.exports = {
     setUserRole,
     setPremium,
     getAllUsers,
-    deleteUser
+    deleteUser,
+    // Поиск
+    globalSearch
 };
