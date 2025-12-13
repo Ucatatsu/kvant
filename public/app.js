@@ -2837,3 +2837,237 @@ function initSidebarResizer() {
 document.addEventListener('DOMContentLoaded', () => {
     initSidebarResizer();
 });
+
+
+// === SETTINGS HANDLERS ===
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Уведомления
+    document.getElementById('notifications-checkbox')?.addEventListener('change', (e) => {
+        state.notificationsEnabled = e.target.checked;
+        localStorage.setItem('notifications', state.notificationsEnabled);
+        if (state.notificationsEnabled) {
+            requestNotificationPermission();
+        }
+        showToast(e.target.checked ? 'Уведомления включены' : 'Уведомления выключены');
+    });
+    
+    // Звуки
+    document.getElementById('sounds-checkbox')?.addEventListener('change', (e) => {
+        state.settings.sounds = e.target.checked;
+        saveSettings();
+        showToast(e.target.checked ? 'Звуки включены' : 'Звуки выключены');
+    });
+    
+    // Компактный режим
+    document.getElementById('setting-compact')?.addEventListener('change', (e) => {
+        state.settings.compact = e.target.checked;
+        saveSettings();
+        applySettings();
+    });
+    
+    // Показывать аватарки
+    document.getElementById('setting-avatars')?.addEventListener('change', (e) => {
+        state.settings.hideAvatars = !e.target.checked;
+        saveSettings();
+        applySettings();
+    });
+    
+    // Статус онлайн
+    document.getElementById('setting-online-status')?.addEventListener('change', (e) => {
+        state.settings.showOnlineStatus = e.target.checked;
+        saveSettings();
+    });
+    
+    // Индикатор набора
+    document.getElementById('setting-typing')?.addEventListener('change', (e) => {
+        state.settings.typing = e.target.checked;
+        saveSettings();
+    });
+    
+    // Фон чата
+    document.querySelectorAll('.bg-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+            if (opt.dataset.bg === 'custom') {
+                document.getElementById('custom-bg-input')?.click();
+                return;
+            }
+            document.querySelectorAll('.bg-option').forEach(o => o.classList.remove('active'));
+            opt.classList.add('active');
+            state.settings.background = opt.dataset.bg;
+            saveSettings();
+            applySettings();
+        });
+    });
+    
+    // Кастомный фон
+    document.getElementById('custom-bg-input')?.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                state.settings.background = 'custom';
+                state.settings.customBg = ev.target.result;
+                saveSettings();
+                applySettings();
+                document.querySelectorAll('.bg-option').forEach(o => o.classList.remove('active'));
+                document.querySelector('[data-bg="custom"]')?.classList.add('active');
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    // Размер сообщений
+    document.querySelectorAll('.size-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.settings.messageSize = btn.dataset.size;
+            saveSettings();
+            applySettings();
+        });
+    });
+    
+    // Акцентный цвет
+    document.querySelectorAll('.color-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+            document.querySelectorAll('.color-option').forEach(o => o.classList.remove('active'));
+            opt.classList.add('active');
+            state.settings.accentColor = opt.dataset.color;
+            saveSettings();
+            applySettings();
+            showToast('Цвет изменён');
+        });
+    });
+    
+    // Тема
+    document.querySelectorAll('.theme-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+            document.querySelectorAll('.theme-option').forEach(o => o.classList.remove('active'));
+            opt.classList.add('active');
+            state.settings.theme = opt.dataset.theme;
+            saveSettings();
+            applyTheme(opt.dataset.theme);
+        });
+    });
+    
+    // Навигация по разделам настроек
+    document.querySelectorAll('.settings-nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            document.querySelectorAll('.settings-nav-item').forEach(i => i.classList.remove('active'));
+            document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+            item.classList.add('active');
+            document.getElementById(`section-${item.dataset.section}`)?.classList.add('active');
+        });
+    });
+    
+    // Кнопка настроек
+    document.getElementById('settings-btn')?.addEventListener('click', showSettings);
+    
+    // Закрытие настроек
+    document.getElementById('close-settings')?.addEventListener('click', () => {
+        document.getElementById('settings-modal').classList.add('hidden');
+    });
+    
+    // Выход из аккаунта
+    document.getElementById('logout-btn')?.addEventListener('click', () => {
+        if (confirm('Выйти из аккаунта?')) {
+            logout();
+        }
+    });
+});
+
+// Функции сохранения и применения настроек
+function saveSettings() {
+    localStorage.setItem('kvant_settings', JSON.stringify(state.settings));
+}
+
+function applySettings() {
+    const chatScreen = document.getElementById('chat-screen');
+    const messagesDiv = document.getElementById('messages');
+    
+    if (chatScreen) {
+        chatScreen.classList.remove('bg-gradient1', 'bg-gradient2', 'bg-gradient3', 'bg-solid', 'bg-custom');
+        chatScreen.style.backgroundImage = '';
+        
+        if (state.settings.background && state.settings.background !== 'default') {
+            if (state.settings.background === 'custom' && state.settings.customBg) {
+                chatScreen.classList.add('bg-custom');
+                chatScreen.style.backgroundImage = `url(${state.settings.customBg})`;
+            } else {
+                chatScreen.classList.add(`bg-${state.settings.background}`);
+            }
+        }
+    }
+    
+    if (messagesDiv) {
+        messagesDiv.className = 'messages';
+        
+        if (state.settings.messageSize && state.settings.messageSize !== 'medium') {
+            messagesDiv.classList.add(`size-${state.settings.messageSize}`);
+        }
+        
+        if (state.settings.compact) {
+            messagesDiv.classList.add('compact');
+        }
+        
+        if (state.settings.hideAvatars) {
+            messagesDiv.classList.add('no-avatars');
+        }
+    }
+    
+    if (state.settings.accentColor) {
+        document.documentElement.style.setProperty('--accent', state.settings.accentColor);
+        document.documentElement.style.setProperty('--message-sent', 
+            `linear-gradient(135deg, ${state.settings.accentColor}, ${adjustColor(state.settings.accentColor, -30)})`);
+    }
+    
+    if (state.settings.theme) {
+        applyTheme(state.settings.theme);
+    }
+}
+
+function adjustColor(color, amount) {
+    const hex = color.replace('#', '');
+    const r = Math.max(0, Math.min(255, parseInt(hex.substr(0, 2), 16) + amount));
+    const g = Math.max(0, Math.min(255, parseInt(hex.substr(2, 2), 16) + amount));
+    const b = Math.max(0, Math.min(255, parseInt(hex.substr(4, 2), 16) + amount));
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+function applyTheme(theme) {
+    const root = document.documentElement;
+    
+    if (theme === 'system') {
+        theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    
+    if (theme === 'light') {
+        root.style.setProperty('--bg-darkest', '#f5f5f5');
+        root.style.setProperty('--bg-dark', '#e8e8e8');
+        root.style.setProperty('--bg-medium', '#ddd');
+        root.style.setProperty('--bg-light', '#ccc');
+        root.style.setProperty('--text', '#1a1a1a');
+        root.style.setProperty('--text-muted', '#666');
+        root.style.setProperty('--message-received', '#e0e0e0');
+        root.style.setProperty('--glass', 'rgba(255, 255, 255, 0.8)');
+        root.style.setProperty('--glass-border', 'rgba(0, 0, 0, 0.1)');
+    } else {
+        root.style.setProperty('--bg-darkest', '#0a1628');
+        root.style.setProperty('--bg-dark', '#0f2140');
+        root.style.setProperty('--bg-medium', '#162d50');
+        root.style.setProperty('--bg-light', '#1e3a5f');
+        root.style.setProperty('--text', '#e2e8f0');
+        root.style.setProperty('--text-muted', '#94a3b8');
+        root.style.setProperty('--message-received', '#162d50');
+        root.style.setProperty('--glass', 'rgba(15, 33, 64, 0.6)');
+        root.style.setProperty('--glass-border', 'rgba(79, 195, 247, 0.15)');
+    }
+}
+
+// Системная тема
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (state.settings.theme === 'system') {
+        applyTheme('system');
+    }
+});
