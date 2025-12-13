@@ -180,14 +180,14 @@ const onlineUsers = new Map();
 const activeCalls = new Map();
 
 // Функция для отправки списка онлайн пользователей с их статусами
-function broadcastOnlineUsers() {
+async function broadcastOnlineUsers() {
     const usersWithStatus = {};
-    onlineUsers.forEach((data, odataId) => {
+    for (const [odataId, data] of onlineUsers) {
         // Не показываем invisible пользователей как онлайн
-        if (data.status !== 'invisible') {
+        if (data.status !== 'invisible' && !data.hideOnline) {
             usersWithStatus[odataId] = data.status || 'online';
         }
-    });
+    }
     io.emit('online-users', usersWithStatus);
 }
 
@@ -359,6 +359,51 @@ app.put('/api/user/:userId', authMiddleware, ownerMiddleware('userId'), async (r
     }
 });
 
+// Обновить премиум-настройки профиля
+app.put('/api/user/:userId/premium-settings', authMiddleware, ownerMiddleware('userId'), async (req, res) => {
+    try {
+        const isPremium = await checkPremiumStatus(req.user.id);
+        if (!isPremium) {
+            return res.status(403).json({ success: false, error: 'Требуется Premium подписка' });
+        }
+        
+        const { name_color, profile_theme, profile_color, custom_tag, hide_online } = req.body;
+        
+        // Проверка кастомного тега
+        if (custom_tag) {
+            if (!/^[a-zA-Z0-9_]{2,20}$/.test(custom_tag)) {
+                return res.status(400).json({ success: false, error: 'Тег: 2-20 символов, буквы, цифры и _' });
+            }
+            const available = await db.isCustomTagAvailable(custom_tag, req.user.id);
+            if (!available) {
+                return res.status(400).json({ success: false, error: 'Этот тег уже занят' });
+            }
+        }
+        
+        const data = {
+            name_color: name_color || null,
+            profile_theme: profile_theme || null,
+            profile_color: profile_color || null,
+            custom_tag: custom_tag || null,
+            hide_online: hide_online !== undefined ? hide_online : null
+        };
+        
+        const result = await db.updatePremiumSettings(req.user.id, data);
+        
+        // Обновляем статус в онлайн-списке
+        const userData = onlineUsers.get(req.user.id);
+        if (userData && hide_online !== undefined) {
+            userData.hideOnline = hide_online;
+            onlineUsers.set(req.user.id, userData);
+            broadcastOnlineUsers();
+        }
+        res.json(result);
+    } catch (error) {
+        console.error('Update premium settings error:', error);
+        res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    }
+});
+
 // Загрузка аватарки
 app.post('/api/user/:userId/avatar', authMiddleware, ownerMiddleware('userId'), upload.single('avatar'), async (req, res) => {
     try {
@@ -441,6 +486,44 @@ app.post('/api/user/:userId/banner', authMiddleware, ownerMiddleware('userId'), 
     }
 });
 
+// Загрузка файла в сообщение
+app.post('/api/upload-message-file', authMiddleware, upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: 'Файл не загружен' });
+        }
+        
+        // Проверка лимита размера
+        const isPremium = await checkPremiumStatus(req.user.id);
+        const maxSize = isPremium ? FILE_LIMITS.premium : FILE_LIMITS.regular;
+        if (req.file.size > maxSize) {
+            const limitMB = maxSize / (1024 * 1024);
+            return res.status(400).json({ 
+                success: false, 
+                error: `Максимальный размер файла: ${limitMB}MB` 
+            });
+        }
+        
+        let fileUrl;
+        if (process.env.CLOUDINARY_CLOUD_NAME) {
+            fileUrl = await uploadToCloudinary(req.file.buffer, 'messages');
+        } else {
+            fileUrl = `/uploads/${req.file.filename}`;
+        }
+        
+        // Определяем тип файла
+        const ext = path.extname(req.file.originalname).toLowerCase();
+        let fileType = 'image';
+        if (ext === '.mp4') fileType = 'video';
+        else if (ext === '.gif') fileType = 'gif';
+        
+        res.json({ success: true, fileUrl, fileType });
+    } catch (error) {
+        console.error('Upload message file error:', error);
+        res.status(500).json({ success: false, error: 'Ошибка загрузки' });
+    }
+});
+
 // Смена username
 app.put('/api/user/:userId/username', authMiddleware, ownerMiddleware('userId'), async (req, res) => {
     try {
@@ -470,6 +553,65 @@ app.get('/api/messages/:oderId', authMiddleware, async (req, res) => {
     } catch (error) {
         console.error('Get messages error:', error);
         res.status(500).json([]);
+    }
+});
+
+// Редактирование сообщения
+app.put('/api/messages/:messageId', authMiddleware, async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const { text } = req.body;
+        
+        if (!text || text.trim().length === 0) {
+            return res.status(400).json({ success: false, error: 'Текст не может быть пустым' });
+        }
+        
+        const result = await db.editMessage(messageId, req.user.id, sanitizeText(text, 5000));
+        res.json(result);
+    } catch (error) {
+        console.error('Edit message error:', error);
+        res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    }
+});
+
+// Удаление сообщения
+app.delete('/api/messages/:messageId', authMiddleware, async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const result = await db.deleteMessage(messageId, req.user.id);
+        res.json(result);
+    } catch (error) {
+        console.error('Delete message error:', error);
+        res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    }
+});
+
+// Реакции на сообщения
+app.post('/api/messages/:messageId/reactions', authMiddleware, async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const { emoji } = req.body;
+        
+        if (!emoji) {
+            return res.status(400).json({ success: false, error: 'Укажите эмодзи' });
+        }
+        
+        const result = await db.addReaction(messageId, req.user.id, emoji);
+        res.json(result);
+    } catch (error) {
+        console.error('Add reaction error:', error);
+        res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    }
+});
+
+app.delete('/api/messages/:messageId/reactions/:emoji', authMiddleware, async (req, res) => {
+    try {
+        const { messageId, emoji } = req.params;
+        const result = await db.removeReaction(messageId, req.user.id, decodeURIComponent(emoji));
+        res.json(result);
+    } catch (error) {
+        console.error('Remove reaction error:', error);
+        res.status(500).json({ success: false, error: 'Ошибка сервера' });
     }
 });
 
@@ -611,12 +753,16 @@ async function sendPushNotification(userId, payload) {
 
 // === SOCKET.IO ===
 
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
     const userId = socket.user.id;
     console.log(`Пользователь подключился: ${userId}`);
     
+    // Загружаем настройки пользователя (включая hide_online)
+    const userProfile = await db.getUser(userId);
+    const hideOnline = userProfile?.hide_online || false;
+    
     // Регистрируем пользователя онлайн
-    onlineUsers.set(userId, { socketId: socket.id, lastSeen: Date.now(), status: 'online' });
+    onlineUsers.set(userId, { socketId: socket.id, lastSeen: Date.now(), status: 'online', hideOnline });
     broadcastOnlineUsers();
     
     // Изменение статуса
@@ -632,7 +778,7 @@ io.on('connection', (socket) => {
     // Отправка сообщения
     socket.on('send-message', async (data) => {
         try {
-            const { receiverId, text } = data;
+            const { receiverId, text, messageType = 'text' } = data;
             
             if (!receiverId || !text || typeof text !== 'string') {
                 return socket.emit('error', { message: 'Неверные данные' });
@@ -641,16 +787,19 @@ io.on('connection', (socket) => {
             const sanitizedText = text.trim().substring(0, 5000);
             if (!sanitizedText) return;
             
-            const message = await db.saveMessage(userId, receiverId, sanitizedText);
+            const message = await db.saveMessage(userId, receiverId, sanitizedText, messageType);
             
             const receiverData = onlineUsers.get(receiverId);
             if (receiverData) {
                 io.to(receiverData.socketId).emit('new-message', message);
             } else {
                 // Оффлайн - push уведомление
+                const notifBody = ['image', 'video', 'gif'].includes(messageType) 
+                    ? '📷 Медиафайл' 
+                    : (sanitizedText.length > 100 ? sanitizedText.substring(0, 100) + '...' : sanitizedText);
                 sendPushNotification(receiverId, {
                     title: socket.user.username || 'Новое сообщение',
-                    body: sanitizedText.length > 100 ? sanitizedText.substring(0, 100) + '...' : sanitizedText,
+                    body: notifBody,
                     tag: `msg-${userId}`,
                     senderId: userId
                 });
@@ -675,6 +824,80 @@ io.on('connection', (socket) => {
         const receiverData = onlineUsers.get(data.receiverId);
         if (receiverData) {
             io.to(receiverData.socketId).emit('user-typing', { userId, typing: false });
+        }
+    });
+
+    // === РЕДАКТИРОВАНИЕ И УДАЛЕНИЕ СООБЩЕНИЙ ===
+    
+    socket.on('edit-message', async (data) => {
+        try {
+            const { messageId, text, receiverId } = data;
+            if (!messageId || !text) return;
+            
+            const result = await db.editMessage(messageId, userId, text.trim().substring(0, 5000));
+            if (result.success) {
+                socket.emit('message-edited', { messageId, text: result.message.text, updated_at: result.message.updated_at });
+                const receiverData = onlineUsers.get(receiverId);
+                if (receiverData) {
+                    io.to(receiverData.socketId).emit('message-edited', { messageId, text: result.message.text, updated_at: result.message.updated_at });
+                }
+            }
+        } catch (error) {
+            console.error('Edit message error:', error);
+        }
+    });
+    
+    socket.on('delete-message', async (data) => {
+        try {
+            const { messageId, receiverId } = data;
+            if (!messageId) return;
+            
+            const result = await db.deleteMessage(messageId, userId);
+            if (result.success) {
+                socket.emit('message-deleted', { messageId });
+                const receiverData = onlineUsers.get(receiverId);
+                if (receiverData) {
+                    io.to(receiverData.socketId).emit('message-deleted', { messageId });
+                }
+            }
+        } catch (error) {
+            console.error('Delete message error:', error);
+        }
+    });
+
+    // === РЕАКЦИИ ===
+    
+    socket.on('add-reaction', async (data) => {
+        try {
+            const { messageId, emoji, receiverId } = data;
+            if (!messageId || !emoji) return;
+            
+            await db.addReaction(messageId, userId, emoji);
+            const reaction = { messageId, odataId: userId, emoji };
+            socket.emit('reaction-added', reaction);
+            const receiverData = onlineUsers.get(receiverId);
+            if (receiverData) {
+                io.to(receiverData.socketId).emit('reaction-added', reaction);
+            }
+        } catch (error) {
+            console.error('Add reaction error:', error);
+        }
+    });
+    
+    socket.on('remove-reaction', async (data) => {
+        try {
+            const { messageId, emoji, receiverId } = data;
+            if (!messageId || !emoji) return;
+            
+            await db.removeReaction(messageId, userId, emoji);
+            const reaction = { messageId, odataId: userId, emoji };
+            socket.emit('reaction-removed', reaction);
+            const receiverData = onlineUsers.get(receiverId);
+            if (receiverData) {
+                io.to(receiverData.socketId).emit('reaction-removed', reaction);
+            }
+        } catch (error) {
+            console.error('Remove reaction error:', error);
         }
     });
 

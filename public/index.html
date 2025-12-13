@@ -166,6 +166,8 @@
     <main class="messages" id="messages" role="log" aria-label="Сообщения" aria-live="polite"></main>
     
     <form class="message-form" id="message-form" aria-label="Отправка сообщения">
+      <button type="button" class="attach-btn" id="attach-btn" aria-label="Прикрепить файл" title="Прикрепить файл">📎</button>
+      <input type="file" id="attach-input" accept="image/*,video/mp4,.gif" hidden aria-hidden="true">
       <input type="text" id="message-input" placeholder="Сообщение..." autocomplete="off" 
              disabled aria-label="Текст сообщения">
       <button type="button" class="emoji-btn" aria-label="Выбрать эмодзи" aria-haspopup="true">😊</button>
@@ -190,12 +192,6 @@
         <div class="profile-username" id="profile-username"></div>
         <div class="profile-tag" id="profile-tag"></div>
         <div class="profile-bio" id="profile-bio"></div>
-        <div class="profile-info">
-          <div class="profile-info-item">
-            <span class="info-icon" aria-hidden="true">📱</span>
-            <span id="profile-phone">Не указан</span>
-          </div>
-        </div>
         <div class="profile-actions">
           <button class="btn-primary" id="edit-profile-btn">Редактировать</button>
         </div>
@@ -241,13 +237,42 @@
           <input type="text" id="edit-display-name" placeholder="Ваше имя" maxlength="50">
         </div>
         <div class="form-group">
-          <label for="edit-phone">Телефон</label>
-          <input type="tel" id="edit-phone" placeholder="+7 999 123 45 67" maxlength="20">
-        </div>
-        <div class="form-group">
           <label for="edit-bio">О себе</label>
           <textarea id="edit-bio" placeholder="Расскажите о себе..." rows="3" maxlength="500"></textarea>
         </div>
+        
+        <!-- Premium настройки -->
+        <div class="premium-settings-section" id="premium-settings-section">
+          <div class="premium-settings-title">👑 Premium настройки</div>
+          <div class="premium-lock-overlay hidden" id="premium-lock-overlay">
+            <div class="premium-lock-content">
+              <span class="premium-lock-icon">🔒</span>
+              <span class="premium-lock-text">Нужен Premium</span>
+            </div>
+          </div>
+          
+          <div class="premium-settings-content" id="premium-settings-content">
+            <div class="color-picker-row">
+              <label for="edit-name-color">Цвет ника в чате</label>
+              <input type="color" id="edit-name-color" value="#4fc3f7">
+              <button class="btn-small" id="reset-name-color" title="Сбросить">✕</button>
+            </div>
+            
+            <div class="color-picker-row">
+              <label for="edit-profile-color">Цвет фона профиля</label>
+              <input type="color" id="edit-profile-color" value="#1976d2">
+              <button class="btn-small" id="reset-profile-color" title="Сбросить">✕</button>
+            </div>
+            
+            <div class="form-group">
+              <label for="edit-custom-tag">Кастомный тег</label>
+              <input type="text" id="edit-custom-tag" placeholder="your_tag" 
+                     pattern="[a-zA-Z0-9_]{2,20}" maxlength="20">
+              <span class="form-hint">2-20 символов, буквы, цифры и _</span>
+            </div>
+          </div>
+        </div>
+        
         <button class="btn-primary" id="save-profile-btn">Сохранить</button>
       </div>
     </div>
@@ -316,6 +341,18 @@
               <div class="theme-option" data-theme="system" role="radio" tabindex="0" aria-checked="false">
                 <div class="theme-preview system"></div>
                 <span>Системная</span>
+              </div>
+              <div class="theme-option premium-theme" data-theme="neon" role="radio" tabindex="0" aria-checked="false">
+                <div class="theme-preview neon"></div>
+                <span>Неон</span>
+              </div>
+              <div class="theme-option premium-theme" data-theme="sunset" role="radio" tabindex="0" aria-checked="false">
+                <div class="theme-preview sunset"></div>
+                <span>Закат</span>
+              </div>
+              <div class="theme-option premium-theme" data-theme="ocean" role="radio" tabindex="0" aria-checked="false">
+                <div class="theme-preview ocean"></div>
+                <span>Океан</span>
               </div>
             </div>
           </div>
@@ -452,6 +489,17 @@
                 <span class="toggle-slider"></span>
               </label>
             </div>
+            <div class="settings-item premium-only" id="hide-online-setting">
+              <span class="premium-badge-inline">👑 Premium</span>
+              <div class="settings-item-info">
+                <span class="settings-item-title">Скрытый онлайн</span>
+                <span class="settings-item-desc">Всегда показываться оффлайн для других</span>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="setting-hide-online">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
           </div>
         </section>
         
@@ -491,12 +539,6 @@
         <div class="profile-username" id="user-profile-username"></div>
         <div class="profile-tag" id="user-profile-tag"></div>
         <div class="profile-bio" id="user-profile-bio"></div>
-        <div class="profile-info">
-          <div class="profile-info-item">
-            <span class="info-icon" aria-hidden="true">📱</span>
-            <span id="user-profile-phone">Не указан</span>
-          </div>
-        </div>
       </div>
     </div>
   </div>

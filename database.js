@@ -60,7 +60,13 @@ async function initDB() {
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS tag TEXT UNIQUE',
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT \'user\'',
-            'ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_until TIMESTAMP'
+            'ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_until TIMESTAMP',
+            // Premium features
+            'ALTER TABLE users ADD COLUMN IF NOT EXISTS name_color TEXT',
+            'ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_theme TEXT DEFAULT \'default\'',
+            'ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_color TEXT',
+            'ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_tag TEXT',
+            'ALTER TABLE users ADD COLUMN IF NOT EXISTS hide_online BOOLEAN DEFAULT FALSE'
         ];
         
         for (const query of alterQueries) {
@@ -123,6 +129,27 @@ async function initDB() {
                 UNIQUE(user_id, endpoint)
             )
         `);
+
+        // Реакции на сообщения
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS message_reactions (
+                id TEXT PRIMARY KEY,
+                message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+                user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                emoji TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(message_id, user_id, emoji)
+            )
+        `);
+        await client.query('CREATE INDEX IF NOT EXISTS idx_reactions_message ON message_reactions(message_id)').catch(() => {});
+        
+        // Колонка updated_at для сообщений (редактирование)
+        await client.query('ALTER TABLE messages ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP').catch(() => {});
+
+        console.log('✅ База данных инициализирована');
+
+        // Добавляем updated_at для сообщений (для редактирования)
+        await client.query('ALTER TABLE messages ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP').catch(() => {});
 
         console.log('✅ База данных инициализирована');
     } finally {
@@ -219,7 +246,8 @@ async function loginUser(username, password) {
 async function getUser(userId) {
     try {
         const result = await pool.query(
-            `SELECT id, username, tag, role, premium_until, display_name, phone, bio, avatar_url, banner_url, created_at 
+            `SELECT id, username, tag, role, premium_until, display_name, phone, bio, avatar_url, banner_url, 
+                    name_color, profile_theme, profile_color, custom_tag, hide_online, created_at 
              FROM users WHERE id = $1`,
             [userId]
         );
@@ -345,6 +373,42 @@ async function updateUser(userId, data) {
     }
 }
 
+// Premium: обновление настроек профиля
+async function updatePremiumSettings(userId, data) {
+    try {
+        const { name_color, profile_theme, profile_color, custom_tag, hide_online } = data;
+        await pool.query(
+            `UPDATE users SET 
+                name_color = COALESCE($2, name_color),
+                profile_theme = COALESCE($3, profile_theme),
+                profile_color = COALESCE($4, profile_color),
+                custom_tag = COALESCE($5, custom_tag),
+                hide_online = COALESCE($6, hide_online),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1`,
+            [userId, name_color || null, profile_theme || null, profile_color || null, custom_tag || null, hide_online]
+        );
+        return { success: true };
+    } catch (error) {
+        console.error('Update premium settings error:', error);
+        return { success: false, error: 'Ошибка обновления' };
+    }
+}
+
+// Проверка уникальности кастомного тега
+async function isCustomTagAvailable(tag, excludeUserId) {
+    try {
+        const result = await pool.query(
+            'SELECT id FROM users WHERE custom_tag = $1 AND id != $2',
+            [tag, excludeUserId]
+        );
+        return result.rows.length === 0;
+    } catch (error) {
+        console.error('Check custom tag error:', error);
+        return false;
+    }
+}
+
 async function updateUserAvatar(userId, avatarUrl) {
     try {
         await pool.query('UPDATE users SET avatar_url = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1', [userId, avatarUrl]);
@@ -389,13 +453,16 @@ async function searchUsers(query, excludeUserId) {
         if (sanitized.length < 2) return [];
         
         const result = await pool.query(
-            `SELECT id, username, display_name, avatar_url 
+            `SELECT id, username, display_name, avatar_url, role, premium_until, name_color, custom_tag
              FROM users 
-             WHERE (username ILIKE $1 OR display_name ILIKE $1) AND id != $2
+             WHERE (username ILIKE $1 OR display_name ILIKE $1 OR custom_tag ILIKE $1) AND id != $2
              LIMIT 20`,
             [`%${sanitized}%`, excludeUserId]
         );
-        return result.rows;
+        return result.rows.map(u => ({
+            ...u,
+            isPremium: u.role === 'admin' || (u.premium_until && new Date(u.premium_until) > new Date())
+        }));
     } catch (error) {
         console.error('Search users error:', error);
         return [];
@@ -458,7 +525,7 @@ async function getMessages(userId1, userId2, limit = 50, before = null) {
 async function getContacts(userId) {
     try {
         const result = await pool.query(`
-            SELECT DISTINCT u.id, u.username, u.display_name, u.avatar_url,
+            SELECT DISTINCT u.id, u.username, u.display_name, u.avatar_url, u.role, u.premium_until, u.name_color, u.custom_tag,
                 (SELECT COUNT(*) FROM messages m 
                  WHERE m.sender_id = u.id AND m.receiver_id = $1 AND m.is_read = FALSE) as unread_count,
                 (SELECT MAX(created_at) FROM messages m 
@@ -471,7 +538,10 @@ async function getContacts(userId) {
             )
             ORDER BY last_message_at DESC NULLS LAST
         `, [userId]);
-        return result.rows;
+        return result.rows.map(u => ({
+            ...u,
+            isPremium: u.role === 'admin' || (u.premium_until && new Date(u.premium_until) > new Date())
+        }));
     } catch (error) {
         console.error('Get contacts error:', error);
         return [];
@@ -573,6 +643,89 @@ async function globalSearch(userId, query) {
     }
 }
 
+// === СООБЩЕНИЯ: редактирование и удаление ===
+
+async function editMessage(messageId, userId, newText) {
+    try {
+        const result = await pool.query(
+            `UPDATE messages SET text = $3, updated_at = CURRENT_TIMESTAMP 
+             WHERE id = $1 AND sender_id = $2 
+             RETURNING id, text, updated_at`,
+            [messageId, userId, newText]
+        );
+        if (result.rows.length === 0) {
+            return { success: false, error: 'Сообщение не найдено или нет прав' };
+        }
+        return { success: true, message: result.rows[0] };
+    } catch (error) {
+        console.error('Edit message error:', error);
+        return { success: false, error: 'Ошибка редактирования' };
+    }
+}
+
+async function deleteMessage(messageId, odataId) {
+    try {
+        const result = await pool.query(
+            'DELETE FROM messages WHERE id = $1 AND sender_id = $2 RETURNING id',
+            [messageId, odataId]
+        );
+        if (result.rows.length === 0) {
+            return { success: false, error: 'Сообщение не найдено или нет прав' };
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Delete message error:', error);
+        return { success: false, error: 'Ошибка удаления' };
+    }
+}
+
+// === РЕАКЦИИ НА СООБЩЕНИЯ ===
+
+async function addReaction(messageId, odataId, emoji) {
+    try {
+        await pool.query(
+            `INSERT INTO message_reactions (id, message_id, user_id, emoji) 
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (message_id, user_id, emoji) DO NOTHING`,
+            [uuidv4(), messageId, odataId, emoji]
+        );
+        return { success: true };
+    } catch (error) {
+        console.error('Add reaction error:', error);
+        return { success: false };
+    }
+}
+
+async function removeReaction(messageId, odataId, emoji) {
+    try {
+        await pool.query(
+            'DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3',
+            [messageId, odataId, emoji]
+        );
+        return { success: true };
+    } catch (error) {
+        console.error('Remove reaction error:', error);
+        return { success: false };
+    }
+}
+
+async function getMessageReactions(messageId) {
+    try {
+        const result = await pool.query(
+            `SELECT emoji, COUNT(*) as count, 
+                    array_agg(user_id) as user_ids
+             FROM message_reactions 
+             WHERE message_id = $1 
+             GROUP BY emoji`,
+            [messageId]
+        );
+        return result.rows;
+    } catch (error) {
+        console.error('Get reactions error:', error);
+        return [];
+    }
+}
+
 module.exports = { 
     initDB, 
     createUser, 
@@ -597,5 +750,14 @@ module.exports = {
     getAllUsers,
     deleteUser,
     // Поиск
-    globalSearch
+    globalSearch,
+    // Premium
+    updatePremiumSettings,
+    isCustomTagAvailable,
+    // Сообщения
+    editMessage,
+    deleteMessage,
+    addReaction,
+    removeReaction,
+    getMessageReactions
 };

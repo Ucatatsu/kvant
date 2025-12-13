@@ -481,10 +481,92 @@ function initSocket() {
     state.socket.on('video-renegotiate', handleVideoRenegotiate);
     state.socket.on('video-renegotiate-answer', handleVideoRenegotiateAnswer);
     
+    // Редактирование и удаление сообщений
+    state.socket.on('message-edited', (data) => {
+        const msgEl = document.querySelector(`[data-message-id="${data.messageId}"]`);
+        if (msgEl) {
+            const bubble = msgEl.querySelector('.message-bubble');
+            const timeEl = msgEl.querySelector('.message-time');
+            if (bubble) bubble.textContent = data.text;
+            if (timeEl && !timeEl.querySelector('.message-edited')) {
+                timeEl.innerHTML += '<span class="message-edited">(ред.)</span>';
+            }
+        }
+    });
+    
+    state.socket.on('message-deleted', (data) => {
+        const msgEl = document.querySelector(`[data-message-id="${data.messageId}"]`);
+        if (msgEl) {
+            msgEl.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => msgEl.remove(), 300);
+        }
+    });
+    
+    // Реакции
+    state.socket.on('reaction-added', (data) => {
+        updateMessageReaction(data.messageId, data.emoji, data.odataId, true);
+    });
+    
+    state.socket.on('reaction-removed', (data) => {
+        updateMessageReaction(data.messageId, data.emoji, data.odataId, false);
+    });
+    
     state.socket.on('error', (error) => {
         console.error('Socket error:', error);
         showToast(error.message || 'Ошибка соединения', 'error');
     });
+}
+
+function updateMessageReaction(messageId, emoji, odataId, isAdd) {
+    const msgEl = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (!msgEl) return;
+    
+    let reactionsDiv = msgEl.querySelector('.message-reactions');
+    if (!reactionsDiv) {
+        reactionsDiv = document.createElement('div');
+        reactionsDiv.className = 'message-reactions';
+        msgEl.querySelector('.message-content').appendChild(reactionsDiv);
+    }
+    
+    let badge = reactionsDiv.querySelector(`[data-emoji="${emoji}"]`);
+    
+    if (isAdd) {
+        if (badge) {
+            const countEl = badge.querySelector('.reaction-count');
+            countEl.textContent = parseInt(countEl.textContent) + 1;
+            if (odataId === state.currentUser.id) badge.classList.add('own');
+        } else {
+            badge = document.createElement('span');
+            badge.className = `reaction-badge ${odataId === state.currentUser.id ? 'own' : ''}`;
+            badge.dataset.emoji = emoji;
+            badge.dataset.messageId = messageId;
+            badge.innerHTML = `${emoji}<span class="reaction-count">1</span>`;
+            badge.addEventListener('click', () => toggleReaction(messageId, emoji));
+            reactionsDiv.appendChild(badge);
+        }
+    } else {
+        if (badge) {
+            const countEl = badge.querySelector('.reaction-count');
+            const newCount = parseInt(countEl.textContent) - 1;
+            if (newCount <= 0) {
+                badge.remove();
+            } else {
+                countEl.textContent = newCount;
+                if (odataId === state.currentUser.id) badge.classList.remove('own');
+            }
+        }
+    }
+}
+
+function toggleReaction(messageId, emoji) {
+    const badge = document.querySelector(`[data-message-id="${messageId}"] .reaction-badge[data-emoji="${emoji}"]`);
+    const isOwn = badge?.classList.contains('own');
+    
+    if (isOwn) {
+        state.socket.emit('remove-reaction', { messageId, emoji, receiverId: state.selectedUser.id });
+    } else {
+        state.socket.emit('add-reaction', { messageId, emoji, receiverId: state.selectedUser.id });
+    }
 }
 
 // === АУТЕНТИФИКАЦИЯ ===
@@ -686,15 +768,18 @@ function renderUsers(users) {
             : 'background: var(--message-sent);';
         const avatarContent = user.avatar_url ? '' : user.username[0].toUpperCase();
         const displayName = user.display_name || user.username;
+        const isPremium = user.isPremium || user.role === 'admin';
+        const avatarClass = isPremium ? 'user-avatar avatar-premium-border' : 'user-avatar';
+        const nameStyle = user.name_color ? `style="--name-color: ${escapeAttr(user.name_color)}" data-name-color` : '';
         
         item.innerHTML = `
-            <div class="user-avatar" style="${avatarStyle}">
+            <div class="${avatarClass}" style="${avatarStyle}">
                 ${avatarContent}
                 <div class="online-indicator ${userStatus || 'offline'}"></div>
             </div>
             <div class="user-info">
-                <div class="user-name">${escapeHtml(displayName)}</div>
-                <div class="user-last-message">${statusText}</div>
+                <div class="user-name" ${nameStyle}>${escapeHtml(displayName)}${isPremium ? ' <span class="premium-indicator">👑</span>' : ''}</div>
+                <div class="user-last-message">${user.custom_tag ? `@${escapeHtml(user.custom_tag)} · ` : ''}${statusText}</div>
             </div>
             ${unread > 0 ? `<div class="unread-badge">${unread}</div>` : ''}
         `;
@@ -790,14 +875,194 @@ function renderMessages(messages) {
 function createMessageElement(msg, isSent) {
     const div = document.createElement('div');
     div.className = `message ${isSent ? 'sent' : 'received'}`;
+    div.dataset.messageId = msg.id;
+    div.dataset.senderId = msg.sender_id;
+    
+    const editedMark = msg.updated_at ? '<span class="message-edited">(ред.)</span>' : '';
+    const reactionsHtml = renderReactions(msg.reactions || [], msg.id);
+    
+    // Определяем контент в зависимости от типа сообщения
+    let bubbleContent;
+    if (msg.message_type === 'image' || msg.message_type === 'gif') {
+        bubbleContent = `<img src="${escapeAttr(msg.text)}" class="message-media" alt="Изображение" loading="lazy" onclick="openMediaViewer('${escapeAttr(msg.text)}')">`;
+    } else if (msg.message_type === 'video') {
+        bubbleContent = `<video src="${escapeAttr(msg.text)}" class="message-media" controls preload="metadata"></video>`;
+    } else {
+        bubbleContent = escapeHtml(msg.text);
+    }
+    
     div.innerHTML = `
         ${getAvatarHtml(isSent)}
         <div class="message-content">
-            <div class="message-bubble">${escapeHtml(msg.text)}</div>
-            <div class="message-time">${formatTime(msg.created_at)}</div>
+            <div class="message-bubble">${bubbleContent}</div>
+            <div class="message-time">${formatTime(msg.created_at)}${editedMark}</div>
+            ${reactionsHtml}
         </div>
+        <button class="add-reaction-btn" title="Добавить реакцию">➕</button>
     `;
+    
+    // Контекстное меню по правому клику
+    div.addEventListener('contextmenu', (e) => showMessageContextMenu(e, msg, isSent));
+    
+    // Добавление реакции
+    div.querySelector('.add-reaction-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showReactionPicker(msg.id, e.target);
+    });
+    
     return div;
+}
+
+// Просмотр медиа в полном размере
+function openMediaViewer(url) {
+    const viewer = document.createElement('div');
+    viewer.className = 'media-viewer';
+    viewer.innerHTML = `
+        <div class="media-viewer-overlay" onclick="this.parentElement.remove()"></div>
+        <img src="${url}" class="media-viewer-content" onclick="event.stopPropagation()">
+        <button class="media-viewer-close" onclick="this.parentElement.remove()">✕</button>
+    `;
+    document.body.appendChild(viewer);
+}
+
+function renderReactions(reactions, messageId) {
+    if (!reactions || reactions.length === 0) return '';
+    
+    const html = reactions.map(r => {
+        const isOwn = r.user_ids?.includes(state.currentUser.id) ? 'own' : '';
+        return `<span class="reaction-badge ${isOwn}" data-emoji="${r.emoji}" data-message-id="${messageId}">
+            ${r.emoji}<span class="reaction-count">${r.count}</span>
+        </span>`;
+    }).join('');
+    
+    return `<div class="message-reactions">${html}</div>`;
+}
+
+function showMessageContextMenu(e, msg, isSent) {
+    e.preventDefault();
+    
+    // Удаляем старое меню
+    document.querySelector('.message-context-menu')?.remove();
+    
+    const menu = document.createElement('div');
+    menu.className = 'message-context-menu';
+    
+    let menuItems = `
+        <div class="context-menu-item" data-action="react">😊 Реакция</div>
+        <div class="context-menu-item" data-action="copy">📋 Копировать</div>
+    `;
+    
+    if (isSent) {
+        menuItems += `
+            <div class="context-menu-divider"></div>
+            <div class="context-menu-item" data-action="edit">✏️ Редактировать</div>
+            <div class="context-menu-item danger" data-action="delete">🗑️ Удалить</div>
+        `;
+    }
+    
+    menu.innerHTML = menuItems;
+    menu.style.left = `${e.clientX}px`;
+    menu.style.top = `${e.clientY}px`;
+    
+    document.body.appendChild(menu);
+    
+    // Обработчики
+    menu.addEventListener('click', async (ev) => {
+        const action = ev.target.closest('.context-menu-item')?.dataset.action;
+        if (!action) return;
+        
+        switch (action) {
+            case 'copy':
+                navigator.clipboard.writeText(msg.text);
+                showToast('Скопировано');
+                break;
+            case 'edit':
+                editMessage(msg);
+                break;
+            case 'delete':
+                deleteMessagePrompt(msg);
+                break;
+            case 'react':
+                showReactionPicker(msg.id, ev.target);
+                break;
+        }
+        menu.remove();
+    });
+    
+    // Закрытие по клику вне
+    setTimeout(() => {
+        document.addEventListener('click', () => menu.remove(), { once: true });
+    }, 10);
+}
+
+async function editMessage(msg) {
+    const newText = await customPrompt({
+        title: 'Редактировать сообщение',
+        icon: '✏️',
+        defaultValue: msg.text,
+        okText: 'Сохранить'
+    });
+    
+    if (newText && newText !== msg.text) {
+        state.socket.emit('edit-message', {
+            messageId: msg.id,
+            text: newText,
+            receiverId: state.selectedUser.id
+        });
+    }
+}
+
+async function deleteMessagePrompt(msg) {
+    const confirmed = await customConfirm({
+        title: 'Удалить сообщение?',
+        message: 'Сообщение будет удалено у всех участников чата',
+        icon: '🗑️',
+        variant: 'danger',
+        okText: 'Удалить'
+    });
+    
+    if (confirmed) {
+        state.socket.emit('delete-message', {
+            messageId: msg.id,
+            receiverId: state.selectedUser.id
+        });
+    }
+}
+
+function showReactionPicker(messageId, target) {
+    const emojis = ['👍', '❤️', '😂', '😮', '😢', '😡', '🔥', '👏'];
+    
+    // Удаляем старый пикер
+    document.querySelector('.reaction-picker')?.remove();
+    
+    const picker = document.createElement('div');
+    picker.className = 'emoji-picker reaction-picker';
+    picker.innerHTML = `<div class="emoji-grid">${emojis.map(e => 
+        `<div class="emoji-item" data-emoji="${e}">${e}</div>`
+    ).join('')}</div>`;
+    
+    const rect = target.getBoundingClientRect();
+    picker.style.bottom = `${window.innerHeight - rect.top + 10}px`;
+    picker.style.left = `${rect.left}px`;
+    picker.style.right = 'auto';
+    
+    document.body.appendChild(picker);
+    
+    picker.addEventListener('click', (e) => {
+        const emoji = e.target.dataset.emoji;
+        if (emoji) {
+            state.socket.emit('add-reaction', {
+                messageId,
+                emoji,
+                receiverId: state.selectedUser.id
+            });
+            picker.remove();
+        }
+    });
+    
+    setTimeout(() => {
+        document.addEventListener('click', () => picker.remove(), { once: true });
+    }, 10);
 }
 
 function createCallMessageElement(msg, isSent) {
@@ -863,6 +1128,51 @@ function sendMessage() {
     });
     
     input.value = '';
+}
+
+// Прикрепление файла
+async function handleAttachFile(e) {
+    const file = e.target.files[0];
+    if (!file || !state.selectedUser) return;
+    
+    // Проверка размера
+    const isPremium = state.currentUserProfile?.isPremium || state.currentUser?.role === 'admin';
+    const maxSize = isPremium ? 25 * 1024 * 1024 : 5 * 1024 * 1024;
+    
+    if (file.size > maxSize) {
+        const limitMB = maxSize / (1024 * 1024);
+        showToast(`Максимальный размер файла: ${limitMB}MB`, 'error');
+        e.target.value = '';
+        return;
+    }
+    
+    try {
+        showToast('Загрузка файла...', 'info');
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('receiverId', state.selectedUser.id);
+        
+        const res = await api.uploadFile('/api/upload-message-file', formData);
+        const result = await res.json();
+        
+        if (result.success) {
+            // Отправляем сообщение с файлом
+            state.socket.emit('send-message', {
+                receiverId: state.selectedUser.id,
+                text: result.fileUrl,
+                messageType: result.fileType
+            });
+            showToast('Файл отправлен!', 'success');
+        } else {
+            showToast(result.error || 'Ошибка загрузки', 'error');
+        }
+    } catch (err) {
+        console.error('Upload error:', err);
+        showToast('Ошибка загрузки файла', 'error');
+    }
+    
+    e.target.value = '';
 }
 
 async function markAsRead() {
@@ -1736,6 +2046,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // Кнопка прикрепления файла
+    document.getElementById('attach-btn')?.addEventListener('click', () => {
+        document.getElementById('attach-input')?.click();
+    });
+    
+    document.getElementById('attach-input')?.addEventListener('change', handleAttachFile);
+    
     // === ПРОФИЛЬ ===
     
     // Аватарка теперь часть user-panel, обработчик там
@@ -2039,9 +2356,25 @@ async function showMyProfile() {
         bannerEl.style.backgroundImage = `url(${profile.banner_url})`;
         bannerEl.style.backgroundSize = 'cover';
         bannerEl.style.backgroundPosition = 'center';
+        bannerEl.className = 'profile-banner';
+    } else if (profile?.profile_theme && profile.profile_theme !== 'default') {
+        bannerEl.style.backgroundImage = '';
+        bannerEl.className = `profile-banner theme-${profile.profile_theme}`;
+    } else if (profile?.profile_color) {
+        bannerEl.style.backgroundImage = '';
+        bannerEl.style.background = profile.profile_color;
+        bannerEl.className = 'profile-banner';
     } else {
         bannerEl.style.backgroundImage = '';
         bannerEl.style.background = 'linear-gradient(135deg, #4fc3f7, #1976d2)';
+        bannerEl.className = 'profile-banner';
+    }
+    
+    // Premium: анимированная рамка аватара
+    if (profile?.isPremium) {
+        avatarEl.classList.add('avatar-premium-border');
+    } else {
+        avatarEl.classList.remove('avatar-premium-border');
     }
     
     document.getElementById('profile-name').textContent = profile?.display_name || state.currentUser.username;
@@ -2109,6 +2442,25 @@ function showEditProfile() {
     pendingAvatarFile = null;
     pendingBannerFile = null;
     document.getElementById('username-hint').textContent = '';
+    
+    // Premium настройки - показываем всем, но блокируем для не-премиум
+    const premiumSection = document.getElementById('premium-settings-section');
+    const premiumOverlay = document.getElementById('premium-lock-overlay');
+    const isPremium = state.currentUserProfile?.isPremium || state.currentUser?.role === 'admin';
+    
+    if (premiumSection) {
+        document.getElementById('edit-name-color').value = state.currentUserProfile?.name_color || '#4fc3f7';
+        document.getElementById('edit-profile-color').value = state.currentUserProfile?.profile_color || '#1976d2';
+        document.getElementById('edit-custom-tag').value = state.currentUserProfile?.custom_tag || '';
+        
+        if (isPremium) {
+            premiumSection.classList.remove('locked');
+            premiumOverlay?.classList.add('hidden');
+        } else {
+            premiumSection.classList.add('locked');
+            premiumOverlay?.classList.remove('hidden');
+        }
+    }
     
     document.getElementById('edit-profile-modal').classList.remove('hidden');
 }
@@ -2186,6 +2538,20 @@ async function saveProfile() {
             phone: document.getElementById('edit-phone').value,
             bio: document.getElementById('edit-bio').value
         });
+        
+        // Сохраняем премиум-настройки
+        const isPremium = state.currentUserProfile?.isPremium || state.currentUser?.role === 'admin';
+        if (isPremium) {
+            const nameColor = document.getElementById('edit-name-color')?.value;
+            const profileColor = document.getElementById('edit-profile-color')?.value;
+            const customTag = document.getElementById('edit-custom-tag')?.value?.trim();
+            
+            await api.put(`/api/user/${state.currentUser.id}/premium-settings`, {
+                name_color: nameColor !== '#4fc3f7' ? nameColor : null,
+                profile_color: profileColor !== '#1976d2' ? profileColor : null,
+                custom_tag: customTag || null
+            });
+        }
         
         document.getElementById('edit-profile-modal').classList.add('hidden');
         await loadMyProfile();
@@ -2284,6 +2650,24 @@ function showSettings() {
     document.getElementById('sounds-checkbox').checked = state.settings.sounds !== false;
     document.getElementById('setting-compact').checked = state.settings.compact || false;
     document.getElementById('setting-avatars').checked = !state.settings.hideAvatars;
+    
+    // Premium: скрытый онлайн
+    const hideOnlineCheckbox = document.getElementById('setting-hide-online');
+    if (hideOnlineCheckbox) {
+        hideOnlineCheckbox.checked = state.currentUserProfile?.hide_online || false;
+        // Блокируем если не премиум
+        const isPremium = state.currentUserProfile?.isPremium || state.currentUser?.role === 'admin';
+        const hideOnlineSetting = document.getElementById('hide-online-setting');
+        if (hideOnlineSetting) {
+            hideOnlineSetting.classList.toggle('locked', !isPremium);
+        }
+    }
+    
+    // Блокируем премиум-темы для не-премиум пользователей
+    const isPremium = state.currentUserProfile?.isPremium || state.currentUser?.role === 'admin';
+    document.querySelectorAll('.theme-option.premium-theme').forEach(opt => {
+        opt.classList.toggle('locked', !isPremium);
+    });
     
     // Активируем текущие опции
     document.querySelectorAll('.bg-option').forEach(opt => {
@@ -3275,6 +3659,36 @@ document.addEventListener('DOMContentLoaded', () => {
         saveSettings();
     });
     
+    // Скрытый онлайн (Premium)
+    document.getElementById('setting-hide-online')?.addEventListener('change', async (e) => {
+        const isPremium = state.currentUserProfile?.isPremium || state.currentUser?.role === 'admin';
+        if (!isPremium) {
+            e.target.checked = false;
+            showToast('Эта функция доступна только для Premium', 'error');
+            return;
+        }
+        
+        try {
+            await api.put(`/api/user/${state.currentUser.id}/premium-settings`, {
+                hide_online: e.target.checked
+            });
+            showToast(e.target.checked ? 'Вы теперь невидимы' : 'Статус онлайн виден');
+        } catch (err) {
+            e.target.checked = !e.target.checked;
+            showToast('Ошибка сохранения', 'error');
+        }
+    });
+    
+    // Сброс цвета ника
+    document.getElementById('reset-name-color')?.addEventListener('click', () => {
+        document.getElementById('edit-name-color').value = '#4fc3f7';
+    });
+    
+    // Сброс цвета профиля
+    document.getElementById('reset-profile-color')?.addEventListener('click', () => {
+        document.getElementById('edit-profile-color').value = '#1976d2';
+    });
+    
     // Фон чата
     document.querySelectorAll('.bg-option').forEach(opt => {
         opt.addEventListener('click', () => {
@@ -3330,9 +3744,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Тема
+    // Тема (с проверкой премиум)
     document.querySelectorAll('.theme-option').forEach(opt => {
         opt.addEventListener('click', () => {
+            // Проверка премиум-тем
+            const premiumThemes = ['neon', 'sunset', 'ocean'];
+            if (premiumThemes.includes(opt.dataset.theme)) {
+                const isPremium = state.currentUserProfile?.isPremium || state.currentUser?.role === 'admin';
+                if (!isPremium) {
+                    showToast('Эта тема доступна только для Premium', 'error');
+                    return;
+                }
+            }
+            
             document.querySelectorAll('.theme-option').forEach(o => o.classList.remove('active'));
             opt.classList.add('active');
             state.settings.theme = opt.dataset.theme;
@@ -3422,8 +3846,17 @@ function adjustColor(color, amount) {
 function applyTheme(theme) {
     const root = document.documentElement;
     
+    // Убираем data-theme атрибут
+    root.removeAttribute('data-theme');
+    
     if (theme === 'system') {
         theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    
+    // Premium темы
+    if (['neon', 'sunset', 'ocean'].includes(theme)) {
+        root.setAttribute('data-theme', theme);
+        return;
     }
     
     if (theme === 'light') {
