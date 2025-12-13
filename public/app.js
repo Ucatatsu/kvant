@@ -2690,3 +2690,185 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('close-legal')?.addEventListener('click', closeLegalModal);
     document.querySelector('#legal-modal .modal-overlay')?.addEventListener('click', closeLegalModal);
 });
+
+
+// === АДМИН-ПАНЕЛЬ ===
+
+async function showAdminPanel() {
+    if (state.currentUser?.role !== 'admin') {
+        showToast('Нет доступа', 'error');
+        return;
+    }
+    
+    try {
+        const res = await api.get('/api/admin/users?limit=100');
+        const data = await res.json();
+        
+        // Статистика
+        const statsEl = document.getElementById('admin-stats');
+        const totalUsers = data.total || 0;
+        const premiumUsers = data.users?.filter(u => u.isPremium).length || 0;
+        const adminUsers = data.users?.filter(u => u.role === 'admin').length || 0;
+        
+        statsEl.innerHTML = `
+            <div class="admin-stat">
+                <div class="admin-stat-value">${totalUsers}</div>
+                <div class="admin-stat-label">Всего пользователей</div>
+            </div>
+            <div class="admin-stat">
+                <div class="admin-stat-value">${premiumUsers}</div>
+                <div class="admin-stat-label">Premium</div>
+            </div>
+            <div class="admin-stat">
+                <div class="admin-stat-value">${adminUsers}</div>
+                <div class="admin-stat-label">Админов</div>
+            </div>
+        `;
+        
+        // Список пользователей
+        renderAdminUsers(data.users || []);
+        
+        document.getElementById('admin-modal').classList.remove('hidden');
+    } catch (error) {
+        console.error('Admin panel error:', error);
+        showToast('Ошибка загрузки', 'error');
+    }
+}
+
+function renderAdminUsers(users) {
+    const container = document.getElementById('admin-users');
+    
+    container.innerHTML = users.map(user => `
+        <div class="admin-user" data-user-id="${user.id}">
+            <div class="admin-user-avatar" style="${user.avatar_url ? `background-image: url(${user.avatar_url})` : ''}">
+                ${user.avatar_url ? '' : user.username[0].toUpperCase()}
+            </div>
+            <div class="admin-user-info">
+                <div class="admin-user-name">
+                    ${user.display_name || user.username}
+                    ${user.role === 'admin' ? '<span class="profile-badge admin">Админ</span>' : ''}
+                    ${user.isPremium && user.role !== 'admin' ? '<span class="profile-badge premium">Premium</span>' : ''}
+                </div>
+                <div class="admin-user-tag">${user.username}#${user.tag || '????'}</div>
+            </div>
+            <div class="admin-user-actions">
+                <button class="admin-btn admin-btn-role" data-action="role" data-user-id="${user.id}" data-role="${user.role}">
+                    Роль
+                </button>
+                <button class="admin-btn admin-btn-premium" data-action="premium" data-user-id="${user.id}">
+                    +Premium
+                </button>
+                ${user.id !== state.currentUser.id ? `
+                    <button class="admin-btn admin-btn-delete" data-action="delete" data-user-id="${user.id}">
+                        Удалить
+                    </button>
+                ` : ''}
+            </div>
+        </div>
+    `).join('');
+    
+    // Добавляем обработчики
+    container.querySelectorAll('.admin-btn').forEach(btn => {
+        btn.addEventListener('click', handleAdminAction);
+    });
+}
+
+async function handleAdminAction(e) {
+    const action = e.target.dataset.action;
+    const userId = e.target.dataset.userId;
+    
+    if (action === 'role') {
+        const currentRole = e.target.dataset.role;
+        const roles = ['user', 'premium', 'admin'];
+        const currentIndex = roles.indexOf(currentRole);
+        const newRole = roles[(currentIndex + 1) % roles.length];
+        
+        if (!confirm(`Изменить роль на "${newRole}"?`)) return;
+        
+        try {
+            const res = await api.put(`/api/admin/user/${userId}/role`, { role: newRole });
+            const data = await res.json();
+            
+            if (data.success) {
+                showToast(`Роль изменена на ${newRole}`);
+                showAdminPanel();
+            } else {
+                showToast(data.error || 'Ошибка', 'error');
+            }
+        } catch (error) {
+            showToast('Ошибка сети', 'error');
+        }
+    } else if (action === 'premium') {
+        const days = prompt('Количество дней премиума:', '30');
+        if (!days || isNaN(days)) return;
+        
+        try {
+            const res = await api.post(`/api/admin/user/${userId}/premium`, { days: parseInt(days) });
+            const data = await res.json();
+            
+            if (data.success) {
+                showToast(`Premium выдан на ${days} дней`);
+                showAdminPanel();
+            } else {
+                showToast(data.error || 'Ошибка', 'error');
+            }
+        } catch (error) {
+            showToast('Ошибка сети', 'error');
+        }
+    } else if (action === 'delete') {
+        if (!confirm('Удалить пользователя? Это действие необратимо!')) return;
+        
+        try {
+            const res = await api.request(`/api/admin/user/${userId}`, { method: 'DELETE' });
+            const data = await res.json();
+            
+            if (data.success) {
+                showToast('Пользователь удалён');
+                showAdminPanel();
+            } else {
+                showToast(data.error || 'Ошибка', 'error');
+            }
+        } catch (error) {
+            showToast('Ошибка сети', 'error');
+        }
+    }
+}
+
+// Поиск в админке
+document.getElementById('admin-search')?.addEventListener('input', async (e) => {
+    const query = e.target.value.trim().toLowerCase();
+    
+    if (!query) {
+        showAdminPanel();
+        return;
+    }
+    
+    try {
+        const res = await api.get('/api/admin/users?limit=100');
+        const data = await res.json();
+        
+        const filtered = data.users.filter(u => 
+            u.username.toLowerCase().includes(query) ||
+            u.tag?.includes(query) ||
+            u.display_name?.toLowerCase().includes(query)
+        );
+        
+        renderAdminUsers(filtered);
+    } catch (error) {
+        console.error('Search error:', error);
+    }
+});
+
+// Закрытие админки
+document.getElementById('close-admin')?.addEventListener('click', () => {
+    document.getElementById('admin-modal').classList.add('hidden');
+});
+
+
+// Инициализация кнопки админ-панели
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('admin-btn')?.addEventListener('click', () => {
+        document.getElementById('settings-modal').classList.add('hidden');
+        showAdminPanel();
+    });
+});
