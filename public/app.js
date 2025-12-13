@@ -751,9 +751,29 @@ function restoreSession() {
 }
 
 async function showChat() {
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('register-screen').classList.add('hidden');
-    document.getElementById('chat-screen').classList.remove('hidden');
+    const loginScreen = document.getElementById('login-screen');
+    const registerScreen = document.getElementById('register-screen');
+    const chatScreen = document.getElementById('chat-screen');
+    
+    // Анимация исчезновения экрана входа
+    const activeAuthScreen = !loginScreen.classList.contains('hidden') ? loginScreen : registerScreen;
+    activeAuthScreen.classList.add('fade-out');
+    
+    // Ждём завершения анимации исчезновения
+    await new Promise(resolve => setTimeout(resolve, 400));
+    
+    loginScreen.classList.add('hidden');
+    registerScreen.classList.add('hidden');
+    activeAuthScreen.classList.remove('fade-out');
+    
+    // Показываем чат с анимацией появления
+    chatScreen.classList.remove('hidden');
+    chatScreen.classList.add('bounce-in');
+    
+    // Убираем класс анимации после завершения
+    setTimeout(() => {
+        chatScreen.classList.remove('bounce-in');
+    }, 800);
     
     const initial = state.currentUser.username[0].toUpperCase();
     document.getElementById('current-user-avatar').textContent = initial;
