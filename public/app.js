@@ -2227,6 +2227,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Кнопка прикрепления файла
     document.getElementById('attach-btn')?.addEventListener('click', () => {
+        if (!state.selectedUser) {
+            showToast('Сначала выберите чат', 'error');
+            return;
+        }
         document.getElementById('attach-input')?.click();
     });
     
@@ -2430,6 +2434,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     emojiBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (!state.selectedUser) {
+            showToast('Сначала выберите чат', 'error');
+            return;
+        }
         emojiPicker?.classList.toggle('hidden');
     });
     
