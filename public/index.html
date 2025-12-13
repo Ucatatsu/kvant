@@ -2,79 +2,100 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="Квант - современный мессенджер с поддержкой аудио и видеозвонков">
+  <meta name="theme-color" content="#0a1628">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Квант</title>
   <link rel="icon" href="icon.png" type="image/png">
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Skip link для accessibility -->
+  <a href="#main-content" class="skip-link">Перейти к содержимому</a>
+  
+  <!-- Индикатор соединения -->
+  <div id="connection-status" class="connection-status hidden" role="status" aria-live="polite"></div>
+
   <!-- Экран входа -->
-  <div id="login-screen" class="screen">
+  <div id="login-screen" class="screen" role="main">
     <div class="auth-container">
-      <img src="icon.png" alt="Квант" class="logo-img">
+      <img src="icon.png" alt="Логотип Квант" class="logo-img">
       <h1>Квант</h1>
-      <form id="login-form">
-        <input type="text" id="login-username" placeholder="Имя пользователя" required>
-        <input type="password" id="login-password" placeholder="Пароль" required>
+      <form id="login-form" aria-label="Форма входа">
+        <input type="text" id="login-username" placeholder="Имя пользователя" required 
+               autocomplete="username" aria-label="Имя пользователя">
+        <input type="password" id="login-password" placeholder="Пароль" required 
+               autocomplete="current-password" aria-label="Пароль">
         <button type="submit" class="btn-primary">Войти</button>
         <button type="button" id="to-register-btn" class="btn-secondary">Регистрация</button>
       </form>
-      <p id="login-error" class="error"></p>
+      <p id="login-error" class="error" role="alert" aria-live="polite"></p>
     </div>
   </div>
 
   <!-- Экран регистрации -->
-  <div id="register-screen" class="screen hidden">
+  <div id="register-screen" class="screen hidden" role="main">
     <div class="auth-container">
-      <img src="icon.png" alt="Квант" class="logo-img">
+      <img src="icon.png" alt="Логотип Квант" class="logo-img">
       <h1>Регистрация</h1>
-      <form id="register-form">
-        <input type="text" id="reg-username" placeholder="Имя пользователя" required>
-        <input type="password" id="reg-password" placeholder="Пароль" required>
-        <input type="password" id="reg-password-confirm" placeholder="Подтвердите пароль" required>
+      <form id="register-form" aria-label="Форма регистрации">
+        <input type="text" id="reg-username" placeholder="Имя пользователя" required 
+               autocomplete="username" aria-label="Имя пользователя" 
+               pattern="[a-zA-Z0-9_]{3,20}" title="3-20 символов: буквы, цифры, _">
+        <input type="password" id="reg-password" placeholder="Пароль" required 
+               autocomplete="new-password" aria-label="Пароль" minlength="6">
+        <input type="password" id="reg-password-confirm" placeholder="Подтвердите пароль" required 
+               autocomplete="new-password" aria-label="Подтверждение пароля">
         <button type="submit" class="btn-primary">Зарегистрироваться</button>
         <button type="button" id="to-login-btn" class="btn-secondary">Уже есть аккаунт</button>
       </form>
-      <p id="register-error" class="error"></p>
+      <p id="register-error" class="error" role="alert" aria-live="polite"></p>
     </div>
   </div>
 
   <!-- Главный экран чата -->
-  <div id="chat-screen" class="screen hidden">
+  <div id="chat-screen" class="screen hidden" id="main-content">
     <!-- Боковая панель -->
-    <aside class="sidebar">
+    <aside class="sidebar" role="navigation" aria-label="Контакты">
       <div class="sidebar-header">
         <img src="icon.png" alt="Квант" class="logo-mini-img">
       </div>
       <div class="chats-header">
-        <input type="text" class="search-input" placeholder="🔍 Поиск">
+        <input type="search" class="search-input" placeholder="🔍 Поиск" 
+               aria-label="Поиск пользователей">
       </div>
-      <div class="users-list" id="users-list"></div>
+      <div class="users-list" id="users-list" role="list" aria-label="Список контактов"></div>
       <div class="sidebar-footer">
-        <div class="current-user-avatar" id="current-user-avatar"></div>
+        <div class="current-user-avatar" id="current-user-avatar" role="button" 
+             tabindex="0" aria-label="Открыть профиль"></div>
         <div class="current-user-details">
           <span class="current-user"></span>
           <span class="current-user-status">В сети</span>
         </div>
-        <button id="settings-btn" class="icon-btn" title="Настройки">⚙️</button>
+        <button id="settings-btn" class="icon-btn" title="Настройки" aria-label="Открыть настройки">⚙️</button>
       </div>
     </aside>
     
-    <!-- Область чата - элементы напрямую в grid -->
-    <div class="chat-header" id="chat-header">
-      <button class="back-btn" id="back-btn">←</button>
-      <div class="chat-user-info" id="chat-user-info-btn">
+    <!-- Область чата -->
+    <header class="chat-header" id="chat-header">
+      <button class="back-btn" id="back-btn" aria-label="Назад к списку чатов">←</button>
+      <div class="chat-user-info" id="chat-user-info-btn" role="button" tabindex="0" 
+           aria-label="Информация о собеседнике">
         <span class="chat-user-name">Выберите чат</span>
         <span class="chat-user-status"></span>
       </div>
       <div class="chat-actions">
-        <button class="action-btn" title="Аудиозвонок">📞</button>
-        <button class="action-btn" title="Видеозвонок">📹</button>
+        <button class="action-btn" title="Аудиозвонок" aria-label="Начать аудиозвонок">📞</button>
+        <button class="action-btn" title="Видеозвонок" aria-label="Начать видеозвонок">📹</button>
       </div>
-    </div>
+    </header>
     
-    <!-- Полоска активного звонка (как в Telegram) -->
-    <div class="active-call-bar hidden" id="active-call-bar">
+    <!-- Полоска активного звонка -->
+    <div class="active-call-bar hidden" id="active-call-bar" role="status">
       <div class="call-bar-info">
         <span class="call-bar-icon">📞</span>
         <span class="call-bar-text">Звонок</span>
@@ -82,35 +103,41 @@
         <span class="call-bar-timer" id="call-bar-timer">00:00</span>
       </div>
       <div class="call-bar-actions">
-        <button class="call-bar-btn" id="call-bar-expand" title="Развернуть">↗️</button>
-        <button class="call-bar-btn call-bar-end" id="call-bar-end" title="Завершить">✕</button>
+        <button class="call-bar-btn" id="call-bar-expand" title="Развернуть" aria-label="Развернуть звонок">↗️</button>
+        <button class="call-bar-btn call-bar-end" id="call-bar-end" title="Завершить" aria-label="Завершить звонок">✕</button>
       </div>
     </div>
     
-    <div class="messages" id="messages"></div>
-    <form class="message-form" id="message-form">
-      <input type="text" id="message-input" placeholder="Сообщение..." autocomplete="off" disabled>
-      <button type="button" class="emoji-btn">😊</button>
-      <button type="submit" class="send-btn" disabled>➤</button>
+    <main class="messages" id="messages" role="log" aria-label="Сообщения" aria-live="polite"></main>
+    
+    <form class="message-form" id="message-form" aria-label="Отправка сообщения">
+      <input type="text" id="message-input" placeholder="Сообщение..." autocomplete="off" 
+             disabled aria-label="Текст сообщения">
+      <button type="button" class="emoji-btn" aria-label="Выбрать эмодзи" aria-haspopup="true">😊</button>
+      <button type="submit" class="send-btn" disabled aria-label="Отправить сообщение">➤</button>
     </form>
   </div>
 
-  <!-- Модальное окно своего профиля -->
-  <div id="profile-modal" class="modal hidden">
+  <!-- Модальное окно профиля -->
+  <div id="profile-modal" class="modal hidden" role="dialog" aria-labelledby="profile-name" aria-modal="true">
     <div class="modal-overlay"></div>
     <div class="modal-content profile-modal-content">
       <div class="profile-banner" id="profile-banner"></div>
       <div class="profile-avatar-wrapper">
         <div class="profile-avatar-large" id="profile-avatar"></div>
       </div>
-      <button class="modal-close" id="close-profile">&times;</button>
+      <button class="modal-close" id="close-profile" aria-label="Закрыть">&times;</button>
       <div class="profile-body">
-        <div class="profile-name" id="profile-name"></div>
+        <div class="profile-name-row">
+          <div class="profile-name" id="profile-name"></div>
+          <span class="profile-badge" id="profile-badge"></span>
+        </div>
         <div class="profile-username" id="profile-username"></div>
+        <div class="profile-tag" id="profile-tag"></div>
         <div class="profile-bio" id="profile-bio"></div>
         <div class="profile-info">
-          <div class="profile-info-item" id="profile-phone-item">
-            <span class="info-icon">📱</span>
+          <div class="profile-info-item">
+            <span class="info-icon" aria-hidden="true">📱</span>
             <span id="profile-phone">Не указан</span>
           </div>
         </div>
@@ -122,47 +149,48 @@
   </div>
 
   <!-- Модальное окно редактирования профиля -->
-  <div id="edit-profile-modal" class="modal hidden">
+  <div id="edit-profile-modal" class="modal hidden" role="dialog" aria-labelledby="edit-profile-title" aria-modal="true">
     <div class="modal-overlay"></div>
     <div class="modal-content edit-profile-content">
       <div class="modal-header">
-        <h2>Редактировать профиль</h2>
-        <button class="modal-close" id="close-edit-profile">&times;</button>
+        <h2 id="edit-profile-title">Редактировать профиль</h2>
+        <button class="modal-close" id="close-edit-profile" aria-label="Закрыть">&times;</button>
       </div>
       <div class="modal-body">
-        <!-- Баннер -->
         <div class="edit-banner-wrapper">
-          <div class="edit-banner" id="edit-banner-preview">
+          <div class="edit-banner" id="edit-banner-preview" role="button" tabindex="0" 
+               aria-label="Изменить баннер">
             <span class="edit-banner-text">Нажмите чтобы изменить баннер</span>
           </div>
-          <input type="file" id="edit-banner-input" accept="image/*,.gif" hidden>
+          <input type="file" id="edit-banner-input" accept="image/*,.gif" hidden aria-hidden="true">
         </div>
         
-        <!-- Аватарка -->
         <div class="edit-avatar-wrapper">
-          <div class="edit-avatar" id="edit-avatar-preview">
+          <div class="edit-avatar" id="edit-avatar-preview" role="button" tabindex="0" 
+               aria-label="Изменить фото">
             <span class="edit-avatar-icon">📷</span>
           </div>
-          <input type="file" id="edit-avatar-input" accept="image/*,.gif" hidden>
+          <input type="file" id="edit-avatar-input" accept="image/*,.gif" hidden aria-hidden="true">
           <span class="edit-avatar-hint">Изменить фото</span>
         </div>
         
         <div class="form-group">
-          <label>Ник (username)</label>
-          <input type="text" id="edit-username" placeholder="your_username">
+          <label for="edit-username">Ник (username)</label>
+          <input type="text" id="edit-username" placeholder="your_username" 
+                 pattern="[a-zA-Z0-9_]{3,20}">
           <span class="form-hint" id="username-hint"></span>
         </div>
         <div class="form-group">
-          <label>Отображаемое имя</label>
-          <input type="text" id="edit-display-name" placeholder="Ваше имя">
+          <label for="edit-display-name">Отображаемое имя</label>
+          <input type="text" id="edit-display-name" placeholder="Ваше имя" maxlength="50">
         </div>
         <div class="form-group">
-          <label>Телефон</label>
-          <input type="tel" id="edit-phone" placeholder="+7 999 123 45 67">
+          <label for="edit-phone">Телефон</label>
+          <input type="tel" id="edit-phone" placeholder="+7 999 123 45 67" maxlength="20">
         </div>
         <div class="form-group">
-          <label>О себе</label>
-          <textarea id="edit-bio" placeholder="Расскажите о себе..." rows="3"></textarea>
+          <label for="edit-bio">О себе</label>
+          <textarea id="edit-bio" placeholder="Расскажите о себе..." rows="3" maxlength="500"></textarea>
         </div>
         <button class="btn-primary" id="save-profile-btn">Сохранить</button>
       </div>
@@ -170,11 +198,10 @@
   </div>
 
   <!-- Модальное окно настроек -->
-  <div id="settings-modal" class="modal hidden">
+  <div id="settings-modal" class="modal hidden" role="dialog" aria-labelledby="settings-title" aria-modal="true">
     <div class="modal-overlay"></div>
     <div class="modal-content settings-modal-content">
       <div class="settings-sidebar">
-        <!-- Профиль пользователя -->
         <div class="settings-user">
           <div class="settings-user-avatar" id="settings-avatar"></div>
           <div class="settings-user-info">
@@ -183,51 +210,54 @@
           </div>
         </div>
         
-        <div class="settings-nav">
-          <div class="settings-nav-item active" data-section="appearance">
-            <span class="nav-icon">🎨</span>
+        <nav class="settings-nav" aria-label="Разделы настроек">
+          <div class="settings-nav-item active" data-section="appearance" role="tab" tabindex="0">
+            <span class="nav-icon" aria-hidden="true">🎨</span>
             <span>Оформление</span>
           </div>
-          <div class="settings-nav-item" data-section="notifications">
-            <span class="nav-icon">🔔</span>
+          <div class="settings-nav-item" data-section="notifications" role="tab" tabindex="0">
+            <span class="nav-icon" aria-hidden="true">🔔</span>
             <span>Уведомления</span>
           </div>
-          <div class="settings-nav-item" data-section="privacy">
-            <span class="nav-icon">🔒</span>
+          <div class="settings-nav-item" data-section="privacy" role="tab" tabindex="0">
+            <span class="nav-icon" aria-hidden="true">🔒</span>
             <span>Приватность</span>
           </div>
-          <div class="settings-nav-item" data-section="about">
-            <span class="nav-icon">ℹ️</span>
+          <div class="settings-nav-item" data-section="about" role="tab" tabindex="0">
+            <span class="nav-icon" aria-hidden="true">ℹ️</span>
             <span>О приложении</span>
           </div>
-        </div>
+        </nav>
         
         <div class="settings-sidebar-footer">
+          <button class="settings-admin-btn hidden" id="admin-btn">
+            <span aria-hidden="true">👑</span> Админ-панель
+          </button>
           <button class="settings-logout-btn" id="logout-btn">
-            <span>🚪</span> Выйти из аккаунта
+            <span aria-hidden="true">🚪</span> Выйти из аккаунта
           </button>
         </div>
       </div>
       
       <div class="settings-content">
-        <button class="modal-close" id="close-settings">&times;</button>
+        <button class="modal-close" id="close-settings" aria-label="Закрыть">&times;</button>
         
         <!-- Оформление -->
-        <div class="settings-section active" id="section-appearance">
-          <h2>Оформление</h2>
+        <section class="settings-section active" id="section-appearance" role="tabpanel">
+          <h2 id="settings-title">Оформление</h2>
           
           <div class="settings-group">
             <h3>Тема</h3>
-            <div class="theme-selector">
-              <div class="theme-option active" data-theme="dark">
+            <div class="theme-selector" role="radiogroup" aria-label="Выбор темы">
+              <div class="theme-option active" data-theme="dark" role="radio" tabindex="0" aria-checked="true">
                 <div class="theme-preview dark"></div>
                 <span>Тёмная</span>
               </div>
-              <div class="theme-option" data-theme="light">
+              <div class="theme-option" data-theme="light" role="radio" tabindex="0" aria-checked="false">
                 <div class="theme-preview light"></div>
                 <span>Светлая</span>
               </div>
-              <div class="theme-option" data-theme="system">
+              <div class="theme-option" data-theme="system" role="radio" tabindex="0" aria-checked="false">
                 <div class="theme-preview system"></div>
                 <span>Системная</span>
               </div>
@@ -236,25 +266,25 @@
           
           <div class="settings-group">
             <h3>Фон чата</h3>
-            <div class="bg-selector">
-              <div class="bg-option active" data-bg="default">
+            <div class="bg-selector" role="radiogroup" aria-label="Выбор фона">
+              <div class="bg-option active" data-bg="default" role="radio" tabindex="0" aria-checked="true">
                 <div class="bg-preview" style="background: url('background.jpg') center/cover"></div>
               </div>
-              <div class="bg-option" data-bg="gradient1">
+              <div class="bg-option" data-bg="gradient1" role="radio" tabindex="0" aria-checked="false">
                 <div class="bg-preview" style="background: linear-gradient(135deg, #1a1a2e, #16213e)"></div>
               </div>
-              <div class="bg-option" data-bg="gradient2">
+              <div class="bg-option" data-bg="gradient2" role="radio" tabindex="0" aria-checked="false">
                 <div class="bg-preview" style="background: linear-gradient(135deg, #0f0c29, #302b63, #24243e)"></div>
               </div>
-              <div class="bg-option" data-bg="gradient3">
+              <div class="bg-option" data-bg="gradient3" role="radio" tabindex="0" aria-checked="false">
                 <div class="bg-preview" style="background: linear-gradient(135deg, #232526, #414345)"></div>
               </div>
-              <div class="bg-option" data-bg="solid">
+              <div class="bg-option" data-bg="solid" role="radio" tabindex="0" aria-checked="false">
                 <div class="bg-preview" style="background: #0a1628"></div>
               </div>
-              <div class="bg-option" data-bg="custom">
+              <div class="bg-option" data-bg="custom" role="radio" tabindex="0" aria-checked="false">
                 <div class="bg-preview custom-bg">📷</div>
-                <input type="file" id="custom-bg-input" accept="image/*" hidden>
+                <input type="file" id="custom-bg-input" accept="image/*" hidden aria-hidden="true">
               </div>
             </div>
           </div>
@@ -265,23 +295,29 @@
               <div class="settings-item-info">
                 <span class="settings-item-title">Размер текста</span>
               </div>
-              <div class="size-selector">
-                <button class="size-btn" data-size="small">A</button>
-                <button class="size-btn active" data-size="medium">A</button>
-                <button class="size-btn" data-size="large">A</button>
+              <div class="size-selector" role="radiogroup" aria-label="Размер текста">
+                <button class="size-btn" data-size="small" aria-label="Маленький">A</button>
+                <button class="size-btn active" data-size="medium" aria-label="Средний">A</button>
+                <button class="size-btn" data-size="large" aria-label="Большой">A</button>
               </div>
             </div>
           </div>
           
           <div class="settings-group">
             <h3>Акцентный цвет</h3>
-            <div class="color-selector">
-              <div class="color-option active" data-color="#4fc3f7" style="background: #4fc3f7"></div>
-              <div class="color-option" data-color="#7c4dff" style="background: #7c4dff"></div>
-              <div class="color-option" data-color="#ff4081" style="background: #ff4081"></div>
-              <div class="color-option" data-color="#00e676" style="background: #00e676"></div>
-              <div class="color-option" data-color="#ffab00" style="background: #ffab00"></div>
-              <div class="color-option" data-color="#ff5722" style="background: #ff5722"></div>
+            <div class="color-selector" role="radiogroup" aria-label="Акцентный цвет">
+              <div class="color-option active" data-color="#4fc3f7" style="background: #4fc3f7" 
+                   role="radio" tabindex="0" aria-label="Голубой"></div>
+              <div class="color-option" data-color="#7c4dff" style="background: #7c4dff" 
+                   role="radio" tabindex="0" aria-label="Фиолетовый"></div>
+              <div class="color-option" data-color="#ff4081" style="background: #ff4081" 
+                   role="radio" tabindex="0" aria-label="Розовый"></div>
+              <div class="color-option" data-color="#00e676" style="background: #00e676" 
+                   role="radio" tabindex="0" aria-label="Зелёный"></div>
+              <div class="color-option" data-color="#ffab00" style="background: #ffab00" 
+                   role="radio" tabindex="0" aria-label="Оранжевый"></div>
+              <div class="color-option" data-color="#ff5722" style="background: #ff5722" 
+                   role="radio" tabindex="0" aria-label="Красный"></div>
             </div>
           </div>
           
@@ -307,10 +343,10 @@
               </label>
             </div>
           </div>
-        </div>
+        </section>
         
         <!-- Уведомления -->
-        <div class="settings-section" id="section-notifications">
+        <section class="settings-section" id="section-notifications" role="tabpanel">
           <h2>Уведомления</h2>
           <div class="settings-group">
             <div class="settings-item">
@@ -333,21 +369,11 @@
                 <span class="toggle-slider"></span>
               </label>
             </div>
-            <div class="settings-item">
-              <div class="settings-item-info">
-                <span class="settings-item-title">Предпросмотр сообщений</span>
-                <span class="settings-item-desc">Показывать текст в уведомлениях</span>
-              </div>
-              <label class="toggle">
-                <input type="checkbox" id="setting-preview" checked>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
           </div>
-        </div>
+        </section>
         
         <!-- Приватность -->
-        <div class="settings-section" id="section-privacy">
+        <section class="settings-section" id="section-privacy" role="tabpanel">
           <h2>Приватность</h2>
           <div class="settings-group">
             <div class="settings-item">
@@ -370,54 +396,44 @@
                 <span class="toggle-slider"></span>
               </label>
             </div>
-            <div class="settings-item">
-              <div class="settings-item-info">
-                <span class="settings-item-title">Прочитано</span>
-                <span class="settings-item-desc">Отправлять отчёты о прочтении</span>
-              </div>
-              <label class="toggle">
-                <input type="checkbox" id="setting-read-receipts" checked>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
           </div>
-        </div>
+        </section>
         
         <!-- О приложении -->
-        <div class="settings-section" id="section-about">
+        <section class="settings-section" id="section-about" role="tabpanel">
           <h2>О приложении</h2>
           <div class="about-content">
             <img src="icon.png" alt="Квант" class="about-logo">
             <h3>Квант</h3>
-            <p class="about-version">Версия 1.0.0</p>
+            <p class="about-version">Версия 1.1.0</p>
             <p class="about-desc">Современный мессенджер с поддержкой аудио и видеозвонков</p>
-            <div class="about-links">
-              <a href="#" class="about-link">Политика конфиденциальности</a>
-              <a href="#" class="about-link">Условия использования</a>
-            </div>
-            <p class="about-copyright">© 2024 Квант. Все права защищены.</p>
+            <p class="about-copyright">© 2025 Квант. Все права защищены.</p>
           </div>
-        </div>
+        </section>
       </div>
     </div>
   </div>
 
   <!-- Модальное окно профиля собеседника -->
-  <div id="user-profile-modal" class="modal hidden">
+  <div id="user-profile-modal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="modal-overlay"></div>
     <div class="modal-content profile-modal-content">
       <div class="profile-banner" id="user-profile-banner"></div>
       <div class="profile-avatar-wrapper">
         <div class="profile-avatar-large" id="user-profile-avatar"></div>
       </div>
-      <button class="modal-close" id="close-user-profile">&times;</button>
+      <button class="modal-close" id="close-user-profile" aria-label="Закрыть">&times;</button>
       <div class="profile-body">
-        <div class="profile-name" id="user-profile-name"></div>
+        <div class="profile-name-row">
+          <div class="profile-name" id="user-profile-name"></div>
+          <span class="profile-badge" id="user-profile-badge"></span>
+        </div>
         <div class="profile-username" id="user-profile-username"></div>
+        <div class="profile-tag" id="user-profile-tag"></div>
         <div class="profile-bio" id="user-profile-bio"></div>
         <div class="profile-info">
           <div class="profile-info-item">
-            <span class="info-icon">📱</span>
+            <span class="info-icon" aria-hidden="true">📱</span>
             <span id="user-profile-phone">Не указан</span>
           </div>
         </div>
@@ -426,41 +442,59 @@
   </div>
 
   <!-- Emoji Picker -->
-  <div id="emoji-picker" class="emoji-picker hidden">
-    <div class="emoji-grid"></div>
+  <div id="emoji-picker" class="emoji-picker hidden" role="dialog" aria-label="Выбор эмодзи">
+    <div class="emoji-grid" role="listbox"></div>
   </div>
 
   <!-- Модалка звонка -->
-  <div id="call-modal" class="modal hidden">
+  <div id="call-modal" class="modal hidden" role="dialog" aria-label="Звонок" aria-modal="true">
     <div class="modal-overlay call-overlay"></div>
     <div class="call-container">
       <div class="call-user-avatar" id="call-avatar"></div>
       <div class="call-user-name" id="call-name"></div>
-      <div class="call-status" id="call-status">Вызов...</div>
-      <div class="call-timer hidden" id="call-timer">00:00</div>
+      <div class="call-status" id="call-status" role="status">Вызов...</div>
+      <div class="call-timer hidden" id="call-timer" aria-live="polite">00:00</div>
       <div class="call-videos hidden" id="call-videos">
-        <video id="remote-video" autoplay playsinline></video>
-        <video id="local-video" autoplay playsinline muted></video>
+        <video id="remote-video" autoplay playsinline aria-label="Видео собеседника"></video>
+        <video id="local-video" autoplay playsinline muted aria-label="Ваше видео"></video>
       </div>
       <div class="call-actions">
-        <button class="call-btn call-btn-mute active" id="mute-btn" title="Микрофон">🎤</button>
-        <button class="call-btn call-btn-video" id="toggle-video-btn" title="Камера">📹</button>
-        <button class="call-btn call-btn-screen" id="screen-share-btn" title="Демонстрация">🖥️</button>
-        <button class="call-btn call-btn-end" id="end-call-btn" title="Завершить">📵</button>
+        <button class="call-btn call-btn-mute active" id="mute-btn" title="Микрофон" aria-label="Включить/выключить микрофон">🎤</button>
+        <button class="call-btn call-btn-video" id="toggle-video-btn" title="Камера" aria-label="Включить/выключить камеру">📹</button>
+        <button class="call-btn call-btn-screen" id="screen-share-btn" title="Демонстрация" aria-label="Демонстрация экрана">🖥️</button>
+        <button class="call-btn call-btn-end" id="end-call-btn" title="Завершить" aria-label="Завершить звонок">📵</button>
       </div>
     </div>
   </div>
 
   <!-- Входящий звонок -->
-  <div id="incoming-call-modal" class="modal hidden">
+  <div id="incoming-call-modal" class="modal hidden" role="alertdialog" aria-label="Входящий звонок" aria-modal="true">
     <div class="modal-overlay call-overlay"></div>
     <div class="call-container incoming">
       <div class="call-user-avatar" id="incoming-call-avatar"></div>
       <div class="call-user-name" id="incoming-call-name"></div>
-      <div class="call-status" id="incoming-call-type">Входящий звонок...</div>
+      <div class="call-status" id="incoming-call-type" role="status">Входящий звонок...</div>
       <div class="call-actions">
-        <button class="call-btn call-btn-decline" id="decline-call-btn">✕</button>
-        <button class="call-btn call-btn-accept" id="accept-call-btn">📞</button>
+        <button class="call-btn call-btn-decline" id="decline-call-btn" aria-label="Отклонить звонок">✕</button>
+        <button class="call-btn call-btn-accept" id="accept-call-btn" aria-label="Принять звонок">📞</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Админ-панель -->
+  <div id="admin-modal" class="modal hidden" role="dialog" aria-label="Админ-панель" aria-modal="true">
+    <div class="modal-overlay"></div>
+    <div class="modal-content admin-content">
+      <div class="modal-header">
+        <h2>👑 Админ-панель</h2>
+        <button class="modal-close" id="close-admin" aria-label="Закрыть">&times;</button>
+      </div>
+      <div class="admin-body">
+        <div class="admin-stats" id="admin-stats"></div>
+        <div class="admin-search">
+          <input type="text" id="admin-search" placeholder="Поиск по username или ID...">
+        </div>
+        <div class="admin-users" id="admin-users"></div>
       </div>
     </div>
   </div>

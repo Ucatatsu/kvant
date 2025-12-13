@@ -1,6 +1,19 @@
 node_modules/
 .env
+.env.local
+.env.production
 kvant.db
 *.log
 .DS_Store
 public/uploads/
+dist/
+build/
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Qt build
+kvant-qt/build/
+kvant-qt/.qtcreator/
