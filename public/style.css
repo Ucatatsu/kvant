@@ -4278,27 +4278,6 @@ input:focus {
 
 /* === PREMIUM FEATURES === */
 
-/* Анимированная рамка аватара для Premium */
-.avatar-premium-border {
-  position: relative;
-}
-
-.avatar-premium-border::before {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  background: linear-gradient(45deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff, #5f27cd);
-  background-size: 400% 400%;
-  animation: premiumGradient 3s ease infinite;
-  z-index: -1;
-}
-
-@keyframes premiumGradient {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
-
 /* Кастомный цвет ника */
 .user-name[data-name-color] {
   background: linear-gradient(90deg, var(--name-color), var(--name-color-end, var(--name-color)));
@@ -4669,28 +4648,6 @@ input:focus {
 }
 
 /* ===== PREMIUM FEATURES ===== */
-
-/* Анимированная рамка аватара для Premium */
-.avatar-premium-border {
-  position: relative;
-}
-
-.avatar-premium-border::before {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  background: linear-gradient(45deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #9b59b6, #ff6b6b);
-  background-size: 400% 400%;
-  animation: premiumBorderRotate 3s ease infinite;
-  z-index: -1;
-}
-
-@keyframes premiumBorderRotate {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
 
 /* Кастомный цвет ника */
 .user-name[data-name-color] {

@@ -769,7 +769,7 @@ function renderUsers(users) {
         const avatarContent = user.avatar_url ? '' : user.username[0].toUpperCase();
         const displayName = user.display_name || user.username;
         const isPremium = user.isPremium || user.role === 'admin';
-        const avatarClass = isPremium ? 'user-avatar avatar-premium-border' : 'user-avatar';
+        const avatarClass = 'user-avatar';
         const nameStyle = user.name_color ? `style="--name-color: ${escapeAttr(user.name_color)}" data-name-color` : '';
         
         item.innerHTML = `
@@ -2391,13 +2391,6 @@ async function showMyProfile() {
         bannerEl.className = 'profile-banner';
     }
     
-    // Premium: анимированная рамка аватара
-    if (profile?.isPremium) {
-        avatarEl.classList.add('avatar-premium-border');
-    } else {
-        avatarEl.classList.remove('avatar-premium-border');
-    }
-    
     document.getElementById('profile-name').textContent = profile?.display_name || state.currentUser.username;
     document.getElementById('profile-username').textContent = '@' + state.currentUser.username;
     
@@ -2554,7 +2547,6 @@ async function saveProfile() {
         // Сохраняем остальные данные
         await api.put(`/api/user/${state.currentUser.id}`, {
             display_name: document.getElementById('edit-display-name').value,
-            phone: document.getElementById('edit-phone').value,
             bio: document.getElementById('edit-bio').value
         });
         
