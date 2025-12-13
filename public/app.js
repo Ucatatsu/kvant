@@ -2431,7 +2431,6 @@ async function showMyProfile() {
     }
     
     document.getElementById('profile-bio').textContent = profile?.bio || '';
-    document.getElementById('profile-phone').textContent = profile?.phone || 'Не указан';
     
     document.getElementById('profile-modal').classList.remove('hidden');
 }
@@ -2441,7 +2440,6 @@ function showEditProfile() {
     
     document.getElementById('edit-username').value = state.currentUser.username || '';
     document.getElementById('edit-display-name').value = state.currentUserProfile?.display_name || '';
-    document.getElementById('edit-phone').value = state.currentUserProfile?.phone || '';
     document.getElementById('edit-bio').value = state.currentUserProfile?.bio || '';
     
     const avatarPreview = document.getElementById('edit-avatar-preview');
@@ -2645,7 +2643,6 @@ async function showUserProfile(userId) {
         }
         
         document.getElementById('user-profile-bio').textContent = profile.bio || '';
-        document.getElementById('user-profile-phone').textContent = profile.phone || 'Не указан';
         
         document.getElementById('user-profile-modal').classList.remove('hidden');
     } catch (e) {
