@@ -231,6 +231,29 @@ app.post('/api/login', authLimiter, async (req, res) => {
     }
 });
 
+// Правовые документы
+app.get('/api/legal/privacy', (_req, res) => {
+    const fs = require('fs');
+    const path = require('path');
+    try {
+        const content = fs.readFileSync(path.join(__dirname, 'ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ.md'), 'utf8');
+        res.json({ content });
+    } catch (error) {
+        res.status(404).json({ error: 'Документ не найден' });
+    }
+});
+
+app.get('/api/legal/terms', (_req, res) => {
+    const fs = require('fs');
+    const path = require('path');
+    try {
+        const content = fs.readFileSync(path.join(__dirname, 'УСЛОВИЯ ИСПОЛЬЗОВАНИЯ.md'), 'utf8');
+        res.json({ content });
+    } catch (error) {
+        res.status(404).json({ error: 'Документ не найден' });
+    }
+});
+
 // VAPID публичный ключ
 app.get('/api/vapid-public-key', (_req, res) => {
     if (VAPID_PUBLIC_KEY) {

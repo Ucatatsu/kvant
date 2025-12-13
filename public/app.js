@@ -2608,3 +2608,85 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+
+// === LEGAL DOCUMENTS ===
+
+function parseMarkdown(md) {
+    // Простой парсер Markdown
+    let html = md
+        // Headers
+        .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+        .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+        .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+        // Bold
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        // Italic
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        // Code
+        .replace(/`(.*?)`/g, '<code>$1</code>')
+        // Lists
+        .replace(/^\* (.*$)/gim, '<li>$1</li>')
+        .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
+        // Line breaks
+        .replace(/\n\n/g, '</p><p>')
+        // Tables (basic)
+        .replace(/\|([^|]+)\|/g, (match) => {
+            const cells = match.split('|').filter(c => c.trim());
+            if (cells.some(c => c.includes('---'))) return '';
+            const tag = cells[0]?.includes('**') ? 'th' : 'td';
+            return '<tr>' + cells.map(c => `<${tag}>${c.trim().replace(/\*\*/g, '')}</${tag}>`).join('') + '</tr>';
+        });
+    
+    // Wrap lists
+    html = html.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
+    // Wrap in paragraphs
+    html = '<p>' + html + '</p>';
+    // Clean up
+    html = html.replace(/<p><\/p>/g, '').replace(/<p>(<h[123]>)/g, '$1').replace(/(<\/h[123]>)<\/p>/g, '$1');
+    
+    return html;
+}
+
+async function openLegalDocument(docType) {
+    const modal = document.getElementById('legal-modal');
+    const title = document.getElementById('legal-title');
+    const body = document.getElementById('legal-body');
+    
+    title.textContent = docType === 'privacy' ? 'Политика конфиденциальности' : 'Условия использования';
+    body.innerHTML = '<div class="legal-loading">Загрузка...</div>';
+    modal.classList.remove('hidden');
+    
+    try {
+        const res = await fetch(`/api/legal/${docType}`);
+        if (!res.ok) throw new Error('Failed to load');
+        
+        const { content } = await res.json();
+        body.innerHTML = parseMarkdown(content);
+    } catch (error) {
+        console.error('Error loading legal doc:', error);
+        body.innerHTML = '<div class="legal-loading">Ошибка загрузки документа</div>';
+    }
+}
+
+function closeLegalModal() {
+    document.getElementById('legal-modal').classList.add('hidden');
+}
+
+// Инициализация
+document.addEventListener('DOMContentLoaded', () => {
+    // Клики на ссылки документов
+    document.querySelectorAll('.legal-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const docType = link.dataset.doc;
+            if (docType) {
+                openLegalDocument(docType);
+            }
+        });
+    });
+    
+    // Закрытие модалки
+    document.getElementById('close-legal')?.addEventListener('click', closeLegalModal);
+    document.querySelector('#legal-modal .modal-overlay')?.addEventListener('click', closeLegalModal);
+});

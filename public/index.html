@@ -53,6 +53,11 @@
         <button type="submit" class="btn-primary">Зарегистрироваться</button>
         <button type="button" id="to-login-btn" class="btn-secondary">Уже есть аккаунт</button>
       </form>
+      <p class="legal-notice">
+        Регистрируясь, вы соглашаетесь с 
+        <a href="#" class="legal-link" data-doc="terms">Условиями использования</a> и 
+        <a href="#" class="legal-link" data-doc="privacy">Политикой конфиденциальности</a>
+      </p>
       <p id="register-error" class="error" role="alert" aria-live="polite"></p>
     </div>
   </div>
@@ -461,6 +466,10 @@
             <h3>Квант</h3>
             <p class="about-version">Версия 1.1.0</p>
             <p class="about-desc">Современный мессенджер с поддержкой аудио и видеозвонков</p>
+            <div class="about-links">
+              <a href="#" class="legal-link about-link" data-doc="terms">📄 Условия использования</a>
+              <a href="#" class="legal-link about-link" data-doc="privacy">🔒 Политика конфиденциальности</a>
+            </div>
             <p class="about-copyright">© 2025 Квант. Все права защищены.</p>
           </div>
         </section>
@@ -549,6 +558,20 @@
           <input type="text" id="admin-search" placeholder="Поиск по username или ID...">
         </div>
         <div class="admin-users" id="admin-users"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка правовых документов -->
+  <div id="legal-modal" class="modal hidden" role="dialog" aria-label="Документ" aria-modal="true">
+    <div class="modal-overlay"></div>
+    <div class="modal-content legal-modal-content">
+      <div class="modal-header">
+        <h2 id="legal-title">Документ</h2>
+        <button class="modal-close" id="close-legal" aria-label="Закрыть">&times;</button>
+      </div>
+      <div class="legal-body" id="legal-body">
+        <div class="legal-loading">Загрузка...</div>
       </div>
     </div>
   </div>
