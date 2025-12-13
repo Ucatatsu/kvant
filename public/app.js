@@ -766,14 +766,14 @@ async function showChat() {
     registerScreen.classList.add('hidden');
     activeAuthScreen.classList.remove('fade-out');
     
-    // Показываем чат с анимацией появления
+    // Показываем чат с анимацией элементов
     chatScreen.classList.remove('hidden');
-    chatScreen.classList.add('bounce-in');
+    chatScreen.classList.add('animate-in');
     
-    // Убираем класс анимации после завершения
+    // Убираем класс анимации после завершения всех анимаций
     setTimeout(() => {
-        chatScreen.classList.remove('bounce-in');
-    }, 800);
+        chatScreen.classList.remove('animate-in');
+    }, 1000);
     
     const initial = state.currentUser.username[0].toUpperCase();
     document.getElementById('current-user-avatar').textContent = initial;
