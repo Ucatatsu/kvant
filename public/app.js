@@ -6,7 +6,7 @@ const state = {
     currentUserProfile: null,
     selectedUser: null,
     selectedUserProfile: null,
-    onlineUsers: [],
+    onlineUsers: {},  // Теперь объект: { odataId: status }
     typingUsers: new Map(),
     token: null,
     socket: null,
@@ -19,6 +19,92 @@ const state = {
     // Кэш DOM элементов
     dom: {}
 };
+
+// === ЗВУКОВАЯ СИСТЕМА ===
+const sounds = {
+    message: null,
+    call: null,
+    notification: null
+};
+
+// Создаём звуки программно (Web Audio API)
+function initSounds() {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Функция для создания звука уведомления
+    function createNotificationSound() {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+    }
+    
+    // Функция для создания звука звонка
+    function createCallSound() {
+        let isPlaying = true;
+        const playRing = () => {
+            if (!isPlaying) return;
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+            oscillator.frequency.setValueAtTime(480, audioContext.currentTime + 0.2);
+            
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.4);
+            
+            setTimeout(playRing, 1000);
+        };
+        
+        playRing();
+        return () => { isPlaying = false; };
+    }
+    
+    sounds.playMessage = () => {
+        if (state.settings.sounds === false) return;
+        try {
+            if (audioContext.state === 'suspended') audioContext.resume();
+            createNotificationSound();
+        } catch (e) { console.log('Sound error:', e); }
+    };
+    
+    sounds.playCall = () => {
+        if (state.settings.sounds === false) return null;
+        try {
+            if (audioContext.state === 'suspended') audioContext.resume();
+            return createCallSound();
+        } catch (e) { 
+            console.log('Sound error:', e); 
+            return null;
+        }
+    };
+}
+
+// Инициализируем звуки при первом взаимодействии
+let soundsInitialized = false;
+function ensureSoundsInitialized() {
+    if (!soundsInitialized) {
+        initSounds();
+        soundsInitialized = true;
+    }
+}
 
 // === УТИЛИТЫ ОПТИМИЗАЦИИ ===
 function debounce(fn, delay) {
@@ -270,7 +356,7 @@ function initSocket() {
     });
     
     state.socket.on('online-users', (users) => {
-        state.onlineUsers = users;
+        state.onlineUsers = users; // Теперь объект { odataId: status }
         updateContactsList();
         updateChatStatus();
     });
@@ -281,6 +367,10 @@ function initSocket() {
     });
     
     state.socket.on('new-message', (message) => {
+        // Воспроизводим звук
+        ensureSoundsInitialized();
+        sounds.playMessage?.();
+        
         if (state.selectedUser && message.sender_id === state.selectedUser.id) {
             appendMessage(message);
             markAsRead();
@@ -429,6 +519,14 @@ async function showChat() {
     document.querySelector('.current-user').textContent = state.currentUser.username;
     
     initSocket();
+    
+    // Отправляем сохранённый статус на сервер после подключения
+    setTimeout(() => {
+        if (state.socket && state.userStatus) {
+            state.socket.emit('status-change', { status: state.userStatus });
+        }
+    }, 500);
+    
     await loadMyProfile();
     await loadContacts();
     requestNotificationPermission();
@@ -496,13 +594,29 @@ function renderUsers(users) {
     const fragment = document.createDocumentFragment();
     
     users.forEach(user => {
-        const isOnline = state.onlineUsers.includes(user.id);
+        const userStatus = state.onlineUsers[user.id]; // undefined если оффлайн
+        const isOnline = !!userStatus;
         const unread = parseInt(user.unread_count) || 0;
         
+        // Определяем текст статуса
+        let statusText = 'Не в сети';
+        let statusClass = 'offline';
+        if (userStatus === 'online') {
+            statusText = 'В сети';
+            statusClass = '';
+        } else if (userStatus === 'idle') {
+            statusText = 'Отошёл';
+            statusClass = 'idle';
+        } else if (userStatus === 'dnd') {
+            statusText = 'Не беспокоить';
+            statusClass = 'dnd';
+        }
+        
         const item = document.createElement('div');
-        item.className = `user-item ${isOnline ? '' : 'offline'} ${state.selectedUser?.id === user.id ? 'active' : ''}`;
+        item.className = `user-item ${statusClass} ${state.selectedUser?.id === user.id ? 'active' : ''}`;
         item.dataset.id = user.id;
         item.dataset.name = user.username;
+        item.dataset.status = userStatus || 'offline';
         
         const avatarStyle = user.avatar_url 
             ? `background-image: url(${escapeAttr(user.avatar_url)}); background-size: cover; background-position: center;`
@@ -513,11 +627,11 @@ function renderUsers(users) {
         item.innerHTML = `
             <div class="user-avatar" style="${avatarStyle}">
                 ${avatarContent}
-                <div class="online-indicator"></div>
+                <div class="online-indicator ${userStatus || 'offline'}"></div>
             </div>
             <div class="user-info">
                 <div class="user-name">${escapeHtml(displayName)}</div>
-                <div class="user-last-message">${isOnline ? 'В сети' : 'Не в сети'}</div>
+                <div class="user-last-message">${statusText}</div>
             </div>
             ${unread > 0 ? `<div class="unread-badge">${unread}</div>` : ''}
         `;
@@ -728,15 +842,21 @@ const updateChatStatus = throttle(() => {
     const statusEl = document.querySelector('.chat-user-status');
     if (!statusEl) return;
     
-    const isOnline = state.onlineUsers.includes(state.selectedUser.id);
+    const userStatus = state.onlineUsers[state.selectedUser.id];
     const isUserTyping = state.typingUsers.has(state.selectedUser.id);
     
     if (isUserTyping) {
         statusEl.textContent = 'печатает...';
         statusEl.style.color = 'var(--accent)';
-    } else if (isOnline) {
+    } else if (userStatus === 'online') {
         statusEl.textContent = 'В сети';
         statusEl.style.color = 'var(--online)';
+    } else if (userStatus === 'idle') {
+        statusEl.textContent = 'Отошёл';
+        statusEl.style.color = '#f59e0b';
+    } else if (userStatus === 'dnd') {
+        statusEl.textContent = 'Не беспокоить';
+        statusEl.style.color = '#ef4444';
     } else {
         statusEl.textContent = 'Не в сети';
         statusEl.style.color = 'var(--text-muted)';
@@ -1027,16 +1147,28 @@ async function initCall(video) {
     }
 }
 
+let stopCallSound = null;
+
 function handleIncomingCall(data) {
     incomingCallData = data;
     document.getElementById('incoming-call-avatar').textContent = data.fromName[0].toUpperCase();
     document.getElementById('incoming-call-name').textContent = data.fromName;
     document.getElementById('incoming-call-type').textContent = data.isVideo ? '📹 Видеозвонок' : '📞 Аудиозвонок';
     document.getElementById('incoming-call-modal').classList.remove('hidden');
+    
+    // Воспроизводим звук звонка
+    ensureSoundsInitialized();
+    stopCallSound = sounds.playCall?.();
 }
 
 async function acceptCall() {
     if (!incomingCallData) return;
+    
+    // Останавливаем звук звонка
+    if (stopCallSound) {
+        stopCallSound();
+        stopCallSound = null;
+    }
     
     document.getElementById('incoming-call-modal').classList.add('hidden');
     isVideoCall = incomingCallData.isVideo;
@@ -1104,6 +1236,12 @@ async function acceptCall() {
 }
 
 function declineCall() {
+    // Останавливаем звук звонка
+    if (stopCallSound) {
+        stopCallSound();
+        stopCallSound = null;
+    }
+    
     if (incomingCallData) {
         state.socket.emit('call-decline', { to: incomingCallData.from, callId: incomingCallData.callId });
     }
@@ -1415,6 +1553,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Инициализация делегирования событий
     initUserListEvents();
+    
+    // Инициализация звуков при первом взаимодействии
+    document.addEventListener('click', ensureSoundsInitialized, { once: true });
+    document.addEventListener('keydown', ensureSoundsInitialized, { once: true });
     
     // Восстановление сессии
     if (restoreSession()) {
@@ -2402,8 +2544,8 @@ function setUserStatus(newStatus) {
     // Скрываем dropdown
     document.getElementById('status-dropdown').classList.add('hidden');
     
-    // Можно отправить на сервер если нужно
-    // state.socket?.emit('status-change', { status: newStatus });
+    // Отправляем на сервер
+    state.socket?.emit('status-change', { status: newStatus });
 }
 
 function toggleStatusDropdown(e) {

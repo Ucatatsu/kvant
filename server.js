@@ -173,11 +173,23 @@ io.use(socketAuthMiddleware);
 app.use(express.static('public'));
 app.use(express.json({ limit: '1mb' }));
 
-// Онлайн пользователи: userId -> { socketId, lastSeen }
+// Онлайн пользователи: userId -> { socketId, lastSeen, status }
 const onlineUsers = new Map();
 
 // Активные звонки
 const activeCalls = new Map();
+
+// Функция для отправки списка онлайн пользователей с их статусами
+function broadcastOnlineUsers() {
+    const usersWithStatus = {};
+    onlineUsers.forEach((data, odataId) => {
+        // Не показываем invisible пользователей как онлайн
+        if (data.status !== 'invisible') {
+            usersWithStatus[odataId] = data.status || 'online';
+        }
+    });
+    io.emit('online-users', usersWithStatus);
+}
 
 // === ВАЛИДАЦИЯ ===
 
@@ -604,8 +616,18 @@ io.on('connection', (socket) => {
     console.log(`Пользователь подключился: ${userId}`);
     
     // Регистрируем пользователя онлайн
-    onlineUsers.set(userId, { socketId: socket.id, lastSeen: Date.now() });
-    io.emit('online-users', Array.from(onlineUsers.keys()));
+    onlineUsers.set(userId, { socketId: socket.id, lastSeen: Date.now(), status: 'online' });
+    broadcastOnlineUsers();
+    
+    // Изменение статуса
+    socket.on('status-change', (data) => {
+        const userData = onlineUsers.get(userId);
+        if (userData && data.status) {
+            userData.status = data.status;
+            onlineUsers.set(userId, userData);
+            broadcastOnlineUsers();
+        }
+    });
     
     // Отправка сообщения
     socket.on('send-message', async (data) => {
@@ -768,7 +790,7 @@ io.on('connection', (socket) => {
     // Отключение
     socket.on('disconnect', () => {
         onlineUsers.delete(userId);
-        io.emit('online-users', Array.from(onlineUsers.keys()));
+        broadcastOnlineUsers();
         
         // Завершаем активные звонки пользователя
         for (const [callId, call] of activeCalls.entries()) {
