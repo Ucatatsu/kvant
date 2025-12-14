@@ -1030,7 +1030,24 @@ function createMessageElement(msg, isSent) {
     if (isMedia) {
         bubbleContent = `<img src="${escapeAttr(msg.text)}" class="message-media" alt="Изображение" loading="lazy">`;
     } else if (isVideo) {
-        bubbleContent = `<video src="${escapeAttr(msg.text)}" class="message-media" controls preload="metadata"></video>`;
+        bubbleContent = `
+            <div class="video-player" data-src="${escapeAttr(msg.text)}">
+                <video class="video-element" preload="metadata" playsinline>
+                    <source src="${escapeAttr(msg.text)}" type="video/mp4">
+                </video>
+                <div class="video-overlay">
+                    <button class="video-play-btn">▶</button>
+                </div>
+                <div class="video-controls hidden">
+                    <button class="video-play-pause">▶</button>
+                    <div class="video-progress">
+                        <div class="video-progress-bar"></div>
+                    </div>
+                    <span class="video-time">0:00</span>
+                    <button class="video-mute">🔊</button>
+                    <button class="video-fullscreen">⛶</button>
+                </div>
+            </div>`;
     } else {
         bubbleContent = escapeHtml(msg.text);
     }
@@ -1050,6 +1067,11 @@ function createMessageElement(msg, isSent) {
         div.querySelector('.message-media')?.addEventListener('click', () => {
             openMediaViewer(msg.text);
         });
+    }
+    
+    // Инициализация видеоплеера
+    if (isVideo) {
+        initVideoPlayer(div.querySelector('.video-player'));
     }
     
     // Контекстное меню по правому клику
@@ -1096,6 +1118,168 @@ function openMediaViewer(url) {
 
 // Делаем функцию глобальной для onclick в HTML
 window.openMediaViewer = openMediaViewer;
+
+// === КАСТОМНЫЙ ВИДЕОПЛЕЕР ===
+function initVideoPlayer(container) {
+    if (!container) return;
+    
+    const video = container.querySelector('.video-element');
+    const overlay = container.querySelector('.video-overlay');
+    const playBtn = container.querySelector('.video-play-btn');
+    const controls = container.querySelector('.video-controls');
+    const playPauseBtn = container.querySelector('.video-play-pause');
+    const progress = container.querySelector('.video-progress');
+    const progressBar = container.querySelector('.video-progress-bar');
+    const timeDisplay = container.querySelector('.video-time');
+    const muteBtn = container.querySelector('.video-mute');
+    const fullscreenBtn = container.querySelector('.video-fullscreen');
+    
+    if (!video) return;
+    
+    // Форматирование времени
+    const formatTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+    
+    // Показать/скрыть контролы
+    const showControls = () => {
+        controls?.classList.remove('hidden');
+        overlay?.classList.add('hidden');
+    };
+    
+    const hideControls = () => {
+        if (video.paused) {
+            overlay?.classList.remove('hidden');
+            controls?.classList.add('hidden');
+        }
+    };
+    
+    // Play/Pause
+    const togglePlay = () => {
+        if (video.paused) {
+            video.play().catch(e => console.log('Play error:', e));
+        } else {
+            video.pause();
+        }
+    };
+    
+    // Обработчики видео
+    video.addEventListener('loadedmetadata', () => {
+        timeDisplay.textContent = formatTime(video.duration);
+    });
+    
+    video.addEventListener('play', () => {
+        showControls();
+        playPauseBtn.textContent = '⏸';
+        playBtn.textContent = '⏸';
+    });
+    
+    video.addEventListener('pause', () => {
+        playPauseBtn.textContent = '▶';
+        playBtn.textContent = '▶';
+    });
+    
+    video.addEventListener('ended', () => {
+        playPauseBtn.textContent = '▶';
+        playBtn.textContent = '▶';
+        overlay?.classList.remove('hidden');
+    });
+    
+    video.addEventListener('timeupdate', () => {
+        const percent = (video.currentTime / video.duration) * 100;
+        progressBar.style.width = `${percent}%`;
+        timeDisplay.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+    });
+    
+    // Клики
+    playBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePlay();
+    });
+    
+    playPauseBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePlay();
+    });
+    
+    overlay?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePlay();
+    });
+    
+    video.addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePlay();
+    });
+    
+    // Прогресс бар
+    progress?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const rect = progress.getBoundingClientRect();
+        const percent = (e.clientX - rect.left) / rect.width;
+        video.currentTime = percent * video.duration;
+    });
+    
+    // Mute
+    muteBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        video.muted = !video.muted;
+        muteBtn.textContent = video.muted ? '🔇' : '🔊';
+    });
+    
+    // Fullscreen
+    fullscreenBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openVideoViewer(container.dataset.src);
+    });
+    
+    // Показ контролов при наведении
+    container.addEventListener('mouseenter', () => {
+        if (!video.paused) showControls();
+    });
+    
+    container.addEventListener('mouseleave', () => {
+        if (!video.paused) {
+            setTimeout(() => {
+                if (!video.paused) {
+                    // Оставляем контролы видимыми при воспроизведении
+                }
+            }, 2000);
+        }
+    });
+}
+
+// Полноэкранный просмотр видео
+function openVideoViewer(url) {
+    document.querySelector('.media-viewer')?.remove();
+    
+    const viewer = document.createElement('div');
+    viewer.className = 'media-viewer video-viewer';
+    viewer.innerHTML = `
+        <div class="media-viewer-overlay"></div>
+        <div class="video-viewer-container">
+            <video class="video-viewer-content" controls autoplay playsinline>
+                <source src="${escapeAttr(url)}" type="video/mp4">
+            </video>
+        </div>
+        <button class="media-viewer-close">✕</button>
+    `;
+    
+    viewer.querySelector('.media-viewer-overlay').addEventListener('click', () => viewer.remove());
+    viewer.querySelector('.media-viewer-close').addEventListener('click', () => viewer.remove());
+    
+    const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+            viewer.remove();
+            document.removeEventListener('keydown', handleEscape);
+        }
+    };
+    document.addEventListener('keydown', handleEscape);
+    
+    document.body.appendChild(viewer);
+}
 
 function renderReactions(reactions, messageId) {
     if (!reactions || reactions.length === 0) return '';
