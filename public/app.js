@@ -5392,7 +5392,7 @@ function openSubscriptionModal() {
         document.querySelectorAll('.subscription-card').forEach((card, i) => {
             if (!card.querySelector('.eb-layers')) {
                 const color = card.dataset.plan === 'premium_plus' ? '#a855f7' : '#FFD700';
-                initElectricBorder(card, color);
+                initElectricBorder(card, color, { chaos: 0.4, thickness: 3 });
             }
         });
     }, 100);

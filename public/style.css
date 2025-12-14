@@ -8532,23 +8532,26 @@ input[type="range"]:focus::-moz-range-thumb {
 .plan-btn {
   width: 100%;
   padding: 12px;
-  border: none;
+  border: 1px solid var(--glass-border);
   border-radius: 10px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  background: var(--bg-tertiary);
+  background: var(--glass);
   color: var(--text-primary);
+  backdrop-filter: blur(10px);
 }
 
 .plan-btn:hover {
   background: var(--accent-color);
+  border-color: var(--accent-color);
   color: white;
 }
 
 .plan-btn.featured {
   background: var(--accent-color);
+  border-color: var(--accent-color);
   color: white;
 }
 
@@ -8634,7 +8637,9 @@ input[type="range"]:focus::-moz-range-thumb {
 
 /* === МОДАЛКА ПОДПИСКИ === */
 .subscription-modal-content {
-  background: var(--bg-primary);
+  background: var(--glass);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
   border-radius: 20px;
   padding: 30px;
   max-width: 600px;
@@ -8759,7 +8764,8 @@ input[type="range"]:focus::-moz-range-thumb {
 /* Обновлённые карточки подписки с электрическим эффектом */
 .subscription-card {
   position: relative;
-  background: rgba(10, 22, 40, 0.95);
+  background: var(--glass);
+  backdrop-filter: blur(20px);
   border: none !important;
   border-radius: 16px;
   padding: 24px;
