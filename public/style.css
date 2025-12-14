@@ -444,9 +444,10 @@ button {
 /* User card popup */
 .user-card-popup {
   position: fixed;
-  bottom: calc(var(--panel-height) + 24px);
+  bottom: 100px;
   left: 24px;
-  width: calc(var(--sidebar-width, 320px) - 36px);
+  width: 280px;
+  max-width: calc(var(--sidebar-width, 320px) - 48px);
   background: var(--bg-dark);
   border: 1px solid var(--glass-border);
   border-radius: 12px;
