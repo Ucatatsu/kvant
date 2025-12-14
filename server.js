@@ -43,7 +43,7 @@ app.use(helmet({
             scriptSrc: ["'self'"],
             imgSrc: ["'self'", "data:", "blob:", "https://res.cloudinary.com"],
             connectSrc: ["'self'", "wss:", "ws:"],
-            mediaSrc: ["'self'", "blob:"],
+            mediaSrc: ["'self'", "blob:", "https://res.cloudinary.com"],
         },
     },
     crossOriginEmbedderPolicy: false,
@@ -133,8 +133,11 @@ async function uploadToCloudinary(buffer, folder, options = {}) {
             resource_type: options.resourceType || 'auto'
         };
         
-        // Трансформации только для изображений
-        if (options.resourceType !== 'video') {
+        // Для видео указываем формат mp4 для совместимости
+        if (options.resourceType === 'video') {
+            uploadOptions.format = 'mp4';
+        } else {
+            // Трансформации только для изображений
             uploadOptions.transformation = [
                 { width: 500, height: 500, crop: 'limit' },
                 { quality: 'auto' }
@@ -144,8 +147,13 @@ async function uploadToCloudinary(buffer, folder, options = {}) {
         const uploadStream = cloudinary.uploader.upload_stream(
             uploadOptions,
             (error, result) => {
-                if (error) reject(error);
-                else resolve(result.secure_url);
+                if (error) {
+                    console.error('Cloudinary upload error:', error);
+                    reject(error);
+                } else {
+                    console.log('Cloudinary result:', result.secure_url, result.format);
+                    resolve(result.secure_url);
+                }
             }
         );
         uploadStream.end(buffer);
@@ -543,6 +551,7 @@ app.post('/api/upload-message-file', authMiddleware, upload.single('file'), asyn
         let fileUrl;
         if (process.env.CLOUDINARY_CLOUD_NAME) {
             fileUrl = await uploadToCloudinary(req.file.buffer, 'messages', { resourceType });
+            console.log(`📤 Uploaded ${fileType}: ${fileUrl}`);
         } else {
             fileUrl = `/uploads/${req.file.filename}`;
         }
