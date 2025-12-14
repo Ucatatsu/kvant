@@ -4803,20 +4803,20 @@ document.addEventListener('DOMContentLoaded', () => {
         slider.style.setProperty('--value-percent', `${percent}%`);
     }
     
-    // Громкость
-    const volumeSlider = document.getElementById('volume-slider');
-    const volumeValue = document.getElementById('volume-value');
-    if (volumeSlider) {
-        volumeSlider.value = state.settings.volume ?? 50;
-        volumeValue.textContent = `${volumeSlider.value}%`;
-        updateSliderProgress(volumeSlider);
-        
-        volumeSlider.addEventListener('input', (e) => {
-            const vol = parseInt(e.target.value);
-            state.settings.volume = vol;
-            volumeValue.textContent = `${vol}%`;
-            updateSliderProgress(e.target);
-            saveSettings();
+    // Громкость - эластичный слайдер
+    const volumeSliderContainer = document.getElementById('settings-volume-slider');
+    if (volumeSliderContainer && window.ElasticSlider) {
+        new ElasticSlider(volumeSliderContainer, {
+            defaultValue: state.settings.volume ?? 50,
+            min: 0,
+            max: 100,
+            step: 1,
+            leftIcon: '🔈',
+            rightIcon: '🔊',
+            onChange: (vol) => {
+                state.settings.volume = vol;
+                saveSettings();
+            }
         });
     }
     
@@ -5144,13 +5144,26 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 
 // === SIDEBAR NAVIGATION ===
 document.addEventListener('DOMContentLoaded', () => {
-    // Навигация по табам
-    document.querySelectorAll('.sidebar-nav-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tab = btn.dataset.tab;
-            switchSidebarTab(tab);
+    // Dock навигация
+    const dockContainer = document.getElementById('sidebar-dock');
+    if (dockContainer && window.Dock) {
+        const dockItems = [
+            { icon: '💬', label: 'Чаты', tab: 'chats' },
+            { icon: '👥', label: 'Группы', tab: 'groups' },
+            { icon: '📢', label: 'Каналы', tab: 'channels' },
+            { icon: '🏠', label: 'Серверы', tab: 'servers' }
+        ];
+        
+        window.sidebarDock = new Dock(dockContainer, {
+            items: dockItems,
+            baseSize: 40,
+            magnification: 54,
+            distance: 80,
+            onItemClick: (item, index) => {
+                switchSidebarTab(item.tab);
+            }
         });
-    });
+    }
     
     // Кнопка создания
     document.getElementById('create-btn')?.addEventListener('click', openCreateModal);
@@ -5194,10 +5207,12 @@ document.addEventListener('DOMContentLoaded', () => {
 function switchSidebarTab(tab) {
     state.currentTab = tab;
     
-    // Обновляем кнопки навигации
-    document.querySelectorAll('.sidebar-nav-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tab === tab);
-    });
+    // Обновляем dock
+    const tabs = ['chats', 'groups', 'channels', 'servers'];
+    const tabIndex = tabs.indexOf(tab);
+    if (window.sidebarDock && tabIndex >= 0) {
+        window.sidebarDock.setActive(tabIndex);
+    }
     
     // Обновляем списки
     document.querySelectorAll('.sidebar-tab').forEach(el => {
@@ -5489,3 +5504,664 @@ function sendMessageToCurrentChat() {
     input.value = '';
     stopTyping();
 }
+
+
+// === ELASTIC VOLUME SLIDER ===
+class ElasticSlider {
+    constructor(container, options = {}) {
+        this.container = container;
+        this.value = options.defaultValue ?? 50;
+        this.min = options.min ?? 0;
+        this.max = options.max ?? 100;
+        this.step = options.step ?? 1;
+        this.onChange = options.onChange || (() => {});
+        this.leftIcon = options.leftIcon || '🔈';
+        this.rightIcon = options.rightIcon || '🔊';
+        
+        this.isDragging = false;
+        this.overflow = 0;
+        this.maxOverflow = 50;
+        
+        this.render();
+        this.bindEvents();
+    }
+    
+    render() {
+        this.container.innerHTML = `
+            <div class="elastic-slider-container">
+                <div class="elastic-slider-wrapper">
+                    <span class="elastic-slider-icon left-icon">${this.leftIcon}</span>
+                    <div class="elastic-slider-track-container">
+                        <div class="elastic-slider-track-wrapper">
+                            <div class="elastic-slider-track">
+                                <div class="elastic-slider-range"></div>
+                            </div>
+                        </div>
+                        <div class="elastic-slider-thumb"></div>
+                    </div>
+                    <span class="elastic-slider-icon right-icon">${this.rightIcon}</span>
+                </div>
+                <span class="elastic-slider-value">${Math.round(this.value)}</span>
+            </div>
+        `;
+        
+        this.wrapper = this.container.querySelector('.elastic-slider-wrapper');
+        this.trackContainer = this.container.querySelector('.elastic-slider-track-container');
+        this.trackWrapper = this.container.querySelector('.elastic-slider-track-wrapper');
+        this.range = this.container.querySelector('.elastic-slider-range');
+        this.thumb = this.container.querySelector('.elastic-slider-thumb');
+        this.valueDisplay = this.container.querySelector('.elastic-slider-value');
+        this.leftIconEl = this.container.querySelector('.left-icon');
+        this.rightIconEl = this.container.querySelector('.right-icon');
+        
+        this.updateVisuals();
+    }
+    
+    bindEvents() {
+        this.trackContainer.addEventListener('pointerdown', this.onPointerDown.bind(this));
+        document.addEventListener('pointermove', this.onPointerMove.bind(this));
+        document.addEventListener('pointerup', this.onPointerUp.bind(this));
+        
+        // Touch support
+        this.trackContainer.addEventListener('touchstart', (e) => e.preventDefault());
+    }
+    
+    onPointerDown(e) {
+        this.isDragging = true;
+        this.wrapper.classList.add('active');
+        this.trackContainer.setPointerCapture(e.pointerId);
+        this.updateFromPointer(e);
+    }
+    
+    onPointerMove(e) {
+        if (!this.isDragging) return;
+        this.updateFromPointer(e);
+    }
+    
+    onPointerUp() {
+        if (!this.isDragging) return;
+        this.isDragging = false;
+        this.wrapper.classList.remove('active');
+        
+        // Animate overflow back to 0
+        this.animateOverflow(0);
+    }
+    
+    updateFromPointer(e) {
+        const rect = this.trackContainer.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const width = rect.width;
+        
+        // Calculate overflow for elastic effect
+        if (x < 0) {
+            this.overflow = this.decay(-x, this.maxOverflow);
+            this.trackWrapper.classList.add('overflow-left');
+            this.trackWrapper.classList.remove('overflow-right');
+            this.bounceIcon('left');
+        } else if (x > width) {
+            this.overflow = this.decay(x - width, this.maxOverflow);
+            this.trackWrapper.classList.add('overflow-right');
+            this.trackWrapper.classList.remove('overflow-left');
+            this.bounceIcon('right');
+        } else {
+            this.overflow = 0;
+            this.trackWrapper.classList.remove('overflow-left', 'overflow-right');
+        }
+        
+        // Calculate value
+        let percent = Math.max(0, Math.min(1, x / width));
+        let newValue = this.min + percent * (this.max - this.min);
+        
+        // Apply step
+        if (this.step > 0) {
+            newValue = Math.round(newValue / this.step) * this.step;
+        }
+        
+        newValue = Math.max(this.min, Math.min(this.max, newValue));
+        
+        if (newValue !== this.value) {
+            this.value = newValue;
+            this.onChange(this.value);
+        }
+        
+        this.updateVisuals();
+    }
+    
+    updateVisuals() {
+        const percent = ((this.value - this.min) / (this.max - this.min)) * 100;
+        this.range.style.width = `${percent}%`;
+        this.thumb.style.left = `${percent}%`;
+        this.valueDisplay.textContent = Math.round(this.value);
+        
+        // Apply elastic scale
+        const scaleX = 1 + this.overflow / 200;
+        const scaleY = 1 - this.overflow / 250;
+        this.trackWrapper.style.transform = `scaleX(${scaleX}) scaleY(${scaleY})`;
+    }
+    
+    bounceIcon(side) {
+        const icon = side === 'left' ? this.leftIconEl : this.rightIconEl;
+        const className = side === 'left' ? 'bounce-left' : 'bounce-right';
+        
+        if (!icon.classList.contains(className)) {
+            icon.classList.add(className);
+            setTimeout(() => icon.classList.remove(className), 250);
+        }
+    }
+    
+    animateOverflow(target) {
+        const start = this.overflow;
+        const duration = 300;
+        const startTime = performance.now();
+        
+        const animate = (currentTime) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Elastic easing
+            const eased = 1 - Math.pow(1 - progress, 3) * Math.cos(progress * Math.PI * 2);
+            this.overflow = start + (target - start) * eased;
+            this.updateVisuals();
+            
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                this.overflow = target;
+                this.trackWrapper.classList.remove('overflow-left', 'overflow-right');
+                this.updateVisuals();
+            }
+        };
+        
+        requestAnimationFrame(animate);
+    }
+    
+    decay(value, max) {
+        if (max === 0) return 0;
+        const entry = value / max;
+        const sigmoid = 2 * (1 / (1 + Math.exp(-entry)) - 0.5);
+        return sigmoid * max;
+    }
+    
+    setValue(newValue) {
+        this.value = Math.max(this.min, Math.min(this.max, newValue));
+        this.updateVisuals();
+    }
+    
+    getValue() {
+        return this.value;
+    }
+}
+
+// Make it globally available
+window.ElasticSlider = ElasticSlider;
+
+
+// === STEPPER REGISTRATION ===
+class RegistrationStepper {
+    constructor() {
+        this.currentStep = 1;
+        this.totalSteps = 4;
+        this.data = {
+            username: '',
+            password: '',
+            passwordConfirm: '',
+            avatarFile: null,
+            avatarPreview: null,
+            agreeTerms: false,
+            agreePrivacy: false
+        };
+        
+        this.init();
+    }
+    
+    init() {
+        // Elements
+        this.container = document.getElementById('register-stepper');
+        if (!this.container) return;
+        
+        this.indicators = this.container.querySelectorAll('.step-indicator');
+        this.connectors = this.container.querySelectorAll('.step-connector');
+        this.panels = this.container.querySelectorAll('.step-panel');
+        this.backBtn = document.getElementById('stepper-back');
+        this.nextBtn = document.getElementById('stepper-next');
+        this.footer = document.getElementById('stepper-footer');
+        
+        // Inputs
+        this.usernameInput = document.getElementById('reg-username');
+        this.passwordInput = document.getElementById('reg-password');
+        this.passwordConfirmInput = document.getElementById('reg-password-confirm');
+        this.avatarPreview = document.getElementById('reg-avatar-preview');
+        this.avatarInput = document.getElementById('reg-avatar-input');
+        this.skipAvatarBtn = document.getElementById('skip-avatar-btn');
+        this.agreeTermsCheckbox = document.getElementById('agree-terms');
+        this.agreePrivacyCheckbox = document.getElementById('agree-privacy');
+        
+        this.bindEvents();
+        this.updateUI();
+    }
+    
+    bindEvents() {
+        // Navigation
+        this.backBtn?.addEventListener('click', () => this.prevStep());
+        this.nextBtn?.addEventListener('click', () => this.nextStep());
+        
+        // Step indicators click
+        this.indicators.forEach(ind => {
+            ind.addEventListener('click', () => {
+                const step = parseInt(ind.dataset.step);
+                if (step < this.currentStep) {
+                    this.goToStep(step);
+                }
+            });
+        });
+        
+        // Input validation
+        this.usernameInput?.addEventListener('input', (e) => {
+            this.data.username = e.target.value;
+            this.validateCurrentStep();
+        });
+        
+        this.passwordInput?.addEventListener('input', (e) => {
+            this.data.password = e.target.value;
+            this.validateCurrentStep();
+        });
+        
+        this.passwordConfirmInput?.addEventListener('input', (e) => {
+            this.data.passwordConfirm = e.target.value;
+            this.validateCurrentStep();
+        });
+        
+        // Avatar
+        this.avatarPreview?.addEventListener('click', () => this.avatarInput?.click());
+        this.avatarInput?.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                this.data.avatarFile = file;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    this.data.avatarPreview = ev.target.result;
+                    this.avatarPreview.innerHTML = `<img src="${ev.target.result}" alt="Avatar">`;
+                };
+                reader.readAsDataURL(file);
+            }
+            this.validateCurrentStep();
+        });
+        
+        this.skipAvatarBtn?.addEventListener('click', () => this.nextStep());
+        
+        // Checkboxes
+        this.agreeTermsCheckbox?.addEventListener('change', (e) => {
+            this.data.agreeTerms = e.target.checked;
+            this.validateCurrentStep();
+        });
+        
+        this.agreePrivacyCheckbox?.addEventListener('change', (e) => {
+            this.data.agreePrivacy = e.target.checked;
+            this.validateCurrentStep();
+        });
+        
+        // Enter key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && this.isRegisterScreenVisible()) {
+                e.preventDefault();
+                if (!this.nextBtn.disabled) {
+                    this.nextStep();
+                }
+            }
+        });
+    }
+    
+    isRegisterScreenVisible() {
+        const screen = document.getElementById('register-screen');
+        return screen && !screen.classList.contains('hidden');
+    }
+    
+    goToStep(step) {
+        const direction = step > this.currentStep ? 1 : -1;
+        const oldStep = this.currentStep;
+        this.currentStep = step;
+        this.animateTransition(oldStep, step, direction);
+        this.updateUI();
+    }
+    
+    nextStep() {
+        if (this.currentStep === this.totalSteps) {
+            this.complete();
+            return;
+        }
+        
+        if (!this.validateCurrentStep()) return;
+        
+        const oldStep = this.currentStep;
+        this.currentStep++;
+        this.animateTransition(oldStep, this.currentStep, 1);
+        this.updateUI();
+    }
+    
+    prevStep() {
+        if (this.currentStep <= 1) return;
+        
+        const oldStep = this.currentStep;
+        this.currentStep--;
+        this.animateTransition(oldStep, this.currentStep, -1);
+        this.updateUI();
+    }
+    
+    animateTransition(from, to, direction) {
+        const fromPanel = this.container.querySelector(`.step-panel[data-step="${from}"]`);
+        const toPanel = this.container.querySelector(`.step-panel[data-step="${to}"]`);
+        
+        if (fromPanel) {
+            fromPanel.classList.remove('active');
+            fromPanel.classList.add(direction > 0 ? 'exit-left' : 'exit-right');
+            setTimeout(() => {
+                fromPanel.classList.remove('exit-left', 'exit-right');
+            }, 400);
+        }
+        
+        if (toPanel) {
+            toPanel.style.transform = direction > 0 ? 'translateX(100%)' : 'translateX(-100%)';
+            toPanel.classList.add('active');
+            
+            requestAnimationFrame(() => {
+                toPanel.style.transform = '';
+            });
+        }
+    }
+    
+    updateUI() {
+        // Update indicators
+        this.indicators.forEach((ind, i) => {
+            const step = i + 1;
+            ind.classList.remove('active', 'complete');
+            
+            if (step === this.currentStep) {
+                ind.classList.add('active');
+                ind.querySelector('.step-indicator-inner').innerHTML = '<div class="active-dot"></div>';
+            } else if (step < this.currentStep) {
+                ind.classList.add('complete');
+                ind.querySelector('.step-indicator-inner').innerHTML = '<svg class="check-icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>';
+            } else {
+                ind.querySelector('.step-indicator-inner').textContent = step;
+            }
+        });
+        
+        // Update connectors
+        this.connectors.forEach((conn, i) => {
+            conn.classList.toggle('complete', i + 1 < this.currentStep);
+        });
+        
+        // Update footer
+        this.footer.classList.toggle('has-back', this.currentStep > 1);
+        this.backBtn.classList.toggle('hidden', this.currentStep <= 1);
+        
+        // Update next button text
+        if (this.currentStep === this.totalSteps) {
+            this.nextBtn.textContent = 'Создать аккаунт';
+        } else {
+            this.nextBtn.textContent = 'Далее';
+        }
+        
+        // Validate
+        this.validateCurrentStep();
+        
+        // Focus input
+        setTimeout(() => {
+            if (this.currentStep === 1) this.usernameInput?.focus();
+            if (this.currentStep === 2) this.passwordInput?.focus();
+        }, 400);
+    }
+    
+    validateCurrentStep() {
+        let isValid = false;
+        const usernameHint = document.getElementById('username-hint');
+        const passwordHint = document.getElementById('password-hint');
+        
+        switch (this.currentStep) {
+            case 1:
+                const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+                isValid = usernameRegex.test(this.data.username);
+                if (usernameHint) {
+                    usernameHint.classList.toggle('input-error', this.data.username.length > 0 && !isValid);
+                }
+                break;
+                
+            case 2:
+                const passValid = this.data.password.length >= 6;
+                const passMatch = this.data.password === this.data.passwordConfirm;
+                isValid = passValid && passMatch && this.data.passwordConfirm.length > 0;
+                if (passwordHint) {
+                    if (!passValid && this.data.password.length > 0) {
+                        passwordHint.textContent = 'Минимум 6 символов';
+                        passwordHint.classList.add('input-error');
+                    } else if (!passMatch && this.data.passwordConfirm.length > 0) {
+                        passwordHint.textContent = 'Пароли не совпадают';
+                        passwordHint.classList.add('input-error');
+                    } else {
+                        passwordHint.textContent = 'Минимум 6 символов';
+                        passwordHint.classList.remove('input-error');
+                    }
+                }
+                break;
+                
+            case 3:
+                isValid = true; // Avatar is optional
+                break;
+                
+            case 4:
+                isValid = this.data.agreeTerms && this.data.agreePrivacy;
+                break;
+        }
+        
+        this.nextBtn.disabled = !isValid;
+        return isValid;
+    }
+    
+    async complete() {
+        this.nextBtn.disabled = true;
+        this.nextBtn.textContent = 'Создание...';
+        
+        try {
+            // Register user
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: this.data.username,
+                    password: this.data.password
+                })
+            });
+            
+            const result = await res.json();
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Ошибка регистрации');
+            }
+            
+            // Show completion
+            this.currentStep = 'complete';
+            this.animateTransition(4, 'complete', 1);
+            this.footer.classList.add('hidden');
+            
+            // Auto login after 1.5s
+            setTimeout(async () => {
+                const loginResult = await login(this.data.username, this.data.password);
+                if (loginResult.success) {
+                    // Upload avatar if selected
+                    if (this.data.avatarFile && state.currentUser) {
+                        try {
+                            const formData = new FormData();
+                            formData.append('avatar', this.data.avatarFile);
+                            await api.uploadFile(`/api/user/${state.currentUser.id}/avatar`, formData);
+                        } catch (e) {
+                            console.log('Avatar upload failed:', e);
+                        }
+                    }
+                }
+            }, 1500);
+            
+        } catch (error) {
+            console.error('Registration error:', error);
+            document.getElementById('register-error').textContent = error.message;
+            this.nextBtn.disabled = false;
+            this.nextBtn.textContent = 'Создать аккаунт';
+        }
+    }
+    
+    reset() {
+        this.currentStep = 1;
+        this.data = {
+            username: '',
+            password: '',
+            passwordConfirm: '',
+            avatarFile: null,
+            avatarPreview: null,
+            agreeTerms: false,
+            agreePrivacy: false
+        };
+        
+        // Reset inputs
+        if (this.usernameInput) this.usernameInput.value = '';
+        if (this.passwordInput) this.passwordInput.value = '';
+        if (this.passwordConfirmInput) this.passwordConfirmInput.value = '';
+        if (this.avatarPreview) this.avatarPreview.innerHTML = '📷';
+        if (this.agreeTermsCheckbox) this.agreeTermsCheckbox.checked = false;
+        if (this.agreePrivacyCheckbox) this.agreePrivacyCheckbox.checked = false;
+        
+        // Reset panels
+        this.panels.forEach(panel => {
+            panel.classList.remove('active', 'exit-left', 'exit-right');
+        });
+        this.container.querySelector('.step-panel[data-step="1"]')?.classList.add('active');
+        
+        this.footer.classList.remove('hidden');
+        this.updateUI();
+    }
+}
+
+// Initialize stepper when DOM ready
+let registrationStepper = null;
+document.addEventListener('DOMContentLoaded', () => {
+    registrationStepper = new RegistrationStepper();
+    
+    // Reset stepper when switching to register screen
+    document.getElementById('to-register-btn')?.addEventListener('click', () => {
+        registrationStepper?.reset();
+    });
+});
+
+
+// === DOCK NAVIGATION (macOS-style) ===
+class Dock {
+    constructor(container, options = {}) {
+        this.container = container;
+        this.items = options.items || [];
+        this.baseSize = options.baseSize || 40;
+        this.magnification = options.magnification || 56;
+        this.distance = options.distance || 100;
+        this.onItemClick = options.onItemClick || (() => {});
+        
+        this.mouseX = Infinity;
+        this.isHovered = false;
+        this.activeIndex = 0;
+        
+        this.render();
+        this.bindEvents();
+    }
+    
+    render() {
+        this.container.innerHTML = `
+            <div class="dock-outer">
+                <div class="dock-panel magnify">
+                    ${this.items.map((item, i) => `
+                        <div class="dock-item ${i === this.activeIndex ? 'active' : ''}" 
+                             data-index="${i}" 
+                             tabindex="0"
+                             role="button"
+                             style="width: ${this.baseSize}px; height: ${this.baseSize}px;">
+                            <div class="dock-icon">${item.icon}</div>
+                            <div class="dock-label">${item.label}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        
+        this.panel = this.container.querySelector('.dock-panel');
+        this.dockItems = this.container.querySelectorAll('.dock-item');
+    }
+    
+    bindEvents() {
+        // Mouse move for magnification
+        this.panel.addEventListener('mousemove', (e) => {
+            this.isHovered = true;
+            this.mouseX = e.pageX;
+            this.updateMagnification();
+        });
+        
+        this.panel.addEventListener('mouseleave', () => {
+            this.isHovered = false;
+            this.mouseX = Infinity;
+            this.resetMagnification();
+        });
+        
+        // Click handlers
+        this.dockItems.forEach((item, index) => {
+            item.addEventListener('click', () => {
+                this.setActive(index);
+                this.onItemClick(this.items[index], index);
+            });
+            
+            item.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.setActive(index);
+                    this.onItemClick(this.items[index], index);
+                }
+            });
+        });
+    }
+    
+    updateMagnification() {
+        this.dockItems.forEach((item) => {
+            const rect = item.getBoundingClientRect();
+            const itemCenterX = rect.left + rect.width / 2;
+            const dist = Math.abs(this.mouseX - itemCenterX);
+            
+            // Calculate size based on distance
+            let size;
+            if (dist > this.distance) {
+                size = this.baseSize;
+            } else {
+                // Smooth interpolation
+                const ratio = 1 - (dist / this.distance);
+                const eased = Math.cos((1 - ratio) * Math.PI / 2); // Ease out
+                size = this.baseSize + (this.magnification - this.baseSize) * eased;
+            }
+            
+            item.style.width = `${size}px`;
+            item.style.height = `${size}px`;
+        });
+    }
+    
+    resetMagnification() {
+        this.dockItems.forEach((item) => {
+            item.style.width = `${this.baseSize}px`;
+            item.style.height = `${this.baseSize}px`;
+        });
+    }
+    
+    setActive(index) {
+        this.activeIndex = index;
+        this.dockItems.forEach((item, i) => {
+            item.classList.toggle('active', i === index);
+        });
+    }
+    
+    getActiveIndex() {
+        return this.activeIndex;
+    }
+}
+
+// Make globally available
+window.Dock = Dock;

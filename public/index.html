@@ -41,28 +41,95 @@
   <div id="register-screen" class="screen hidden" role="main">
     <div class="auth-container">
       <img src="icon.png" alt="Логотип Квант" class="logo-img">
-      <h1>Регистрация</h1>
-      <form id="register-form" aria-label="Форма регистрации">
-        <input type="text" id="reg-username" placeholder="Имя пользователя" required 
-               autocomplete="username" aria-label="Имя пользователя" 
-               pattern="[a-zA-Z0-9_]{3,20}" title="3-20 символов: буквы, цифры, _">
-        <input type="password" id="reg-password" placeholder="Пароль" required 
-               autocomplete="new-password" aria-label="Пароль" minlength="6">
-        <input type="password" id="reg-password-confirm" placeholder="Подтвердите пароль" required 
-               autocomplete="new-password" aria-label="Подтверждение пароля">
-        <div class="legal-checkboxes">
-          <label class="checkbox-label">
-            <input type="checkbox" id="agree-terms" required>
-            <span>Я согласен с <a href="#" class="legal-link" data-doc="terms">Условиями использования</a></span>
-          </label>
-          <label class="checkbox-label">
-            <input type="checkbox" id="agree-privacy" required>
-            <span>Я согласен с <a href="#" class="legal-link" data-doc="privacy">Политикой конфиденциальности</a></span>
-          </label>
+      
+      <div class="stepper-container" id="register-stepper">
+        <!-- Step indicators -->
+        <div class="stepper-indicators">
+          <div class="step-indicator active" data-step="1">
+            <div class="step-indicator-inner"><div class="active-dot"></div></div>
+          </div>
+          <div class="step-connector"><div class="step-connector-progress"></div></div>
+          <div class="step-indicator" data-step="2">
+            <div class="step-indicator-inner">2</div>
+          </div>
+          <div class="step-connector"><div class="step-connector-progress"></div></div>
+          <div class="step-indicator" data-step="3">
+            <div class="step-indicator-inner">3</div>
+          </div>
+          <div class="step-connector"><div class="step-connector-progress"></div></div>
+          <div class="step-indicator" data-step="4">
+            <div class="step-indicator-inner">4</div>
+          </div>
         </div>
-        <button type="submit" class="btn-primary" id="register-btn" disabled>Зарегистрироваться</button>
-        <button type="button" id="to-login-btn" class="btn-secondary">Уже есть аккаунт</button>
-      </form>
+        
+        <!-- Step content -->
+        <div class="stepper-content">
+          <!-- Step 1: Username -->
+          <div class="step-panel active" data-step="1">
+            <h3>Добро пожаловать в Квант!</h3>
+            <p>Выберите имя пользователя</p>
+            <input type="text" id="reg-username" placeholder="Имя пользователя" 
+                   autocomplete="username" pattern="[a-zA-Z0-9_]{3,20}">
+            <div class="input-hint" id="username-hint">3-20 символов: буквы, цифры и _</div>
+          </div>
+          
+          <!-- Step 2: Password -->
+          <div class="step-panel" data-step="2">
+            <h3>Защитите аккаунт</h3>
+            <p>Придумайте надёжный пароль</p>
+            <input type="password" id="reg-password" placeholder="Пароль" autocomplete="new-password">
+            <input type="password" id="reg-password-confirm" placeholder="Подтвердите пароль" autocomplete="new-password">
+            <div class="input-hint" id="password-hint">Минимум 6 символов</div>
+          </div>
+          
+          <!-- Step 3: Avatar -->
+          <div class="step-panel" data-step="3">
+            <h3>Добавьте фото</h3>
+            <p>Это поможет друзьям узнать вас</p>
+            <div class="avatar-upload-area">
+              <div class="avatar-preview-large" id="reg-avatar-preview">📷</div>
+              <input type="file" id="reg-avatar-input" accept="image/*" hidden>
+              <span class="avatar-upload-hint">Нажмите чтобы выбрать</span>
+              <button type="button" class="skip-btn" id="skip-avatar-btn">Пропустить</button>
+            </div>
+          </div>
+          
+          <!-- Step 4: Agreement -->
+          <div class="step-panel" data-step="4">
+            <h3>Почти готово!</h3>
+            <p>Ознакомьтесь с правилами</p>
+            <div class="stepper-legal">
+              <label class="checkbox-label">
+                <input type="checkbox" id="agree-terms">
+                <span>Я согласен с <a href="#" class="legal-link" data-doc="terms">Условиями использования</a></span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="agree-privacy">
+                <span>Я согласен с <a href="#" class="legal-link" data-doc="privacy">Политикой конфиденциальности</a></span>
+              </label>
+            </div>
+          </div>
+          
+          <!-- Completion -->
+          <div class="step-panel" data-step="complete">
+            <div class="step-complete-animation">
+              <div class="success-icon">
+                <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <h3>Аккаунт создан!</h3>
+              <p>Добро пожаловать в Квант</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="stepper-footer" id="stepper-footer">
+          <button type="button" class="stepper-back-btn hidden" id="stepper-back">Назад</button>
+          <button type="button" class="stepper-next-btn" id="stepper-next">Далее</button>
+        </div>
+      </div>
+      
+      <button type="button" id="to-login-btn" class="btn-secondary" style="margin-top: 1rem;">Уже есть аккаунт</button>
       <p id="register-error" class="error" role="alert" aria-live="polite"></p>
     </div>
   </div>
@@ -78,13 +145,8 @@
         </button>
       </div>
       
-      <!-- Навигация по типам чатов -->
-      <div class="sidebar-nav">
-        <button class="sidebar-nav-btn active" data-tab="chats" title="Личные сообщения">💬</button>
-        <button class="sidebar-nav-btn" data-tab="groups" title="Группы">👥</button>
-        <button class="sidebar-nav-btn" data-tab="channels" title="Каналы">📢</button>
-        <button class="sidebar-nav-btn" data-tab="servers" title="Серверы">🏠</button>
-      </div>
+      <!-- Dock навигация -->
+      <div class="sidebar-dock" id="sidebar-dock"></div>
       
       <!-- Кнопка создания -->
       <div class="sidebar-create">
@@ -540,11 +602,7 @@
                 <span class="settings-item-title">Громкость</span>
                 <span class="settings-item-desc">Уровень громкости звуков</span>
               </div>
-              <div class="volume-control">
-                <span class="volume-icon">🔈</span>
-                <input type="range" id="volume-slider" min="0" max="100" value="50">
-                <span class="volume-value" id="volume-value">50%</span>
-              </div>
+              <div class="elastic-volume-slider" id="settings-volume-slider"></div>
             </div>
           </div>
         </section>
