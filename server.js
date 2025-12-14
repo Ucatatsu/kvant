@@ -807,6 +807,265 @@ app.post('/api/push-subscribe', authMiddleware, async (req, res) => {
     }
 });
 
+// === ГРУППОВЫЕ ЧАТЫ ===
+
+app.post('/api/groups', authMiddleware, async (req, res) => {
+    try {
+        const { name, memberIds } = req.body;
+        if (!name || name.trim().length < 1) {
+            return res.status(400).json({ success: false, error: 'Укажите название группы' });
+        }
+        const result = await db.createGroup(req.user.id, name.trim(), memberIds || []);
+        res.json(result);
+    } catch (error) {
+        console.error('Create group error:', error);
+        res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    }
+});
+
+app.get('/api/groups', authMiddleware, async (req, res) => {
+    try {
+        const groups = await db.getUserGroups(req.user.id);
+        res.json(groups);
+    } catch (error) {
+        console.error('Get groups error:', error);
+        res.status(500).json([]);
+    }
+});
+
+app.get('/api/groups/:groupId', authMiddleware, async (req, res) => {
+    try {
+        const group = await db.getGroup(req.params.groupId);
+        if (!group) return res.status(404).json({ error: 'Группа не найдена' });
+        res.json(group);
+    } catch (error) {
+        console.error('Get group error:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+app.get('/api/groups/:groupId/members', authMiddleware, async (req, res) => {
+    try {
+        const members = await db.getGroupMembers(req.params.groupId);
+        res.json(members);
+    } catch (error) {
+        console.error('Get group members error:', error);
+        res.status(500).json([]);
+    }
+});
+
+app.post('/api/groups/:groupId/members', authMiddleware, async (req, res) => {
+    try {
+        const { userId } = req.body;
+        const result = await db.addGroupMember(req.params.groupId, userId);
+        res.json(result);
+    } catch (error) {
+        console.error('Add group member error:', error);
+        res.status(500).json({ success: false });
+    }
+});
+
+app.delete('/api/groups/:groupId/members/:userId', authMiddleware, async (req, res) => {
+    try {
+        const result = await db.removeGroupMember(req.params.groupId, req.params.userId);
+        res.json(result);
+    } catch (error) {
+        console.error('Remove group member error:', error);
+        res.status(500).json({ success: false });
+    }
+});
+
+app.get('/api/groups/:groupId/messages', authMiddleware, async (req, res) => {
+    try {
+        const { limit = 50, before } = req.query;
+        const messages = await db.getGroupMessages(req.params.groupId, parseInt(limit), before);
+        res.json(messages);
+    } catch (error) {
+        console.error('Get group messages error:', error);
+        res.status(500).json([]);
+    }
+});
+
+// === КАНАЛЫ ===
+
+app.post('/api/channels', authMiddleware, async (req, res) => {
+    try {
+        const { name, description, isPublic } = req.body;
+        if (!name || name.trim().length < 1) {
+            return res.status(400).json({ success: false, error: 'Укажите название канала' });
+        }
+        const result = await db.createChannel(req.user.id, name.trim(), description || '', isPublic !== false);
+        res.json(result);
+    } catch (error) {
+        console.error('Create channel error:', error);
+        res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    }
+});
+
+app.get('/api/channels', authMiddleware, async (req, res) => {
+    try {
+        const channels = await db.getUserChannels(req.user.id);
+        res.json(channels);
+    } catch (error) {
+        console.error('Get channels error:', error);
+        res.status(500).json([]);
+    }
+});
+
+app.get('/api/channels/:channelId', authMiddleware, async (req, res) => {
+    try {
+        const channel = await db.getChannel(req.params.channelId);
+        if (!channel) return res.status(404).json({ error: 'Канал не найден' });
+        res.json(channel);
+    } catch (error) {
+        console.error('Get channel error:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+app.post('/api/channels/:channelId/subscribe', authMiddleware, async (req, res) => {
+    try {
+        const result = await db.subscribeToChannel(req.params.channelId, req.user.id);
+        res.json(result);
+    } catch (error) {
+        console.error('Subscribe to channel error:', error);
+        res.status(500).json({ success: false });
+    }
+});
+
+app.post('/api/channels/:channelId/unsubscribe', authMiddleware, async (req, res) => {
+    try {
+        const result = await db.unsubscribeFromChannel(req.params.channelId, req.user.id);
+        res.json(result);
+    } catch (error) {
+        console.error('Unsubscribe from channel error:', error);
+        res.status(500).json({ success: false });
+    }
+});
+
+app.get('/api/channels/:channelId/posts', authMiddleware, async (req, res) => {
+    try {
+        const { limit = 20, before } = req.query;
+        const posts = await db.getChannelPosts(req.params.channelId, parseInt(limit), before);
+        res.json(posts);
+    } catch (error) {
+        console.error('Get channel posts error:', error);
+        res.status(500).json([]);
+    }
+});
+
+app.post('/api/channels/:channelId/posts', authMiddleware, async (req, res) => {
+    try {
+        const { text, mediaUrl, mediaType } = req.body;
+        // TODO: проверить что пользователь админ канала
+        const post = await db.createChannelPost(req.params.channelId, req.user.id, text, mediaUrl, mediaType);
+        res.json({ success: true, post });
+    } catch (error) {
+        console.error('Create channel post error:', error);
+        res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    }
+});
+
+// === СЕРВЕРЫ ===
+
+app.post('/api/servers', authMiddleware, async (req, res) => {
+    try {
+        const { name, description } = req.body;
+        if (!name || name.trim().length < 1) {
+            return res.status(400).json({ success: false, error: 'Укажите название сервера' });
+        }
+        const result = await db.createServer(req.user.id, name.trim(), description || '');
+        res.json(result);
+    } catch (error) {
+        console.error('Create server error:', error);
+        res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    }
+});
+
+app.get('/api/servers', authMiddleware, async (req, res) => {
+    try {
+        const servers = await db.getUserServers(req.user.id);
+        res.json(servers);
+    } catch (error) {
+        console.error('Get servers error:', error);
+        res.status(500).json([]);
+    }
+});
+
+app.get('/api/servers/:serverId', authMiddleware, async (req, res) => {
+    try {
+        const server = await db.getServer(req.params.serverId);
+        if (!server) return res.status(404).json({ error: 'Сервер не найден' });
+        res.json(server);
+    } catch (error) {
+        console.error('Get server error:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+app.post('/api/servers/:serverId/join', authMiddleware, async (req, res) => {
+    try {
+        const result = await db.joinServer(req.params.serverId, req.user.id);
+        res.json(result);
+    } catch (error) {
+        console.error('Join server error:', error);
+        res.status(500).json({ success: false });
+    }
+});
+
+app.post('/api/servers/:serverId/leave', authMiddleware, async (req, res) => {
+    try {
+        const result = await db.leaveServer(req.params.serverId, req.user.id);
+        res.json(result);
+    } catch (error) {
+        console.error('Leave server error:', error);
+        res.status(500).json({ success: false });
+    }
+});
+
+app.get('/api/servers/:serverId/channels', authMiddleware, async (req, res) => {
+    try {
+        const data = await db.getServerChannels(req.params.serverId);
+        res.json(data);
+    } catch (error) {
+        console.error('Get server channels error:', error);
+        res.status(500).json({ categories: [], channels: [] });
+    }
+});
+
+app.post('/api/servers/:serverId/channels', authMiddleware, async (req, res) => {
+    try {
+        const { categoryId, name, type } = req.body;
+        // TODO: проверить права
+        const result = await db.createServerChannel(req.params.serverId, categoryId, name, type || 'text');
+        res.json(result);
+    } catch (error) {
+        console.error('Create server channel error:', error);
+        res.status(500).json({ success: false });
+    }
+});
+
+app.get('/api/servers/:serverId/members', authMiddleware, async (req, res) => {
+    try {
+        const members = await db.getServerMembers(req.params.serverId);
+        res.json(members);
+    } catch (error) {
+        console.error('Get server members error:', error);
+        res.status(500).json([]);
+    }
+});
+
+app.get('/api/server-channels/:channelId/messages', authMiddleware, async (req, res) => {
+    try {
+        const { limit = 50, before } = req.query;
+        const messages = await db.getServerMessages(req.params.channelId, parseInt(limit), before);
+        res.json(messages);
+    } catch (error) {
+        console.error('Get server messages error:', error);
+        res.status(500).json([]);
+    }
+});
+
 // === PUSH УВЕДОМЛЕНИЯ ===
 
 async function sendPushNotification(userId, payload) {
@@ -977,6 +1236,106 @@ io.on('connection', async (socket) => {
         } catch (error) {
             console.error('Remove reaction error:', error);
         }
+    });
+
+    // === ГРУППОВЫЕ ЧАТЫ ===
+    
+    socket.on('join-group', (groupId) => {
+        socket.join(`group:${groupId}`);
+    });
+    
+    socket.on('leave-group', (groupId) => {
+        socket.leave(`group:${groupId}`);
+    });
+    
+    socket.on('group-message', async (data) => {
+        try {
+            const { groupId, text, messageType = 'text' } = data;
+            if (!groupId || !text) return;
+            
+            const message = await db.saveGroupMessage(groupId, userId, text.trim().substring(0, 5000), messageType);
+            const user = await db.getUser(userId);
+            message.username = user?.username;
+            message.display_name = user?.display_name;
+            message.avatar_url = user?.avatar_url;
+            
+            io.to(`group:${groupId}`).emit('group-message', message);
+        } catch (error) {
+            console.error('Group message error:', error);
+        }
+    });
+    
+    socket.on('group-typing', (data) => {
+        const { groupId, typing } = data;
+        socket.to(`group:${groupId}`).emit('group-typing', { userId, typing });
+    });
+
+    // === КАНАЛЫ ===
+    
+    socket.on('join-channel', (channelId) => {
+        socket.join(`channel:${channelId}`);
+    });
+    
+    socket.on('leave-channel', (channelId) => {
+        socket.leave(`channel:${channelId}`);
+    });
+    
+    socket.on('channel-post', async (data) => {
+        try {
+            const { channelId, text, mediaUrl, mediaType } = data;
+            if (!channelId) return;
+            
+            // TODO: проверить права на публикацию
+            const post = await db.createChannelPost(channelId, userId, text, mediaUrl, mediaType);
+            const user = await db.getUser(userId);
+            post.username = user?.username;
+            post.display_name = user?.display_name;
+            post.avatar_url = user?.avatar_url;
+            
+            io.to(`channel:${channelId}`).emit('channel-post', post);
+        } catch (error) {
+            console.error('Channel post error:', error);
+        }
+    });
+
+    // === СЕРВЕРЫ ===
+    
+    socket.on('join-server', (serverId) => {
+        socket.join(`server:${serverId}`);
+    });
+    
+    socket.on('leave-server', (serverId) => {
+        socket.leave(`server:${serverId}`);
+    });
+    
+    socket.on('join-server-channel', (channelId) => {
+        socket.join(`server-channel:${channelId}`);
+    });
+    
+    socket.on('leave-server-channel', (channelId) => {
+        socket.leave(`server-channel:${channelId}`);
+    });
+    
+    socket.on('server-message', async (data) => {
+        try {
+            const { channelId, text, messageType = 'text' } = data;
+            if (!channelId || !text) return;
+            
+            const message = await db.saveServerMessage(channelId, userId, text.trim().substring(0, 5000), messageType);
+            const user = await db.getUser(userId);
+            message.username = user?.username;
+            message.display_name = user?.display_name;
+            message.avatar_url = user?.avatar_url;
+            
+            io.to(`server-channel:${channelId}`).emit('server-message', message);
+        } catch (error) {
+            console.error('Server message error:', error);
+        }
+    });
+    
+    socket.on('server-typing', (data) => {
+        const { channelId, typing } = data;
+        socket.to(`server-channel:${channelId}`).emit('server-typing', { odataId: userId, typing });
     });
 
     // === ЗВОНКИ ===

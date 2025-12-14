@@ -113,6 +113,205 @@ async function initDB() {
             )
         `);
         
+        // === ГРУППОВЫЕ ЧАТЫ ===
+        sqlite.exec(`
+            CREATE TABLE IF NOT EXISTS group_chats (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                avatar_url TEXT,
+                owner_id TEXT NOT NULL,
+                is_public INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
+        sqlite.exec(`
+            CREATE TABLE IF NOT EXISTS group_members (
+                id TEXT PRIMARY KEY,
+                group_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                role TEXT DEFAULT 'member',
+                joined_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(group_id, user_id),
+                FOREIGN KEY (group_id) REFERENCES group_chats(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
+        sqlite.exec(`
+            CREATE TABLE IF NOT EXISTS group_messages (
+                id TEXT PRIMARY KEY,
+                group_id TEXT NOT NULL,
+                sender_id TEXT NOT NULL,
+                text TEXT NOT NULL,
+                message_type TEXT DEFAULT 'text',
+                reply_to TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT,
+                FOREIGN KEY (group_id) REFERENCES group_chats(id) ON DELETE CASCADE,
+                FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
+        // === КАНАЛЫ (Telegram-style) ===
+        sqlite.exec(`
+            CREATE TABLE IF NOT EXISTS channels (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                avatar_url TEXT,
+                owner_id TEXT NOT NULL,
+                is_public INTEGER DEFAULT 1,
+                subscriber_count INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
+        sqlite.exec(`
+            CREATE TABLE IF NOT EXISTS channel_admins (
+                id TEXT PRIMARY KEY,
+                channel_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                can_post INTEGER DEFAULT 1,
+                can_edit INTEGER DEFAULT 1,
+                can_delete INTEGER DEFAULT 1,
+                added_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(channel_id, user_id),
+                FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
+        sqlite.exec(`
+            CREATE TABLE IF NOT EXISTS channel_subscribers (
+                id TEXT PRIMARY KEY,
+                channel_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                subscribed_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(channel_id, user_id),
+                FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
+        sqlite.exec(`
+            CREATE TABLE IF NOT EXISTS channel_posts (
+                id TEXT PRIMARY KEY,
+                channel_id TEXT NOT NULL,
+                author_id TEXT NOT NULL,
+                text TEXT,
+                media_url TEXT,
+                media_type TEXT,
+                views INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT,
+                FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE,
+                FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
+        // === СЕРВЕРЫ (Discord-style) ===
+        sqlite.exec(`
+            CREATE TABLE IF NOT EXISTS servers (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                icon_url TEXT,
+                banner_url TEXT,
+                owner_id TEXT NOT NULL,
+                is_public INTEGER DEFAULT 0,
+                member_count INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
+        sqlite.exec(`
+            CREATE TABLE IF NOT EXISTS server_roles (
+                id TEXT PRIMARY KEY,
+                server_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                color TEXT DEFAULT '#99aab5',
+                position INTEGER DEFAULT 0,
+                permissions INTEGER DEFAULT 0,
+                is_default INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+            )
+        `);
+
+        sqlite.exec(`
+            CREATE TABLE IF NOT EXISTS server_members (
+                id TEXT PRIMARY KEY,
+                server_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                nickname TEXT,
+                joined_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(server_id, user_id),
+                FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
+        sqlite.exec(`
+            CREATE TABLE IF NOT EXISTS server_member_roles (
+                id TEXT PRIMARY KEY,
+                server_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                role_id TEXT NOT NULL,
+                UNIQUE(server_id, user_id, role_id),
+                FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (role_id) REFERENCES server_roles(id) ON DELETE CASCADE
+            )
+        `);
+
+        sqlite.exec(`
+            CREATE TABLE IF NOT EXISTS server_categories (
+                id TEXT PRIMARY KEY,
+                server_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                position INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+            )
+        `);
+
+        sqlite.exec(`
+            CREATE TABLE IF NOT EXISTS server_channels (
+                id TEXT PRIMARY KEY,
+                server_id TEXT NOT NULL,
+                category_id TEXT,
+                name TEXT NOT NULL,
+                topic TEXT,
+                type TEXT DEFAULT 'text',
+                position INTEGER DEFAULT 0,
+                is_nsfw INTEGER DEFAULT 0,
+                slowmode INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+                FOREIGN KEY (category_id) REFERENCES server_categories(id) ON DELETE SET NULL
+            )
+        `);
+
+        sqlite.exec(`
+            CREATE TABLE IF NOT EXISTS server_messages (
+                id TEXT PRIMARY KEY,
+                channel_id TEXT NOT NULL,
+                sender_id TEXT NOT NULL,
+                text TEXT,
+                message_type TEXT DEFAULT 'text',
+                reply_to TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT,
+                FOREIGN KEY (channel_id) REFERENCES server_channels(id) ON DELETE CASCADE,
+                FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
         // Индексы
         try { sqlite.exec('CREATE INDEX idx_messages_sender ON messages(sender_id)'); } catch {}
         try { sqlite.exec('CREATE INDEX idx_messages_receiver ON messages(receiver_id)'); } catch {}
@@ -120,6 +319,16 @@ async function initDB() {
         try { sqlite.exec('CREATE INDEX idx_users_username ON users(username)'); } catch {}
         try { sqlite.exec('CREATE INDEX idx_users_tag ON users(tag)'); } catch {}
         try { sqlite.exec('CREATE INDEX idx_reactions_message ON message_reactions(message_id)'); } catch {}
+        try { sqlite.exec('CREATE INDEX idx_group_members_group ON group_members(group_id)'); } catch {}
+        try { sqlite.exec('CREATE INDEX idx_group_members_user ON group_members(user_id)'); } catch {}
+        try { sqlite.exec('CREATE INDEX idx_group_messages_group ON group_messages(group_id)'); } catch {}
+        try { sqlite.exec('CREATE INDEX idx_channel_subs_channel ON channel_subscribers(channel_id)'); } catch {}
+        try { sqlite.exec('CREATE INDEX idx_channel_subs_user ON channel_subscribers(user_id)'); } catch {}
+        try { sqlite.exec('CREATE INDEX idx_channel_posts_channel ON channel_posts(channel_id)'); } catch {}
+        try { sqlite.exec('CREATE INDEX idx_server_members_server ON server_members(server_id)'); } catch {}
+        try { sqlite.exec('CREATE INDEX idx_server_members_user ON server_members(user_id)'); } catch {}
+        try { sqlite.exec('CREATE INDEX idx_server_channels_server ON server_channels(server_id)'); } catch {}
+        try { sqlite.exec('CREATE INDEX idx_server_messages_channel ON server_messages(channel_id)'); } catch {}
         
         console.log('✅ SQLite база данных инициализирована');
         return;
@@ -225,6 +434,193 @@ async function initDB() {
             )
         `);
         await client.query('CREATE INDEX IF NOT EXISTS idx_reactions_message ON message_reactions(message_id)').catch(() => {});
+
+        // === ГРУППОВЫЕ ЧАТЫ ===
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS group_chats (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                avatar_url TEXT,
+                owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                is_public BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS group_members (
+                id TEXT PRIMARY KEY,
+                group_id TEXT NOT NULL REFERENCES group_chats(id) ON DELETE CASCADE,
+                user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                role TEXT DEFAULT 'member',
+                joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(group_id, user_id)
+            )
+        `);
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS group_messages (
+                id TEXT PRIMARY KEY,
+                group_id TEXT NOT NULL REFERENCES group_chats(id) ON DELETE CASCADE,
+                sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                text TEXT NOT NULL,
+                message_type TEXT DEFAULT 'text',
+                reply_to TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP
+            )
+        `);
+
+        // === КАНАЛЫ (Telegram-style) ===
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS channels (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                avatar_url TEXT,
+                owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                is_public BOOLEAN DEFAULT TRUE,
+                subscriber_count INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS channel_admins (
+                id TEXT PRIMARY KEY,
+                channel_id TEXT NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+                user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                can_post BOOLEAN DEFAULT TRUE,
+                can_edit BOOLEAN DEFAULT TRUE,
+                can_delete BOOLEAN DEFAULT TRUE,
+                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(channel_id, user_id)
+            )
+        `);
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS channel_subscribers (
+                id TEXT PRIMARY KEY,
+                channel_id TEXT NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+                user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(channel_id, user_id)
+            )
+        `);
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS channel_posts (
+                id TEXT PRIMARY KEY,
+                channel_id TEXT NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+                author_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                text TEXT,
+                media_url TEXT,
+                media_type TEXT,
+                views INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP
+            )
+        `);
+
+        // === СЕРВЕРЫ (Discord-style) ===
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS servers (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                icon_url TEXT,
+                banner_url TEXT,
+                owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                is_public BOOLEAN DEFAULT FALSE,
+                member_count INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS server_roles (
+                id TEXT PRIMARY KEY,
+                server_id TEXT NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                color TEXT DEFAULT '#99aab5',
+                position INTEGER DEFAULT 0,
+                permissions BIGINT DEFAULT 0,
+                is_default BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS server_members (
+                id TEXT PRIMARY KEY,
+                server_id TEXT NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+                user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                nickname TEXT,
+                joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(server_id, user_id)
+            )
+        `);
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS server_member_roles (
+                id TEXT PRIMARY KEY,
+                server_id TEXT NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+                user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                role_id TEXT NOT NULL REFERENCES server_roles(id) ON DELETE CASCADE,
+                UNIQUE(server_id, user_id, role_id)
+            )
+        `);
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS server_categories (
+                id TEXT PRIMARY KEY,
+                server_id TEXT NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                position INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS server_channels (
+                id TEXT PRIMARY KEY,
+                server_id TEXT NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+                category_id TEXT REFERENCES server_categories(id) ON DELETE SET NULL,
+                name TEXT NOT NULL,
+                topic TEXT,
+                type TEXT DEFAULT 'text',
+                position INTEGER DEFAULT 0,
+                is_nsfw BOOLEAN DEFAULT FALSE,
+                slowmode INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS server_messages (
+                id TEXT PRIMARY KEY,
+                channel_id TEXT NOT NULL REFERENCES server_channels(id) ON DELETE CASCADE,
+                sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                text TEXT,
+                message_type TEXT DEFAULT 'text',
+                reply_to TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP
+            )
+        `);
+
+        // Индексы для новых таблиц
+        await client.query('CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id)').catch(() => {});
+        await client.query('CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id)').catch(() => {});
+        await client.query('CREATE INDEX IF NOT EXISTS idx_group_messages_group ON group_messages(group_id)').catch(() => {});
+        await client.query('CREATE INDEX IF NOT EXISTS idx_channel_subs_channel ON channel_subscribers(channel_id)').catch(() => {});
+        await client.query('CREATE INDEX IF NOT EXISTS idx_channel_subs_user ON channel_subscribers(user_id)').catch(() => {});
+        await client.query('CREATE INDEX IF NOT EXISTS idx_channel_posts_channel ON channel_posts(channel_id)').catch(() => {});
+        await client.query('CREATE INDEX IF NOT EXISTS idx_server_members_server ON server_members(server_id)').catch(() => {});
+        await client.query('CREATE INDEX IF NOT EXISTS idx_server_members_user ON server_members(user_id)').catch(() => {});
+        await client.query('CREATE INDEX IF NOT EXISTS idx_server_channels_server ON server_channels(server_id)').catch(() => {});
+        await client.query('CREATE INDEX IF NOT EXISTS idx_server_messages_channel ON server_messages(channel_id)').catch(() => {});
 
         console.log('✅ PostgreSQL база данных инициализирована');
     } finally {
@@ -902,6 +1298,556 @@ async function saveUserSettings(userId, settings) {
     }
 }
 
+// === ГРУППОВЫЕ ЧАТЫ ===
+
+async function createGroup(ownerId, name, memberIds = []) {
+    try {
+        const id = uuidv4();
+        const created_at = new Date().toISOString();
+        
+        if (USE_SQLITE) {
+            sqlite.prepare('INSERT INTO group_chats (id, name, owner_id, created_at) VALUES (?, ?, ?, ?)').run(id, name, ownerId, created_at);
+            // Добавляем владельца как админа
+            sqlite.prepare('INSERT INTO group_members (id, group_id, user_id, role) VALUES (?, ?, ?, ?)').run(uuidv4(), id, ownerId, 'admin');
+            // Добавляем остальных участников
+            for (const memberId of memberIds) {
+                if (memberId !== ownerId) {
+                    sqlite.prepare('INSERT INTO group_members (id, group_id, user_id, role) VALUES (?, ?, ?, ?)').run(uuidv4(), id, memberId, 'member');
+                }
+            }
+        } else {
+            await pool.query('INSERT INTO group_chats (id, name, owner_id, created_at) VALUES ($1, $2, $3, $4)', [id, name, ownerId, created_at]);
+            await pool.query('INSERT INTO group_members (id, group_id, user_id, role) VALUES ($1, $2, $3, $4)', [uuidv4(), id, ownerId, 'admin']);
+            for (const memberId of memberIds) {
+                if (memberId !== ownerId) {
+                    await pool.query('INSERT INTO group_members (id, group_id, user_id, role) VALUES ($1, $2, $3, $4)', [uuidv4(), id, memberId, 'member']);
+                }
+            }
+        }
+        
+        return { success: true, group: { id, name, owner_id: ownerId, created_at } };
+    } catch (error) {
+        console.error('Create group error:', error);
+        return { success: false, error: 'Ошибка создания группы' };
+    }
+}
+
+async function getGroup(groupId) {
+    try {
+        let group;
+        if (USE_SQLITE) {
+            group = sqlite.prepare('SELECT * FROM group_chats WHERE id = ?').get(groupId);
+        } else {
+            const result = await pool.query('SELECT * FROM group_chats WHERE id = $1', [groupId]);
+            group = result.rows[0];
+        }
+        return group || null;
+    } catch (error) {
+        console.error('Get group error:', error);
+        return null;
+    }
+}
+
+async function getGroupMembers(groupId) {
+    try {
+        let members;
+        if (USE_SQLITE) {
+            members = sqlite.prepare(`
+                SELECT gm.*, u.username, u.display_name, u.avatar_url, u.tag
+                FROM group_members gm
+                JOIN users u ON u.id = gm.user_id
+                WHERE gm.group_id = ?
+            `).all(groupId);
+        } else {
+            const result = await pool.query(`
+                SELECT gm.*, u.username, u.display_name, u.avatar_url, u.tag
+                FROM group_members gm
+                JOIN users u ON u.id = gm.user_id
+                WHERE gm.group_id = $1
+            `, [groupId]);
+            members = result.rows;
+        }
+        return members;
+    } catch (error) {
+        console.error('Get group members error:', error);
+        return [];
+    }
+}
+
+async function getUserGroups(userId) {
+    try {
+        let groups;
+        if (USE_SQLITE) {
+            groups = sqlite.prepare(`
+                SELECT g.*, gm.role as my_role,
+                    (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as member_count
+                FROM group_chats g
+                JOIN group_members gm ON gm.group_id = g.id AND gm.user_id = ?
+                ORDER BY g.created_at DESC
+            `).all(userId);
+        } else {
+            const result = await pool.query(`
+                SELECT g.*, gm.role as my_role,
+                    (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as member_count
+                FROM group_chats g
+                JOIN group_members gm ON gm.group_id = g.id AND gm.user_id = $1
+                ORDER BY g.created_at DESC
+            `, [userId]);
+            groups = result.rows;
+        }
+        return groups;
+    } catch (error) {
+        console.error('Get user groups error:', error);
+        return [];
+    }
+}
+
+async function addGroupMember(groupId, userId, role = 'member') {
+    try {
+        const id = uuidv4();
+        if (USE_SQLITE) {
+            sqlite.prepare('INSERT OR IGNORE INTO group_members (id, group_id, user_id, role) VALUES (?, ?, ?, ?)').run(id, groupId, userId, role);
+        } else {
+            await pool.query('INSERT INTO group_members (id, group_id, user_id, role) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING', [id, groupId, userId, role]);
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Add group member error:', error);
+        return { success: false };
+    }
+}
+
+async function removeGroupMember(groupId, userId) {
+    try {
+        if (USE_SQLITE) {
+            sqlite.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?').run(groupId, userId);
+        } else {
+            await pool.query('DELETE FROM group_members WHERE group_id = $1 AND user_id = $2', [groupId, userId]);
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Remove group member error:', error);
+        return { success: false };
+    }
+}
+
+async function saveGroupMessage(groupId, senderId, text, messageType = 'text') {
+    try {
+        const id = uuidv4();
+        const created_at = new Date().toISOString();
+        
+        if (USE_SQLITE) {
+            sqlite.prepare('INSERT INTO group_messages (id, group_id, sender_id, text, message_type, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(id, groupId, senderId, text, messageType, created_at);
+        } else {
+            await pool.query('INSERT INTO group_messages (id, group_id, sender_id, text, message_type, created_at) VALUES ($1, $2, $3, $4, $5, $6)', [id, groupId, senderId, text, messageType, created_at]);
+        }
+        
+        return { id, group_id: groupId, sender_id: senderId, text, message_type: messageType, created_at };
+    } catch (error) {
+        console.error('Save group message error:', error);
+        throw error;
+    }
+}
+
+async function getGroupMessages(groupId, limit = 50, before = null) {
+    try {
+        let messages;
+        if (USE_SQLITE) {
+            if (before) {
+                messages = sqlite.prepare(`
+                    SELECT gm.*, u.username, u.display_name, u.avatar_url
+                    FROM group_messages gm
+                    JOIN users u ON u.id = gm.sender_id
+                    WHERE gm.group_id = ? AND gm.created_at < ?
+                    ORDER BY gm.created_at DESC LIMIT ?
+                `).all(groupId, before, limit);
+            } else {
+                messages = sqlite.prepare(`
+                    SELECT gm.*, u.username, u.display_name, u.avatar_url
+                    FROM group_messages gm
+                    JOIN users u ON u.id = gm.sender_id
+                    WHERE gm.group_id = ?
+                    ORDER BY gm.created_at DESC LIMIT ?
+                `).all(groupId, limit);
+            }
+        } else {
+            const params = before ? [groupId, before, limit] : [groupId, limit];
+            const query = before 
+                ? `SELECT gm.*, u.username, u.display_name, u.avatar_url FROM group_messages gm JOIN users u ON u.id = gm.sender_id WHERE gm.group_id = $1 AND gm.created_at < $2 ORDER BY gm.created_at DESC LIMIT $3`
+                : `SELECT gm.*, u.username, u.display_name, u.avatar_url FROM group_messages gm JOIN users u ON u.id = gm.sender_id WHERE gm.group_id = $1 ORDER BY gm.created_at DESC LIMIT $2`;
+            const result = await pool.query(query, params);
+            messages = result.rows;
+        }
+        return messages.reverse();
+    } catch (error) {
+        console.error('Get group messages error:', error);
+        return [];
+    }
+}
+
+// === КАНАЛЫ (Telegram-style) ===
+
+async function createChannel(ownerId, name, description = '', isPublic = true) {
+    try {
+        const id = uuidv4();
+        const created_at = new Date().toISOString();
+        
+        if (USE_SQLITE) {
+            sqlite.prepare('INSERT INTO channels (id, name, description, owner_id, is_public, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(id, name, description, ownerId, isPublic ? 1 : 0, created_at);
+            sqlite.prepare('INSERT INTO channel_admins (id, channel_id, user_id) VALUES (?, ?, ?)').run(uuidv4(), id, ownerId);
+            sqlite.prepare('INSERT INTO channel_subscribers (id, channel_id, user_id) VALUES (?, ?, ?)').run(uuidv4(), id, ownerId);
+        } else {
+            await pool.query('INSERT INTO channels (id, name, description, owner_id, is_public, subscriber_count, created_at) VALUES ($1, $2, $3, $4, $5, 1, $6)', [id, name, description, ownerId, isPublic, created_at]);
+            await pool.query('INSERT INTO channel_admins (id, channel_id, user_id) VALUES ($1, $2, $3)', [uuidv4(), id, ownerId]);
+            await pool.query('INSERT INTO channel_subscribers (id, channel_id, user_id) VALUES ($1, $2, $3)', [uuidv4(), id, ownerId]);
+        }
+        
+        return { success: true, channel: { id, name, description, owner_id: ownerId, is_public: isPublic, subscriber_count: 1, created_at } };
+    } catch (error) {
+        console.error('Create channel error:', error);
+        return { success: false, error: 'Ошибка создания канала' };
+    }
+}
+
+async function getChannel(channelId) {
+    try {
+        let channel;
+        if (USE_SQLITE) {
+            channel = sqlite.prepare('SELECT * FROM channels WHERE id = ?').get(channelId);
+        } else {
+            const result = await pool.query('SELECT * FROM channels WHERE id = $1', [channelId]);
+            channel = result.rows[0];
+        }
+        return channel || null;
+    } catch (error) {
+        console.error('Get channel error:', error);
+        return null;
+    }
+}
+
+async function getUserChannels(userId) {
+    try {
+        let channels;
+        if (USE_SQLITE) {
+            channels = sqlite.prepare(`
+                SELECT c.*, 
+                    CASE WHEN ca.user_id IS NOT NULL THEN 1 ELSE 0 END as is_admin,
+                    CASE WHEN c.owner_id = ? THEN 1 ELSE 0 END as is_owner
+                FROM channels c
+                JOIN channel_subscribers cs ON cs.channel_id = c.id AND cs.user_id = ?
+                LEFT JOIN channel_admins ca ON ca.channel_id = c.id AND ca.user_id = ?
+                ORDER BY c.created_at DESC
+            `).all(userId, userId, userId);
+        } else {
+            const result = await pool.query(`
+                SELECT c.*, 
+                    CASE WHEN ca.user_id IS NOT NULL THEN true ELSE false END as is_admin,
+                    CASE WHEN c.owner_id = $1 THEN true ELSE false END as is_owner
+                FROM channels c
+                JOIN channel_subscribers cs ON cs.channel_id = c.id AND cs.user_id = $1
+                LEFT JOIN channel_admins ca ON ca.channel_id = c.id AND ca.user_id = $1
+                ORDER BY c.created_at DESC
+            `, [userId]);
+            channels = result.rows;
+        }
+        return channels;
+    } catch (error) {
+        console.error('Get user channels error:', error);
+        return [];
+    }
+}
+
+async function subscribeToChannel(channelId, userId) {
+    try {
+        const id = uuidv4();
+        if (USE_SQLITE) {
+            sqlite.prepare('INSERT OR IGNORE INTO channel_subscribers (id, channel_id, user_id) VALUES (?, ?, ?)').run(id, channelId, userId);
+            sqlite.prepare('UPDATE channels SET subscriber_count = subscriber_count + 1 WHERE id = ?').run(channelId);
+        } else {
+            await pool.query('INSERT INTO channel_subscribers (id, channel_id, user_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [id, channelId, userId]);
+            await pool.query('UPDATE channels SET subscriber_count = subscriber_count + 1 WHERE id = $1', [channelId]);
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Subscribe to channel error:', error);
+        return { success: false };
+    }
+}
+
+async function unsubscribeFromChannel(channelId, userId) {
+    try {
+        if (USE_SQLITE) {
+            sqlite.prepare('DELETE FROM channel_subscribers WHERE channel_id = ? AND user_id = ?').run(channelId, userId);
+            sqlite.prepare('UPDATE channels SET subscriber_count = MAX(0, subscriber_count - 1) WHERE id = ?').run(channelId);
+        } else {
+            await pool.query('DELETE FROM channel_subscribers WHERE channel_id = $1 AND user_id = $2', [channelId, userId]);
+            await pool.query('UPDATE channels SET subscriber_count = GREATEST(0, subscriber_count - 1) WHERE id = $1', [channelId]);
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Unsubscribe from channel error:', error);
+        return { success: false };
+    }
+}
+
+async function createChannelPost(channelId, authorId, text, mediaUrl = null, mediaType = null) {
+    try {
+        const id = uuidv4();
+        const created_at = new Date().toISOString();
+        
+        if (USE_SQLITE) {
+            sqlite.prepare('INSERT INTO channel_posts (id, channel_id, author_id, text, media_url, media_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, channelId, authorId, text, mediaUrl, mediaType, created_at);
+        } else {
+            await pool.query('INSERT INTO channel_posts (id, channel_id, author_id, text, media_url, media_type, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)', [id, channelId, authorId, text, mediaUrl, mediaType, created_at]);
+        }
+        
+        return { id, channel_id: channelId, author_id: authorId, text, media_url: mediaUrl, media_type: mediaType, views: 0, created_at };
+    } catch (error) {
+        console.error('Create channel post error:', error);
+        throw error;
+    }
+}
+
+async function getChannelPosts(channelId, limit = 20, before = null) {
+    try {
+        let posts;
+        if (USE_SQLITE) {
+            if (before) {
+                posts = sqlite.prepare(`SELECT cp.*, u.username, u.display_name, u.avatar_url FROM channel_posts cp JOIN users u ON u.id = cp.author_id WHERE cp.channel_id = ? AND cp.created_at < ? ORDER BY cp.created_at DESC LIMIT ?`).all(channelId, before, limit);
+            } else {
+                posts = sqlite.prepare(`SELECT cp.*, u.username, u.display_name, u.avatar_url FROM channel_posts cp JOIN users u ON u.id = cp.author_id WHERE cp.channel_id = ? ORDER BY cp.created_at DESC LIMIT ?`).all(channelId, limit);
+            }
+        } else {
+            const params = before ? [channelId, before, limit] : [channelId, limit];
+            const query = before 
+                ? `SELECT cp.*, u.username, u.display_name, u.avatar_url FROM channel_posts cp JOIN users u ON u.id = cp.author_id WHERE cp.channel_id = $1 AND cp.created_at < $2 ORDER BY cp.created_at DESC LIMIT $3`
+                : `SELECT cp.*, u.username, u.display_name, u.avatar_url FROM channel_posts cp JOIN users u ON u.id = cp.author_id WHERE cp.channel_id = $1 ORDER BY cp.created_at DESC LIMIT $2`;
+            const result = await pool.query(query, params);
+            posts = result.rows;
+        }
+        return posts.reverse();
+    } catch (error) {
+        console.error('Get channel posts error:', error);
+        return [];
+    }
+}
+
+// === СЕРВЕРЫ (Discord-style) ===
+
+async function createServer(ownerId, name, description = '') {
+    try {
+        const id = uuidv4();
+        const created_at = new Date().toISOString();
+        
+        if (USE_SQLITE) {
+            sqlite.prepare('INSERT INTO servers (id, name, description, owner_id, member_count, created_at) VALUES (?, ?, ?, ?, 1, ?)').run(id, name, description, ownerId, created_at);
+            // Создаём роль @everyone
+            const everyoneRoleId = uuidv4();
+            sqlite.prepare('INSERT INTO server_roles (id, server_id, name, is_default, position) VALUES (?, ?, ?, 1, 0)').run(everyoneRoleId, id, '@everyone');
+            // Добавляем владельца
+            sqlite.prepare('INSERT INTO server_members (id, server_id, user_id) VALUES (?, ?, ?)').run(uuidv4(), id, ownerId);
+            // Создаём категорию и канал по умолчанию
+            const categoryId = uuidv4();
+            sqlite.prepare('INSERT INTO server_categories (id, server_id, name, position) VALUES (?, ?, ?, 0)').run(categoryId, id, 'Текстовые каналы');
+            sqlite.prepare('INSERT INTO server_channels (id, server_id, category_id, name, type, position) VALUES (?, ?, ?, ?, ?, 0)').run(uuidv4(), id, categoryId, 'общий', 'text');
+        } else {
+            await pool.query('INSERT INTO servers (id, name, description, owner_id, member_count, created_at) VALUES ($1, $2, $3, $4, 1, $5)', [id, name, description, ownerId, created_at]);
+            const everyoneRoleId = uuidv4();
+            await pool.query('INSERT INTO server_roles (id, server_id, name, is_default, position) VALUES ($1, $2, $3, true, 0)', [everyoneRoleId, id, '@everyone']);
+            await pool.query('INSERT INTO server_members (id, server_id, user_id) VALUES ($1, $2, $3)', [uuidv4(), id, ownerId]);
+            const categoryId = uuidv4();
+            await pool.query('INSERT INTO server_categories (id, server_id, name, position) VALUES ($1, $2, $3, 0)', [categoryId, id, 'Текстовые каналы']);
+            await pool.query('INSERT INTO server_channels (id, server_id, category_id, name, type, position) VALUES ($1, $2, $3, $4, $5, 0)', [uuidv4(), id, categoryId, 'общий', 'text']);
+        }
+        
+        return { success: true, server: { id, name, description, owner_id: ownerId, member_count: 1, created_at } };
+    } catch (error) {
+        console.error('Create server error:', error);
+        return { success: false, error: 'Ошибка создания сервера' };
+    }
+}
+
+async function getServer(serverId) {
+    try {
+        let server;
+        if (USE_SQLITE) {
+            server = sqlite.prepare('SELECT * FROM servers WHERE id = ?').get(serverId);
+        } else {
+            const result = await pool.query('SELECT * FROM servers WHERE id = $1', [serverId]);
+            server = result.rows[0];
+        }
+        return server || null;
+    } catch (error) {
+        console.error('Get server error:', error);
+        return null;
+    }
+}
+
+async function getUserServers(userId) {
+    try {
+        let servers;
+        if (USE_SQLITE) {
+            servers = sqlite.prepare(`
+                SELECT s.*, CASE WHEN s.owner_id = ? THEN 1 ELSE 0 END as is_owner
+                FROM servers s
+                JOIN server_members sm ON sm.server_id = s.id AND sm.user_id = ?
+                ORDER BY s.created_at DESC
+            `).all(userId, userId);
+        } else {
+            const result = await pool.query(`
+                SELECT s.*, CASE WHEN s.owner_id = $1 THEN true ELSE false END as is_owner
+                FROM servers s
+                JOIN server_members sm ON sm.server_id = s.id AND sm.user_id = $1
+                ORDER BY s.created_at DESC
+            `, [userId]);
+            servers = result.rows;
+        }
+        return servers;
+    } catch (error) {
+        console.error('Get user servers error:', error);
+        return [];
+    }
+}
+
+async function joinServer(serverId, userId) {
+    try {
+        const id = uuidv4();
+        if (USE_SQLITE) {
+            sqlite.prepare('INSERT OR IGNORE INTO server_members (id, server_id, user_id) VALUES (?, ?, ?)').run(id, serverId, userId);
+            sqlite.prepare('UPDATE servers SET member_count = member_count + 1 WHERE id = ?').run(serverId);
+        } else {
+            await pool.query('INSERT INTO server_members (id, server_id, user_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [id, serverId, userId]);
+            await pool.query('UPDATE servers SET member_count = member_count + 1 WHERE id = $1', [serverId]);
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Join server error:', error);
+        return { success: false };
+    }
+}
+
+async function leaveServer(serverId, userId) {
+    try {
+        if (USE_SQLITE) {
+            sqlite.prepare('DELETE FROM server_members WHERE server_id = ? AND user_id = ?').run(serverId, userId);
+            sqlite.prepare('UPDATE servers SET member_count = MAX(0, member_count - 1) WHERE id = ?').run(serverId);
+        } else {
+            await pool.query('DELETE FROM server_members WHERE server_id = $1 AND user_id = $2', [serverId, userId]);
+            await pool.query('UPDATE servers SET member_count = GREATEST(0, member_count - 1) WHERE id = $1', [serverId]);
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Leave server error:', error);
+        return { success: false };
+    }
+}
+
+async function getServerChannels(serverId) {
+    try {
+        let channels, categories;
+        if (USE_SQLITE) {
+            categories = sqlite.prepare('SELECT * FROM server_categories WHERE server_id = ? ORDER BY position').all(serverId);
+            channels = sqlite.prepare('SELECT * FROM server_channels WHERE server_id = ? ORDER BY position').all(serverId);
+        } else {
+            const catResult = await pool.query('SELECT * FROM server_categories WHERE server_id = $1 ORDER BY position', [serverId]);
+            const chanResult = await pool.query('SELECT * FROM server_channels WHERE server_id = $1 ORDER BY position', [serverId]);
+            categories = catResult.rows;
+            channels = chanResult.rows;
+        }
+        return { categories, channels };
+    } catch (error) {
+        console.error('Get server channels error:', error);
+        return { categories: [], channels: [] };
+    }
+}
+
+async function createServerChannel(serverId, categoryId, name, type = 'text') {
+    try {
+        const id = uuidv4();
+        if (USE_SQLITE) {
+            const maxPos = sqlite.prepare('SELECT MAX(position) as max FROM server_channels WHERE server_id = ?').get(serverId);
+            const position = (maxPos?.max || 0) + 1;
+            sqlite.prepare('INSERT INTO server_channels (id, server_id, category_id, name, type, position) VALUES (?, ?, ?, ?, ?, ?)').run(id, serverId, categoryId, name, type, position);
+        } else {
+            const maxPos = await pool.query('SELECT MAX(position) as max FROM server_channels WHERE server_id = $1', [serverId]);
+            const position = (maxPos.rows[0]?.max || 0) + 1;
+            await pool.query('INSERT INTO server_channels (id, server_id, category_id, name, type, position) VALUES ($1, $2, $3, $4, $5, $6)', [id, serverId, categoryId, name, type, position]);
+        }
+        return { success: true, channel: { id, server_id: serverId, category_id: categoryId, name, type } };
+    } catch (error) {
+        console.error('Create server channel error:', error);
+        return { success: false };
+    }
+}
+
+async function saveServerMessage(channelId, senderId, text, messageType = 'text') {
+    try {
+        const id = uuidv4();
+        const created_at = new Date().toISOString();
+        
+        if (USE_SQLITE) {
+            sqlite.prepare('INSERT INTO server_messages (id, channel_id, sender_id, text, message_type, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(id, channelId, senderId, text, messageType, created_at);
+        } else {
+            await pool.query('INSERT INTO server_messages (id, channel_id, sender_id, text, message_type, created_at) VALUES ($1, $2, $3, $4, $5, $6)', [id, channelId, senderId, text, messageType, created_at]);
+        }
+        
+        return { id, channel_id: channelId, sender_id: senderId, text, message_type: messageType, created_at };
+    } catch (error) {
+        console.error('Save server message error:', error);
+        throw error;
+    }
+}
+
+async function getServerMessages(channelId, limit = 50, before = null) {
+    try {
+        let messages;
+        if (USE_SQLITE) {
+            if (before) {
+                messages = sqlite.prepare(`SELECT sm.*, u.username, u.display_name, u.avatar_url FROM server_messages sm JOIN users u ON u.id = sm.sender_id WHERE sm.channel_id = ? AND sm.created_at < ? ORDER BY sm.created_at DESC LIMIT ?`).all(channelId, before, limit);
+            } else {
+                messages = sqlite.prepare(`SELECT sm.*, u.username, u.display_name, u.avatar_url FROM server_messages sm JOIN users u ON u.id = sm.sender_id WHERE sm.channel_id = ? ORDER BY sm.created_at DESC LIMIT ?`).all(channelId, limit);
+            }
+        } else {
+            const params = before ? [channelId, before, limit] : [channelId, limit];
+            const query = before 
+                ? `SELECT sm.*, u.username, u.display_name, u.avatar_url FROM server_messages sm JOIN users u ON u.id = sm.sender_id WHERE sm.channel_id = $1 AND sm.created_at < $2 ORDER BY sm.created_at DESC LIMIT $3`
+                : `SELECT sm.*, u.username, u.display_name, u.avatar_url FROM server_messages sm JOIN users u ON u.id = sm.sender_id WHERE sm.channel_id = $1 ORDER BY sm.created_at DESC LIMIT $2`;
+            const result = await pool.query(query, params);
+            messages = result.rows;
+        }
+        return messages.reverse();
+    } catch (error) {
+        console.error('Get server messages error:', error);
+        return [];
+    }
+}
+
+async function getServerMembers(serverId) {
+    try {
+        let members;
+        if (USE_SQLITE) {
+            members = sqlite.prepare(`
+                SELECT sm.*, u.username, u.display_name, u.avatar_url, u.tag
+                FROM server_members sm
+                JOIN users u ON u.id = sm.user_id
+                WHERE sm.server_id = ?
+            `).all(serverId);
+        } else {
+            const result = await pool.query(`
+                SELECT sm.*, u.username, u.display_name, u.avatar_url, u.tag
+                FROM server_members sm
+                JOIN users u ON u.id = sm.user_id
+                WHERE sm.server_id = $1
+            `, [serverId]);
+            members = result.rows;
+        }
+        return members;
+    } catch (error) {
+        console.error('Get server members error:', error);
+        return [];
+    }
+}
+
 module.exports = { 
     initDB, 
     createUser, 
@@ -938,5 +1884,33 @@ module.exports = {
     getMessageReactions,
     // Настройки
     getUserSettings,
-    saveUserSettings
+    saveUserSettings,
+    // Групповые чаты
+    createGroup,
+    getGroup,
+    getGroupMembers,
+    getUserGroups,
+    addGroupMember,
+    removeGroupMember,
+    saveGroupMessage,
+    getGroupMessages,
+    // Каналы
+    createChannel,
+    getChannel,
+    getUserChannels,
+    subscribeToChannel,
+    unsubscribeFromChannel,
+    createChannelPost,
+    getChannelPosts,
+    // Серверы
+    createServer,
+    getServer,
+    getUserServers,
+    joinServer,
+    leaveServer,
+    getServerChannels,
+    createServerChannel,
+    saveServerMessage,
+    getServerMessages,
+    getServerMembers
 };

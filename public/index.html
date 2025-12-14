@@ -77,7 +77,27 @@
           🔍
         </button>
       </div>
-      <div class="users-list" id="users-list" role="list" aria-label="Список контактов"></div>
+      
+      <!-- Навигация по типам чатов -->
+      <div class="sidebar-nav">
+        <button class="sidebar-nav-btn active" data-tab="chats" title="Личные сообщения">💬</button>
+        <button class="sidebar-nav-btn" data-tab="groups" title="Группы">👥</button>
+        <button class="sidebar-nav-btn" data-tab="channels" title="Каналы">📢</button>
+        <button class="sidebar-nav-btn" data-tab="servers" title="Серверы">🏠</button>
+      </div>
+      
+      <!-- Кнопка создания -->
+      <div class="sidebar-create">
+        <button class="create-btn" id="create-btn" title="Создать">➕</button>
+      </div>
+      
+      <!-- Списки -->
+      <div class="sidebar-content">
+        <div class="users-list sidebar-tab active" id="users-list" data-tab="chats" role="list" aria-label="Список контактов"></div>
+        <div class="users-list sidebar-tab" id="groups-list" data-tab="groups" role="list" aria-label="Список групп"></div>
+        <div class="users-list sidebar-tab" id="channels-list" data-tab="channels" role="list" aria-label="Список каналов"></div>
+        <div class="users-list sidebar-tab" id="servers-list" data-tab="servers" role="list" aria-label="Список серверов"></div>
+      </div>
       <div class="sidebar-footer" id="user-panel" role="button" tabindex="0" aria-label="Открыть карточку профиля">
         <div class="current-user-avatar" id="current-user-avatar"></div>
         <div class="current-user-details">
@@ -727,6 +747,49 @@
         <button class="prompt-btn prompt-cancel" id="prompt-cancel">Отмена</button>
         <button class="prompt-btn prompt-ok" id="prompt-ok">OK</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно создания группы/канала/сервера -->
+  <div id="create-modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-overlay"></div>
+    <div class="create-modal-content">
+      <button class="modal-close" id="create-modal-close">✕</button>
+      <h3 class="create-modal-title" id="create-modal-title">Создать</h3>
+      
+      <div class="create-tabs">
+        <button class="create-tab active" data-create="group">👥 Группа</button>
+        <button class="create-tab" data-create="channel">📢 Канал</button>
+        <button class="create-tab" data-create="server">🏠 Сервер</button>
+      </div>
+      
+      <form id="create-form" class="create-form">
+        <div class="create-avatar-upload">
+          <div class="create-avatar-preview" id="create-avatar-preview">📷</div>
+          <input type="file" id="create-avatar-input" accept="image/*" hidden>
+        </div>
+        
+        <input type="text" id="create-name" placeholder="Название" required maxlength="50">
+        <textarea id="create-description" placeholder="Описание (необязательно)" maxlength="500"></textarea>
+        
+        <!-- Для групп - выбор участников -->
+        <div id="create-members-section" class="create-section">
+          <label>Добавить участников:</label>
+          <input type="text" id="create-members-search" placeholder="Поиск пользователей...">
+          <div id="create-members-results" class="create-members-results"></div>
+          <div id="create-selected-members" class="create-selected-members"></div>
+        </div>
+        
+        <!-- Для каналов - публичность -->
+        <div id="create-channel-options" class="create-section hidden">
+          <label class="checkbox-label">
+            <input type="checkbox" id="create-channel-public" checked>
+            <span>Публичный канал</span>
+          </label>
+        </div>
+        
+        <button type="submit" class="btn-primary create-submit">Создать</button>
+      </form>
     </div>
   </div>
 

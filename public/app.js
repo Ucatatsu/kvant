@@ -19,7 +19,16 @@ const state = {
     // Кэш DOM элементов
     dom: {},
     // Локальные данные пользователей (никнеймы, отключённые уведомления)
-    userLocalData: JSON.parse(localStorage.getItem('kvant_user_local_data') || '{}')
+    userLocalData: JSON.parse(localStorage.getItem('kvant_user_local_data') || '{}'),
+    // Новые типы чатов
+    currentTab: 'chats',
+    groups: [],
+    channels: [],
+    servers: [],
+    selectedGroup: null,
+    selectedChannel: null,
+    selectedServer: null,
+    selectedServerChannel: null
 };
 
 // Сохранение локальных данных пользователей
@@ -495,6 +504,8 @@ function initSocket() {
     
     state.socket.on('connect', () => {
         console.log('Socket подключён');
+        // Инициализируем события для групп/каналов/серверов
+        initGroupChannelServerSockets();
     });
     
     state.socket.on('connect_error', (error) => {
@@ -798,6 +809,9 @@ async function showChat() {
     
     await loadMyProfile();
     await loadContacts();
+    await loadGroups();
+    await loadChannels();
+    await loadServers();
     await loadSettingsFromServer();
     requestNotificationPermission();
     applySettings();
@@ -835,6 +849,284 @@ async function loadContacts() {
         document.getElementById('users-list').innerHTML = 
             '<div class="empty-list">Ошибка загрузки</div>';
     }
+}
+
+// === ГРУППЫ ===
+async function loadGroups() {
+    try {
+        const res = await api.get('/api/groups');
+        if (!res.ok) throw new Error('Ошибка загрузки');
+        state.groups = await res.json();
+        renderGroups();
+    } catch (e) {
+        console.error('Ошибка загрузки групп:', e);
+    }
+}
+
+function renderGroups() {
+    const list = document.getElementById('groups-list');
+    if (!list) return;
+    
+    if (state.groups.length === 0) {
+        list.innerHTML = `
+            <div class="empty-tab">
+                <div class="empty-tab-icon">👥</div>
+                <div class="empty-tab-text">У вас пока нет групп. Создайте первую!</div>
+            </div>`;
+        return;
+    }
+    
+    list.innerHTML = state.groups.map(g => `
+        <div class="group-item ${state.selectedGroup?.id === g.id ? 'active' : ''}" data-group-id="${g.id}">
+            <div class="group-avatar">${g.avatar_url ? `<img src="${g.avatar_url}">` : '👥'}</div>
+            <div class="group-info">
+                <div class="group-name">${escapeHtml(g.name)}</div>
+                <div class="group-members-count">${g.member_count || 0} участников</div>
+            </div>
+        </div>
+    `).join('');
+    
+    list.querySelectorAll('.group-item').forEach(el => {
+        el.addEventListener('click', () => selectGroup(el.dataset.groupId));
+    });
+}
+
+async function selectGroup(groupId) {
+    const group = state.groups.find(g => g.id === groupId);
+    if (!group) return;
+    
+    state.selectedGroup = group;
+    state.selectedUser = null;
+    state.selectedChannel = null;
+    state.selectedServer = null;
+    
+    // Присоединяемся к комнате группы
+    state.socket?.emit('join-group', groupId);
+    
+    // Обновляем UI
+    renderGroups();
+    updateChatHeader(group.name, `${group.member_count || 0} участников`, group.avatar_url);
+    await loadGroupMessages(groupId);
+    
+    // Показываем чат на мобильных
+    document.querySelector('.chat-area')?.classList.add('active');
+}
+
+async function loadGroupMessages(groupId) {
+    try {
+        const res = await api.get(`/api/groups/${groupId}/messages`);
+        if (!res.ok) throw new Error('Ошибка загрузки');
+        const messages = await res.json();
+        renderGroupMessages(messages);
+    } catch (e) {
+        console.error('Ошибка загрузки сообщений группы:', e);
+    }
+}
+
+function renderGroupMessages(messages) {
+    const container = getEl('messages');
+    container.innerHTML = '';
+    
+    messages.forEach(msg => {
+        const isSent = msg.sender_id === state.currentUser.id;
+        const div = document.createElement('div');
+        div.className = `message ${isSent ? 'sent' : 'received'}`;
+        div.dataset.messageId = msg.id;
+        
+        div.innerHTML = `
+            <div class="message-sender-info">
+                <span class="message-sender-name" style="color: ${getNameColor(msg)}">${escapeHtml(msg.display_name || msg.username)}</span>
+            </div>
+            <div class="message-content">
+                <div class="message-bubble">${escapeHtml(msg.text)}</div>
+                <div class="message-time">${formatTime(msg.created_at)}</div>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+    
+    container.scrollTop = container.scrollHeight;
+}
+
+// === КАНАЛЫ ===
+async function loadChannels() {
+    try {
+        const res = await api.get('/api/channels');
+        if (!res.ok) throw new Error('Ошибка загрузки');
+        state.channels = await res.json();
+        renderChannels();
+    } catch (e) {
+        console.error('Ошибка загрузки каналов:', e);
+    }
+}
+
+function renderChannels() {
+    const list = document.getElementById('channels-list');
+    if (!list) return;
+    
+    if (state.channels.length === 0) {
+        list.innerHTML = `
+            <div class="empty-tab">
+                <div class="empty-tab-icon">📢</div>
+                <div class="empty-tab-text">У вас пока нет каналов. Создайте или подпишитесь!</div>
+            </div>`;
+        return;
+    }
+    
+    list.innerHTML = state.channels.map(c => `
+        <div class="channel-item ${state.selectedChannel?.id === c.id ? 'active' : ''}" data-channel-id="${c.id}">
+            <div class="channel-avatar">${c.avatar_url ? `<img src="${c.avatar_url}">` : '📢'}</div>
+            <div class="channel-info">
+                <div class="channel-name">${escapeHtml(c.name)}</div>
+                <div class="channel-subscribers">${c.subscriber_count || 0} подписчиков</div>
+            </div>
+        </div>
+    `).join('');
+    
+    list.querySelectorAll('.channel-item').forEach(el => {
+        el.addEventListener('click', () => selectChannel(el.dataset.channelId));
+    });
+}
+
+async function selectChannel(channelId) {
+    const channel = state.channels.find(c => c.id === channelId);
+    if (!channel) return;
+    
+    state.selectedChannel = channel;
+    state.selectedUser = null;
+    state.selectedGroup = null;
+    state.selectedServer = null;
+    
+    state.socket?.emit('join-channel', channelId);
+    
+    renderChannels();
+    updateChatHeader(channel.name, `${channel.subscriber_count || 0} подписчиков`, channel.avatar_url);
+    await loadChannelPosts(channelId);
+    
+    document.querySelector('.chat-area')?.classList.add('active');
+}
+
+async function loadChannelPosts(channelId) {
+    try {
+        const res = await api.get(`/api/channels/${channelId}/posts`);
+        if (!res.ok) throw new Error('Ошибка загрузки');
+        const posts = await res.json();
+        renderChannelPosts(posts);
+    } catch (e) {
+        console.error('Ошибка загрузки постов канала:', e);
+    }
+}
+
+function renderChannelPosts(posts) {
+    const container = getEl('messages');
+    container.innerHTML = '';
+    
+    posts.forEach(post => {
+        const div = document.createElement('div');
+        div.className = 'message channel-post';
+        div.dataset.postId = post.id;
+        
+        let content = '';
+        if (post.media_url) {
+            if (post.media_type === 'image') {
+                content += `<img src="${escapeAttr(post.media_url)}" class="message-media" alt="Изображение">`;
+            } else if (post.media_type === 'video') {
+                content += `<video src="${escapeAttr(post.media_url)}" class="message-media" controls></video>`;
+            }
+        }
+        if (post.text) {
+            content += `<div class="message-bubble">${escapeHtml(post.text)}</div>`;
+        }
+        
+        div.innerHTML = `
+            <div class="message-content">
+                ${content}
+                <div class="message-time">${formatTime(post.created_at)} · 👁 ${post.views || 0}</div>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+    
+    container.scrollTop = container.scrollHeight;
+}
+
+// === СЕРВЕРЫ ===
+async function loadServers() {
+    try {
+        const res = await api.get('/api/servers');
+        if (!res.ok) throw new Error('Ошибка загрузки');
+        state.servers = await res.json();
+        renderServers();
+    } catch (e) {
+        console.error('Ошибка загрузки серверов:', e);
+    }
+}
+
+function renderServers() {
+    const list = document.getElementById('servers-list');
+    if (!list) return;
+    
+    if (state.servers.length === 0) {
+        list.innerHTML = `
+            <div class="empty-tab">
+                <div class="empty-tab-icon">🏠</div>
+                <div class="empty-tab-text">У вас пока нет серверов. Создайте или присоединитесь!</div>
+            </div>`;
+        return;
+    }
+    
+    list.innerHTML = state.servers.map(s => `
+        <div class="server-item ${state.selectedServer?.id === s.id ? 'active' : ''}" data-server-id="${s.id}">
+            <div class="server-icon">${s.icon_url ? `<img src="${s.icon_url}">` : '🏠'}</div>
+            <div class="server-info">
+                <div class="server-name">${escapeHtml(s.name)}</div>
+                <div class="server-members">${s.member_count || 0} участников</div>
+            </div>
+        </div>
+    `).join('');
+    
+    list.querySelectorAll('.server-item').forEach(el => {
+        el.addEventListener('click', () => selectServer(el.dataset.serverId));
+    });
+}
+
+async function selectServer(serverId) {
+    const server = state.servers.find(s => s.id === serverId);
+    if (!server) return;
+    
+    state.selectedServer = server;
+    state.selectedUser = null;
+    state.selectedGroup = null;
+    state.selectedChannel = null;
+    
+    state.socket?.emit('join-server', serverId);
+    
+    renderServers();
+    // TODO: показать интерфейс сервера с каналами
+    
+    document.querySelector('.chat-area')?.classList.add('active');
+}
+
+function updateChatHeader(name, subtitle, avatarUrl) {
+    const header = document.querySelector('.chat-header');
+    if (!header) return;
+    
+    const avatarEl = header.querySelector('.chat-avatar');
+    const nameEl = header.querySelector('.chat-name');
+    const statusEl = header.querySelector('.chat-status');
+    
+    if (avatarEl) {
+        avatarEl.innerHTML = avatarUrl ? `<img src="${avatarUrl}">` : name[0]?.toUpperCase() || '?';
+    }
+    if (nameEl) nameEl.textContent = name;
+    if (statusEl) statusEl.textContent = subtitle;
+}
+
+function getNameColor(msg) {
+    // Простая функция для цвета имени в группе
+    const colors = ['#4fc3f7', '#81c784', '#ffb74d', '#f06292', '#ba68c8', '#4dd0e1'];
+    const hash = msg.sender_id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+    return colors[hash % colors.length];
 }
 
 async function searchUsers(query) {
@@ -4825,3 +5117,317 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
         applyTheme('system');
     }
 });
+
+
+// === SIDEBAR NAVIGATION ===
+document.addEventListener('DOMContentLoaded', () => {
+    // Навигация по табам
+    document.querySelectorAll('.sidebar-nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+            switchSidebarTab(tab);
+        });
+    });
+    
+    // Кнопка создания
+    document.getElementById('create-btn')?.addEventListener('click', openCreateModal);
+    
+    // Закрытие модалки создания
+    document.getElementById('create-modal-close')?.addEventListener('click', closeCreateModal);
+    document.querySelector('#create-modal .modal-overlay')?.addEventListener('click', closeCreateModal);
+    
+    // Табы в модалке создания
+    document.querySelectorAll('.create-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.create-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            updateCreateModalUI(tab.dataset.create);
+        });
+    });
+    
+    // Форма создания
+    document.getElementById('create-form')?.addEventListener('submit', handleCreateSubmit);
+    
+    // Поиск участников для группы
+    document.getElementById('create-members-search')?.addEventListener('input', debounce(searchMembersForGroup, 300));
+});
+
+function switchSidebarTab(tab) {
+    state.currentTab = tab;
+    
+    // Обновляем кнопки навигации
+    document.querySelectorAll('.sidebar-nav-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+    
+    // Обновляем списки
+    document.querySelectorAll('.sidebar-tab').forEach(el => {
+        el.classList.toggle('active', el.dataset.tab === tab);
+    });
+    
+    // Загружаем данные если нужно
+    if (tab === 'groups' && state.groups.length === 0) loadGroups();
+    if (tab === 'channels' && state.channels.length === 0) loadChannels();
+    if (tab === 'servers' && state.servers.length === 0) loadServers();
+}
+
+function openCreateModal() {
+    const modal = document.getElementById('create-modal');
+    if (!modal) return;
+    
+    modal.classList.remove('hidden');
+    document.getElementById('create-name').value = '';
+    document.getElementById('create-description').value = '';
+    document.getElementById('create-selected-members').innerHTML = '';
+    document.getElementById('create-members-results').innerHTML = '';
+    
+    // Устанавливаем активный таб в зависимости от текущего раздела
+    const createType = state.currentTab === 'channels' ? 'channel' : 
+                       state.currentTab === 'servers' ? 'server' : 'group';
+    document.querySelectorAll('.create-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.create === createType);
+    });
+    updateCreateModalUI(createType);
+}
+
+function closeCreateModal() {
+    document.getElementById('create-modal')?.classList.add('hidden');
+}
+
+function updateCreateModalUI(type) {
+    const membersSection = document.getElementById('create-members-section');
+    const channelOptions = document.getElementById('create-channel-options');
+    const title = document.getElementById('create-modal-title');
+    
+    membersSection?.classList.toggle('hidden', type !== 'group');
+    channelOptions?.classList.toggle('hidden', type !== 'channel');
+    
+    if (title) {
+        title.textContent = type === 'group' ? 'Создать группу' :
+                           type === 'channel' ? 'Создать канал' : 'Создать сервер';
+    }
+}
+
+let selectedMemberIds = [];
+
+async function searchMembersForGroup(e) {
+    const query = e.target.value.trim();
+    const results = document.getElementById('create-members-results');
+    if (!results) return;
+    
+    if (query.length < 2) {
+        results.innerHTML = '';
+        return;
+    }
+    
+    try {
+        const res = await api.get(`/api/users?search=${encodeURIComponent(query)}`);
+        const users = await res.json();
+        
+        results.innerHTML = users
+            .filter(u => u.id !== state.currentUser.id && !selectedMemberIds.includes(u.id))
+            .map(u => `
+                <div class="create-member-item" data-user-id="${u.id}" data-username="${escapeAttr(u.username)}">
+                    <div class="user-avatar">${u.avatar_url ? `<img src="${u.avatar_url}">` : u.username[0].toUpperCase()}</div>
+                    <span>${escapeHtml(u.display_name || u.username)}</span>
+                </div>
+            `).join('');
+        
+        results.querySelectorAll('.create-member-item').forEach(el => {
+            el.addEventListener('click', () => addMemberToSelection(el.dataset.userId, el.dataset.username));
+        });
+    } catch (e) {
+        console.error('Search members error:', e);
+    }
+}
+
+function addMemberToSelection(userId, username) {
+    if (selectedMemberIds.includes(userId)) return;
+    
+    selectedMemberIds.push(userId);
+    
+    const container = document.getElementById('create-selected-members');
+    const tag = document.createElement('span');
+    tag.className = 'selected-member-tag';
+    tag.dataset.userId = userId;
+    tag.innerHTML = `${escapeHtml(username)} <span class="remove">✕</span>`;
+    
+    tag.querySelector('.remove').addEventListener('click', () => {
+        selectedMemberIds = selectedMemberIds.filter(id => id !== userId);
+        tag.remove();
+    });
+    
+    container.appendChild(tag);
+    
+    // Убираем из результатов поиска
+    document.querySelector(`.create-member-item[data-user-id="${userId}"]`)?.remove();
+}
+
+async function handleCreateSubmit(e) {
+    e.preventDefault();
+    
+    const activeTab = document.querySelector('.create-tab.active');
+    const type = activeTab?.dataset.create || 'group';
+    const name = document.getElementById('create-name').value.trim();
+    const description = document.getElementById('create-description').value.trim();
+    
+    if (!name) {
+        showToast('Укажите название', 'error');
+        return;
+    }
+    
+    try {
+        let res;
+        if (type === 'group') {
+            res = await api.post('/api/groups', { name, memberIds: selectedMemberIds });
+        } else if (type === 'channel') {
+            const isPublic = document.getElementById('create-channel-public')?.checked;
+            res = await api.post('/api/channels', { name, description, isPublic });
+        } else {
+            res = await api.post('/api/servers', { name, description });
+        }
+        
+        const result = await res.json();
+        
+        if (result.success) {
+            showToast(`${type === 'group' ? 'Группа' : type === 'channel' ? 'Канал' : 'Сервер'} создан!`, 'success');
+            closeCreateModal();
+            selectedMemberIds = [];
+            
+            // Перезагружаем список
+            if (type === 'group') { await loadGroups(); switchSidebarTab('groups'); }
+            if (type === 'channel') { await loadChannels(); switchSidebarTab('channels'); }
+            if (type === 'server') { await loadServers(); switchSidebarTab('servers'); }
+        } else {
+            showToast(result.error || 'Ошибка создания', 'error');
+        }
+    } catch (e) {
+        console.error('Create error:', e);
+        showToast('Ошибка создания', 'error');
+    }
+}
+
+// === SOCKET EVENTS FOR GROUPS/CHANNELS/SERVERS ===
+function initGroupChannelServerSockets() {
+    if (!state.socket) return;
+    
+    // Групповые сообщения
+    state.socket.on('group-message', (message) => {
+        if (state.selectedGroup?.id === message.group_id) {
+            appendGroupMessage(message);
+        }
+        // TODO: обновить превью в списке групп
+    });
+    
+    state.socket.on('group-typing', (data) => {
+        if (state.selectedGroup && data.userId !== state.currentUser.id) {
+            // TODO: показать индикатор печати
+        }
+    });
+    
+    // Посты каналов
+    state.socket.on('channel-post', (post) => {
+        if (state.selectedChannel?.id === post.channel_id) {
+            appendChannelPost(post);
+        }
+    });
+    
+    // Сообщения серверов
+    state.socket.on('server-message', (message) => {
+        if (state.selectedServerChannel?.id === message.channel_id) {
+            appendServerMessage(message);
+        }
+    });
+}
+
+function appendGroupMessage(msg) {
+    const container = getEl('messages');
+    const isSent = msg.sender_id === state.currentUser.id;
+    
+    const div = document.createElement('div');
+    div.className = `message ${isSent ? 'sent' : 'received'}`;
+    div.dataset.messageId = msg.id;
+    
+    div.innerHTML = `
+        <div class="message-sender-info">
+            <span class="message-sender-name" style="color: ${getNameColor(msg)}">${escapeHtml(msg.display_name || msg.username)}</span>
+        </div>
+        <div class="message-content">
+            <div class="message-bubble">${escapeHtml(msg.text)}</div>
+            <div class="message-time">${formatTime(msg.created_at)}</div>
+        </div>
+    `;
+    
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function appendChannelPost(post) {
+    const container = getEl('messages');
+    
+    const div = document.createElement('div');
+    div.className = 'message channel-post';
+    div.dataset.postId = post.id;
+    
+    let content = '';
+    if (post.media_url) {
+        if (post.media_type === 'image') {
+            content += `<img src="${escapeAttr(post.media_url)}" class="message-media" alt="Изображение">`;
+        } else if (post.media_type === 'video') {
+            content += `<video src="${escapeAttr(post.media_url)}" class="message-media" controls></video>`;
+        }
+    }
+    if (post.text) {
+        content += `<div class="message-bubble">${escapeHtml(post.text)}</div>`;
+    }
+    
+    div.innerHTML = `
+        <div class="message-content">
+            ${content}
+            <div class="message-time">${formatTime(post.created_at)} · 👁 ${post.views || 0}</div>
+        </div>
+    `;
+    
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function appendServerMessage(msg) {
+    appendGroupMessage(msg); // Пока используем тот же формат
+}
+
+// Модифицируем отправку сообщений для поддержки групп
+function sendMessageToCurrentChat() {
+    const input = getEl('message-input');
+    const text = input.value.trim();
+    if (!text) return;
+    
+    if (state.selectedGroup) {
+        state.socket?.emit('group-message', {
+            groupId: state.selectedGroup.id,
+            text,
+            messageType: 'text'
+        });
+    } else if (state.selectedChannel) {
+        // Каналы - только админы могут постить
+        state.socket?.emit('channel-post', {
+            channelId: state.selectedChannel.id,
+            text
+        });
+    } else if (state.selectedServerChannel) {
+        state.socket?.emit('server-message', {
+            channelId: state.selectedServerChannel.id,
+            text,
+            messageType: 'text'
+        });
+    } else if (state.selectedUser) {
+        state.socket?.emit('send-message', {
+            receiverId: state.selectedUser.id,
+            text,
+            messageType: 'text'
+        });
+    }
+    
+    input.value = '';
+    stopTyping();
+}
