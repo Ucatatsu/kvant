@@ -296,6 +296,11 @@ app.post('/api/login', authLimiter, async (req, res) => {
     }
 });
 
+// Health check для Render
+app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: Date.now() });
+});
+
 // Правовые документы
 app.get('/api/legal/privacy', (_req, res) => {
     const fs = require('fs');
