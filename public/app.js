@@ -5151,7 +5151,8 @@ document.addEventListener('DOMContentLoaded', () => {
             { icon: '💬', label: 'Чаты', tab: 'chats' },
             { icon: '👥', label: 'Группы', tab: 'groups' },
             { icon: '📢', label: 'Каналы', tab: 'channels' },
-            { icon: '🏠', label: 'Серверы', tab: 'servers' }
+            { icon: '🏠', label: 'Серверы', tab: 'servers' },
+            { icon: '➕', label: 'Создать', action: 'create' }
         ];
         
         window.sidebarDock = new Dock(dockContainer, {
@@ -5160,13 +5161,14 @@ document.addEventListener('DOMContentLoaded', () => {
             magnification: 54,
             distance: 80,
             onItemClick: (item, index) => {
-                switchSidebarTab(item.tab);
+                if (item.action === 'create') {
+                    openCreateModal();
+                } else {
+                    switchSidebarTab(item.tab);
+                }
             }
         });
     }
-    
-    // Кнопка создания
-    document.getElementById('create-btn')?.addEventListener('click', openCreateModal);
     
     // Закрытие модалки создания
     document.getElementById('create-modal-close')?.addEventListener('click', closeCreateModal);
@@ -6107,14 +6109,19 @@ class Dock {
         // Click handlers
         this.dockItems.forEach((item, index) => {
             item.addEventListener('click', () => {
-                this.setActive(index);
+                // Не делаем активной кнопку с action (например "+")
+                if (!this.items[index].action) {
+                    this.setActive(index);
+                }
                 this.onItemClick(this.items[index], index);
             });
             
             item.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    this.setActive(index);
+                    if (!this.items[index].action) {
+                        this.setActive(index);
+                    }
                     this.onItemClick(this.items[index], index);
                 }
             });
