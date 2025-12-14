@@ -1500,7 +1500,7 @@ function applySettings() {
     const messagesDiv = document.getElementById('messages');
     
     if (chatScreen) {
-        chatScreen.classList.remove('bg-gradient1', 'bg-gradient2', 'bg-gradient3', 'bg-solid', 'bg-custom');
+        chatScreen.classList.remove('bg-gradient1', 'bg-gradient2', 'bg-gradient3', 'bg-solid', 'bg-custom', 'bg-mode-contain');
         chatScreen.style.backgroundImage = '';
         
         if (state.settings.background && state.settings.background !== 'default') {
@@ -1510,6 +1510,11 @@ function applySettings() {
             } else {
                 chatScreen.classList.add(`bg-${state.settings.background}`);
             }
+        }
+        
+        // Применяем режим отображения фона
+        if (state.settings.bgMode === 'contain') {
+            chatScreen.classList.add('bg-mode-contain');
         }
     }
     
@@ -1557,8 +1562,17 @@ function applyPanelOpacity(opacity) {
 function applyTheme(theme) {
     const root = document.documentElement;
     
+    // Убираем data-theme атрибут
+    root.removeAttribute('data-theme');
+    
     if (theme === 'system') {
         theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    
+    // Premium темы
+    if (['neon', 'sunset', 'ocean'].includes(theme)) {
+        root.setAttribute('data-theme', theme);
+        return;
     }
     
     if (theme === 'light') {
@@ -4209,6 +4223,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state.settings.background = opt.dataset.bg;
             saveSettings();
             applySettings();
+            updateBgModeVisibility();
         });
     });
     
@@ -4224,10 +4239,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 applySettings();
                 document.querySelectorAll('.bg-option').forEach(o => o.classList.remove('active'));
                 document.querySelector('[data-bg="custom"]')?.classList.add('active');
+                // Показать настройку режима фона
+                updateBgModeVisibility();
             };
             reader.readAsDataURL(file);
         }
     });
+    
+    // Режим отображения фона
+    function updateBgModeVisibility() {
+        const bgModeSetting = document.getElementById('bg-mode-setting');
+        if (bgModeSetting) {
+            const showMode = state.settings.background === 'custom' || state.settings.background === 'default';
+            bgModeSetting.style.display = showMode ? 'flex' : 'none';
+        }
+    }
+    
+    document.querySelectorAll('.bg-mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.bg-mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.settings.bgMode = btn.dataset.mode;
+            saveSettings();
+            applySettings();
+        });
+    });
+    
+    // Инициализация режима фона
+    if (state.settings.bgMode) {
+        document.querySelectorAll('.bg-mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === state.settings.bgMode);
+        });
+    }
+    updateBgModeVisibility();
     
     // Размер сообщений
     document.querySelectorAll('.size-btn').forEach(btn => {
@@ -4303,7 +4347,7 @@ function applySettings() {
     const messagesDiv = document.getElementById('messages');
     
     if (chatScreen) {
-        chatScreen.classList.remove('bg-gradient1', 'bg-gradient2', 'bg-gradient3', 'bg-solid', 'bg-custom');
+        chatScreen.classList.remove('bg-gradient1', 'bg-gradient2', 'bg-gradient3', 'bg-solid', 'bg-custom', 'bg-mode-contain');
         chatScreen.style.backgroundImage = '';
         
         if (state.settings.background && state.settings.background !== 'default') {
@@ -4313,6 +4357,11 @@ function applySettings() {
             } else {
                 chatScreen.classList.add(`bg-${state.settings.background}`);
             }
+        }
+        
+        // Применяем режим отображения фона
+        if (state.settings.bgMode === 'contain') {
+            chatScreen.classList.add('bg-mode-contain');
         }
     }
     

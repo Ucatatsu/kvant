@@ -2451,7 +2451,50 @@ button {
 #chat-screen.bg-gradient2 { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e) !important; }
 #chat-screen.bg-gradient3 { background: linear-gradient(135deg, #232526, #414345) !important; }
 #chat-screen.bg-solid { background: #0a1628 !important; }
-#chat-screen.bg-custom { background-size: cover !important; background-position: center !important; }
+#chat-screen.bg-custom { background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; }
+#chat-screen.bg-custom.bg-mode-contain { background-size: contain !important; }
+
+/* Background mode selector */
+.bg-mode-setting {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bg-mode-selector {
+  display: flex;
+  gap: 8px;
+}
+
+.bg-mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.bg-mode-btn span:first-child {
+  font-size: 18px;
+}
+
+.bg-mode-btn:hover {
+  background: rgba(79, 195, 247, 0.15);
+  color: var(--text);
+}
+
+.bg-mode-btn.active {
+  background: rgba(79, 195, 247, 0.2);
+  border-color: var(--accent);
+  color: var(--accent);
+}
 
 /* Message size variants */
 .messages.size-small .message-bubble { font-size: 12px; padding: 8px 12px; }
