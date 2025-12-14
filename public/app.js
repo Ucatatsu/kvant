@@ -2598,7 +2598,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('settings-modal').classList.add('hidden');
     });
     
-    document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    // Обработчик выхода (для обеих кнопок)
+    const handleLogout = async () => {
         const confirmed = await customConfirm({
             title: 'Выход из аккаунта',
             message: 'Вы уверены, что хотите выйти?',
@@ -2608,7 +2609,10 @@ document.addEventListener('DOMContentLoaded', () => {
             cancelText: 'Остаться'
         });
         if (confirmed) logout();
-    });
+    };
+    
+    document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
+    document.getElementById('logout-btn-mobile')?.addEventListener('click', handleLogout);
     
     // Кнопка админ-панели
     document.getElementById('admin-btn')?.addEventListener('click', () => {

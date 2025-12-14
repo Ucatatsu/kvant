@@ -1102,7 +1102,9 @@ button {
 .back-btn {
   display: none;
   width: 40px;
+  min-width: 40px;
   height: 40px;
+  min-height: 40px;
   border-radius: 12px;
   background: rgba(10, 22, 40, 0.6);
   border: 1px solid rgba(148, 163, 184, 0.15);
@@ -1110,11 +1112,16 @@ button {
   padding: 0;
   margin-right: 12px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 @media (max-width: 768px) {
   :root {
     --panel-height: 60px;
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
   }
 
   #chat-screen {
@@ -1124,6 +1131,10 @@ button {
     gap: 0;
     height: 100vh;
     height: 100dvh;
+    padding-top: var(--safe-area-top);
+    padding-bottom: var(--safe-area-bottom);
+    padding-left: var(--safe-area-left);
+    padding-right: var(--safe-area-right);
   }
 
   .sidebar {
@@ -1135,8 +1146,10 @@ button {
     width: 100%;
     border-radius: 0;
     z-index: 100;
-    transition: transform 0.3s ease;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     background: var(--bg-darkest);
+    padding-top: var(--safe-area-top);
+    padding-bottom: var(--safe-area-bottom);
   }
 
   .sidebar.hidden-mobile {
@@ -1149,6 +1162,50 @@ button {
     border-radius: 0;
     border: none;
     border-bottom: 1px solid var(--glass-border);
+    padding: 8px 12px;
+    height: auto;
+    min-height: var(--panel-height);
+  }
+
+  /* Фикс кнопки назад */
+  .back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    flex-shrink: 0;
+    margin-right: 8px;
+  }
+
+  /* Фикс pill в хедере */
+  .chat-header-pill {
+    flex: 1;
+    max-width: none;
+    min-width: 0;
+    padding: 6px 10px 6px 6px;
+  }
+
+  .chat-header-info {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .chat-user-name {
+    font-size: 14px;
+  }
+
+  .chat-header-actions {
+    margin-left: 4px;
+    gap: 2px;
+  }
+
+  .header-action-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
   }
 
   .messages {
@@ -1164,25 +1221,23 @@ button {
     border: none;
     border-top: 1px solid var(--glass-border);
     padding: 8px 12px;
+    padding-bottom: calc(8px + var(--safe-area-bottom));
     background: var(--bg-dark);
+    gap: 8px;
   }
 
   .message-form input {
     padding: 12px 16px;
+    flex: 1;
+    min-width: 0;
   }
 
-  .emoji-btn, .send-btn, .action-btn {
+  .emoji-btn, .send-btn, .action-btn, .attach-btn {
     width: 40px;
     min-width: 40px;
     height: 40px;
     min-height: 40px;
     flex-shrink: 0;
-  }
-
-  .back-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 
   .chat-actions {
@@ -2383,66 +2438,169 @@ button {
   color: var(--text-muted);
 }
 
-/* Mobile settings */
+/* Mobile settings - полноэкранный режим */
 @media (max-width: 600px) {
   .settings-modal-content {
     flex-direction: column;
-    height: 90vh;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 0;
   }
   
   .settings-sidebar {
     width: 100%;
+    min-width: 100%;
     flex-direction: column;
     border-right: none;
     border-bottom: 1px solid var(--glass-border);
-    padding: 8px;
-    max-height: 200px;
-    overflow-y: auto;
+    padding: 0;
+    max-height: none;
+    overflow: visible;
   }
   
   .settings-user {
-    padding: 12px;
+    padding: 16px;
+    gap: 12px;
+  }
+  
+  .settings-user-avatar {
+    width: 44px;
+    height: 44px;
   }
   
   .settings-nav {
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 0 12px 12px;
+    gap: 8px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  
+  .settings-nav::-webkit-scrollbar {
+    display: none;
   }
   
   .settings-nav-item {
-    flex-direction: row;
-    padding: 8px 12px;
-    font-size: 12px;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 16px;
+    font-size: 11px;
     white-space: nowrap;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    min-width: fit-content;
+    gap: 4px;
+  }
+  
+  .settings-nav-item .nav-icon {
+    font-size: 20px;
   }
   
   .settings-nav-item.active {
     border-left: none;
     background: rgba(79, 195, 247, 0.2);
-    border-radius: 8px;
+    border: 1px solid var(--accent);
   }
   
   .settings-sidebar-footer {
-    padding: 8px;
-  }
-  
-  .settings-logout-btn {
-    padding: 10px 12px;
-    font-size: 12px;
+    display: none;
   }
   
   .settings-content {
+    flex: 1;
     padding: 16px;
+    overflow-y: auto;
+    padding-bottom: 100px;
   }
   
-  .theme-selector {
-    flex-wrap: wrap;
+  .settings-content .modal-close {
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    font-size: 28px;
+  }
+  
+  .settings-section h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+    padding-right: 40px;
+  }
+  
+  /* Кнопка выхода внизу контента */
+  .settings-section.active::after {
+    content: '';
+    display: block;
+    height: 60px;
+  }
+  
+  #section-about .about-content {
+    padding-bottom: 20px;
+  }
+  
+  /* Добавляем кнопку выхода в секцию About */
+  #section-about .settings-logout-mobile {
+    display: block;
+    width: 100%;
+    margin-top: 20px;
+  }
+  
+  .theme-selector.theme-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
   }
   
   .theme-preview {
-    width: 60px;
-    height: 40px;
+    height: 45px;
+  }
+  
+  .theme-option span {
+    font-size: 11px;
+  }
+  
+  .bg-selector {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  
+  .bg-preview {
+    width: 100%;
+    height: 50px;
+  }
+  
+  .color-selector {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  
+  .color-option {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .settings-item {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  
+  .settings-item-info {
+    flex: 1;
+    min-width: 150px;
+  }
+  
+  .opacity-control,
+  .volume-control {
+    width: 100%;
+    margin-top: 8px;
+  }
+  
+  .opacity-control input[type="range"],
+  .volume-control input[type="range"] {
+    flex: 1;
   }
 }
 
@@ -5676,5 +5834,73 @@ input[type="range"]:focus::-moz-range-thumb {
   .opacity-value {
     min-width: 35px;
     font-size: 12px;
+  }
+}
+
+
+/* ===== MOBILE LOGOUT BUTTON ===== */
+.settings-logout-mobile {
+  display: none;
+  margin-top: 24px;
+}
+
+@media (max-width: 600px) {
+  .settings-logout-mobile {
+    display: block;
+  }
+  
+  /* Скрываем sidebar footer на мобильных - кнопка выхода в About */
+  .settings-sidebar-footer {
+    display: none !important;
+  }
+}
+
+/* ===== IMPROVED MOBILE CHAT HEADER ===== */
+@media (max-width: 768px) {
+  .chat-header {
+    display: flex;
+    align-items: center;
+    background: rgba(15, 33, 64, var(--panel-opacity));
+    backdrop-filter: blur(20px);
+  }
+  
+  .chat-header-pill {
+    flex: 1;
+    justify-content: flex-start;
+    overflow: hidden;
+  }
+  
+  .chat-header-avatar {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    font-size: 14px;
+  }
+  
+  /* Убираем margin у хедера и формы на мобильных */
+  .chat-header,
+  .message-form {
+    margin: 0 !important;
+  }
+}
+
+/* ===== SAFE AREA SUPPORT FOR NOTCH DEVICES ===== */
+@supports (padding: env(safe-area-inset-top)) {
+  @media (max-width: 768px) {
+    .sidebar {
+      padding-top: env(safe-area-inset-top);
+    }
+    
+    .chat-header {
+      padding-top: env(safe-area-inset-top);
+    }
+    
+    .message-form {
+      padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    }
+    
+    .sidebar-footer {
+      padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    }
   }
 }
