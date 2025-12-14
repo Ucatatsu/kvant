@@ -1092,7 +1092,8 @@ function renderChannelPosts(posts) {
     
     posts.forEach(post => {
         const div = document.createElement('div');
-        div.className = 'message channel-post';
+        const isOwn = post.author_id === state.currentUser?.id;
+        div.className = `message channel-post ${isOwn ? 'sent' : 'received'}`;
         div.dataset.postId = post.id;
         
         let content = '';
@@ -5839,7 +5840,8 @@ function appendChannelPost(post) {
     const container = getEl('messages');
     
     const div = document.createElement('div');
-    div.className = 'message channel-post';
+    const isOwn = post.author_id === state.currentUser?.id;
+    div.className = `message channel-post ${isOwn ? 'sent' : 'received'}`;
     div.dataset.postId = post.id;
     
     let content = '';

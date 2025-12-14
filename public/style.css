@@ -9200,20 +9200,38 @@ input[type="range"]:focus::-moz-range-thumb {
 /* === ПОСТЫ КАНАЛОВ === */
 .message.channel-post {
   max-width: 70%;
-  margin-left: auto;
+}
+
+.message.channel-post.received {
+  align-self: flex-start;
   margin-right: auto;
-  align-self: center;
+}
+
+.message.channel-post.sent {
+  align-self: flex-end;
+  margin-left: auto;
 }
 
 .message.channel-post .message-content {
   width: 100%;
 }
 
-.message.channel-post .message-bubble {
+.message.channel-post.received .message-bubble {
   background: var(--glass);
   backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
   border-radius: 16px;
+  border-bottom-left-radius: 6px;
+  padding: 14px 18px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.message.channel-post.sent .message-bubble {
+  background: var(--message-sent);
+  border-radius: 16px;
+  border-bottom-right-radius: 6px;
   padding: 14px 18px;
   color: var(--text-primary);
   font-size: 0.95rem;
@@ -9237,8 +9255,4 @@ input[type="range"]:focus::-moz-range-thumb {
 /* Если только медиа без текста */
 .message.channel-post .message-bubble:empty {
   display: none;
-}
-
-.message.channel-post .message-content:has(.message-media):not(:has(.message-bubble:not(:empty))) {
-  padding: 0;
 }
