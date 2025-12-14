@@ -4981,85 +4981,7 @@ input:focus {
   margin-left: 4px;
 }
 
-/* Настройка громкости */
-.volume-setting .volume-control {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.volume-control .volume-icon {
-  font-size: 16px;
-}
-
-.volume-control input[type="range"] {
-  width: 100px;
-  height: 4px;
-  -webkit-appearance: none;
-  background: rgba(148, 163, 184, 0.3);
-  border-radius: 2px;
-  outline: none;
-}
-
-.volume-control input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  background: var(--accent);
-  border-radius: 50%;
-  cursor: pointer;
-  transition: transform 0.2s;
-}
-
-.volume-control input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
-}
-
-.volume-control .volume-value {
-  font-size: 12px;
-  color: var(--text-secondary);
-  min-width: 35px;
-}
-
-/* Настройка прозрачности */
-.opacity-setting .opacity-control {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.opacity-control .opacity-icon {
-  font-size: 16px;
-}
-
-.opacity-control input[type="range"] {
-  width: 100px;
-  height: 4px;
-  -webkit-appearance: none;
-  background: rgba(148, 163, 184, 0.3);
-  border-radius: 2px;
-  outline: none;
-}
-
-.opacity-control input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  background: var(--accent);
-  border-radius: 50%;
-  cursor: pointer;
-  transition: transform 0.2s;
-}
-
-.opacity-control input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
-}
-
-.opacity-control .opacity-value {
-  font-size: 12px;
-  color: var(--text-secondary);
-  min-width: 35px;
-}
+/* Стили для ползунков перенесены в секцию CUSTOM RANGE SLIDERS в конце файла */
 
 /* Пикер реакций */
 .reaction-picker {
@@ -5532,4 +5454,184 @@ input:focus {
   background: rgba(79, 195, 247, 0.3);
   border-color: var(--accent);
   transform: scale(1.1);
+}
+
+
+/* ===== CUSTOM RANGE SLIDERS ===== */
+
+/* Контейнеры для ползунков */
+.volume-control,
+.opacity-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.volume-icon,
+.opacity-icon {
+  font-size: 18px;
+  opacity: 0.7;
+  width: 24px;
+  text-align: center;
+}
+
+.volume-value,
+.opacity-value {
+  font-size: 13px;
+  color: var(--text-muted);
+  min-width: 40px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Базовые стили для range input */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 120px;
+  height: 6px;
+  background: transparent;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+/* Трек (дорожка) */
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0%,
+    var(--accent) var(--value-percent, 50%),
+    rgba(255, 255, 255, 0.15) var(--value-percent, 50%),
+    rgba(255, 255, 255, 0.15) 100%
+  );
+  transition: background 0.15s ease;
+}
+
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+input[type="range"]::-moz-range-progress {
+  height: 6px;
+  border-radius: 3px 0 0 3px;
+  background: var(--accent);
+}
+
+/* Ползунок (thumb) */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  border: none;
+  box-shadow: 
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    0 0 0 0 rgba(79, 195, 247, 0);
+  margin-top: -6px;
+  cursor: grab;
+  transition: 
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  border: none;
+  box-shadow: 
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    0 0 0 0 rgba(79, 195, 247, 0);
+  cursor: grab;
+  transition: 
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease;
+}
+
+/* Hover эффекты */
+input[type="range"]:hover::-webkit-slider-thumb {
+  transform: scale(1.15);
+  box-shadow: 
+    0 3px 10px rgba(0, 0, 0, 0.4),
+    0 0 0 4px rgba(79, 195, 247, 0.2);
+}
+
+input[type="range"]:hover::-moz-range-thumb {
+  transform: scale(1.15);
+  box-shadow: 
+    0 3px 10px rgba(0, 0, 0, 0.4),
+    0 0 0 4px rgba(79, 195, 247, 0.2);
+}
+
+/* Active (при перетаскивании) */
+input[type="range"]:active::-webkit-slider-thumb {
+  cursor: grabbing;
+  transform: scale(1.25);
+  box-shadow: 
+    0 4px 14px rgba(0, 0, 0, 0.5),
+    0 0 0 6px rgba(79, 195, 247, 0.3);
+}
+
+input[type="range"]:active::-moz-range-thumb {
+  cursor: grabbing;
+  transform: scale(1.25);
+  box-shadow: 
+    0 4px 14px rgba(0, 0, 0, 0.5),
+    0 0 0 6px rgba(79, 195, 247, 0.3);
+}
+
+/* Focus состояние для accessibility */
+input[type="range"]:focus {
+  outline: none;
+}
+
+input[type="range"]:focus::-webkit-slider-thumb {
+  box-shadow: 
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    0 0 0 3px rgba(79, 195, 247, 0.4);
+}
+
+input[type="range"]:focus::-moz-range-thumb {
+  box-shadow: 
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    0 0 0 3px rgba(79, 195, 247, 0.4);
+}
+
+/* Стили для settings-item с ползунками */
+.settings-item.volume-setting,
+.settings-item.opacity-setting {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings-item.volume-setting .settings-item-info,
+.settings-item.opacity-setting .settings-item-info {
+  flex: 1;
+  min-width: 150px;
+}
+
+/* Адаптив для мобильных */
+@media (max-width: 600px) {
+  input[type="range"] {
+    width: 100px;
+  }
+  
+  .volume-control,
+  .opacity-control {
+    gap: 8px;
+  }
+  
+  .volume-value,
+  .opacity-value {
+    min-width: 35px;
+    font-size: 12px;
+  }
 }

@@ -4087,17 +4087,28 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(e.target.checked ? 'Звуки включены' : 'Звуки выключены');
     });
     
+    // Функция для обновления визуального прогресса ползунка
+    function updateSliderProgress(slider) {
+        const min = parseFloat(slider.min) || 0;
+        const max = parseFloat(slider.max) || 100;
+        const value = parseFloat(slider.value);
+        const percent = ((value - min) / (max - min)) * 100;
+        slider.style.setProperty('--value-percent', `${percent}%`);
+    }
+    
     // Громкость
     const volumeSlider = document.getElementById('volume-slider');
     const volumeValue = document.getElementById('volume-value');
     if (volumeSlider) {
         volumeSlider.value = state.settings.volume ?? 50;
         volumeValue.textContent = `${volumeSlider.value}%`;
+        updateSliderProgress(volumeSlider);
         
         volumeSlider.addEventListener('input', (e) => {
             const vol = parseInt(e.target.value);
             state.settings.volume = vol;
             volumeValue.textContent = `${vol}%`;
+            updateSliderProgress(e.target);
             saveSettings();
         });
     }
@@ -4109,12 +4120,14 @@ document.addEventListener('DOMContentLoaded', () => {
         opacitySlider.value = state.settings.panelOpacity ?? 85;
         opacityValue.textContent = `${opacitySlider.value}%`;
         applyPanelOpacity(state.settings.panelOpacity ?? 85);
+        updateSliderProgress(opacitySlider);
         
         opacitySlider.addEventListener('input', (e) => {
             const opacity = parseInt(e.target.value);
             state.settings.panelOpacity = opacity;
             opacityValue.textContent = `${opacity}%`;
             applyPanelOpacity(opacity);
+            updateSliderProgress(e.target);
             saveSettings();
         });
     }
