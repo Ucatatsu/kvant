@@ -4803,20 +4803,20 @@ document.addEventListener('DOMContentLoaded', () => {
         slider.style.setProperty('--value-percent', `${percent}%`);
     }
     
-    // Громкость - эластичный слайдер
-    const volumeSliderContainer = document.getElementById('settings-volume-slider');
-    if (volumeSliderContainer && window.ElasticSlider) {
-        new ElasticSlider(volumeSliderContainer, {
-            defaultValue: state.settings.volume ?? 50,
-            min: 0,
-            max: 100,
-            step: 1,
-            leftIcon: '🔈',
-            rightIcon: '🔊',
-            onChange: (vol) => {
-                state.settings.volume = vol;
-                saveSettings();
-            }
+    // Громкость
+    const volumeSlider = document.getElementById('volume-slider');
+    const volumeValue = document.getElementById('volume-value');
+    if (volumeSlider) {
+        volumeSlider.value = state.settings.volume ?? 50;
+        if (volumeValue) volumeValue.textContent = volumeSlider.value;
+        updateSliderProgress(volumeSlider);
+        
+        volumeSlider.addEventListener('input', (e) => {
+            const vol = parseInt(e.target.value);
+            state.settings.volume = vol;
+            if (volumeValue) volumeValue.textContent = vol;
+            updateSliderProgress(e.target);
+            saveSettings();
         });
     }
     
@@ -6072,13 +6072,12 @@ class Dock {
     render() {
         this.container.innerHTML = `
             <div class="dock-outer">
-                <div class="dock-panel magnify">
+                <div class="dock-panel">
                     ${this.items.map((item, i) => `
                         <div class="dock-item ${i === this.activeIndex ? 'active' : ''}" 
                              data-index="${i}" 
                              tabindex="0"
-                             role="button"
-                             style="width: ${this.baseSize}px; height: ${this.baseSize}px;">
+                             role="button">
                             <div class="dock-icon">${item.icon}</div>
                             <div class="dock-label">${item.label}</div>
                         </div>
@@ -6125,29 +6124,24 @@ class Dock {
     updateMagnification() {
         this.dockItems.forEach((item) => {
             const rect = item.getBoundingClientRect();
-            const itemCenterX = rect.left + rect.width / 2;
+            const itemCenterX = rect.left + this.baseSize / 2;
             const dist = Math.abs(this.mouseX - itemCenterX);
             
-            // Calculate size based on distance
-            let size;
-            if (dist > this.distance) {
-                size = this.baseSize;
-            } else {
-                // Smooth interpolation
+            // Calculate scale based on distance
+            let scale = 1;
+            if (dist < this.distance) {
                 const ratio = 1 - (dist / this.distance);
-                const eased = Math.cos((1 - ratio) * Math.PI / 2); // Ease out
-                size = this.baseSize + (this.magnification - this.baseSize) * eased;
+                const eased = Math.cos((1 - ratio) * Math.PI / 2);
+                scale = 1 + ((this.magnification / this.baseSize) - 1) * eased;
             }
             
-            item.style.width = `${size}px`;
-            item.style.height = `${size}px`;
+            item.style.transform = `scale(${scale})`;
         });
     }
     
     resetMagnification() {
         this.dockItems.forEach((item) => {
-            item.style.width = `${this.baseSize}px`;
-            item.style.height = `${this.baseSize}px`;
+            item.style.transform = 'scale(1)';
         });
     }
     
