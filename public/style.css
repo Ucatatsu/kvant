@@ -7262,12 +7262,12 @@ input[type="range"]:focus::-moz-range-thumb {
 }
 
 .dock-item.active {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
 }
 
 .dock-item.active .dock-icon {
-  filter: brightness(0) invert(0.1);
+  filter: brightness(0) invert(1);
 }
 
 .dock-icon {
