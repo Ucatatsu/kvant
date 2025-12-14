@@ -3,6 +3,12 @@ node_modules/
 .env.local
 .env.production
 kvant.db
+kvant_local.db
+kvant_local.db-shm
+kvant_local.db-wal
+*.db
+*.db-shm
+*.db-wal
 *.log
 .DS_Store
 public/uploads/
