@@ -790,8 +790,28 @@ async function showChat() {
     
     await loadMyProfile();
     await loadContacts();
+    await loadSettingsFromServer();
     requestNotificationPermission();
     applySettings();
+}
+
+// Загрузка настроек с сервера
+async function loadSettingsFromServer() {
+    try {
+        const res = await fetch('/api/settings', {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        if (res.ok) {
+            const serverSettings = await res.json();
+            // Мержим серверные настройки с локальными (локальный customBg сохраняем)
+            const localCustomBg = state.settings.customBg;
+            state.settings = { ...state.settings, ...serverSettings };
+            if (localCustomBg) state.settings.customBg = localCustomBg;
+            localStorage.setItem('kvant_settings', JSON.stringify(state.settings));
+        }
+    } catch (e) {
+        console.log('Failed to load settings from server:', e);
+    }
 }
 
 // === КОНТАКТЫ ===
@@ -1493,6 +1513,31 @@ function handleMobileAfterSelect() {
 // === НАСТРОЙКИ ===
 function saveSettings() {
     localStorage.setItem('kvant_settings', JSON.stringify(state.settings));
+    // Синхронизируем с сервером (без customBg - слишком большой)
+    syncSettingsToServer();
+}
+
+let settingsSyncTimeout = null;
+function syncSettingsToServer() {
+    // Дебаунс - отправляем не чаще раза в секунду
+    if (settingsSyncTimeout) clearTimeout(settingsSyncTimeout);
+    settingsSyncTimeout = setTimeout(async () => {
+        try {
+            const settingsToSync = { ...state.settings };
+            delete settingsToSync.customBg; // Слишком большой для сервера
+            
+            await fetch('/api/settings', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${state.token}`
+                },
+                body: JSON.stringify(settingsToSync)
+            });
+        } catch (e) {
+            console.log('Settings sync failed:', e);
+        }
+    }, 1000);
 }
 
 function applySettings() {
@@ -4340,6 +4385,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // Функции сохранения и применения настроек
 function saveSettings() {
     localStorage.setItem('kvant_settings', JSON.stringify(state.settings));
+    // Синхронизируем с сервером
+    syncSettingsToServer();
 }
 
 function applySettings() {

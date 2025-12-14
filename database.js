@@ -67,7 +67,8 @@ async function initDB() {
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_color TEXT',
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_tag TEXT', // deprecated, use custom_id
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_id TEXT',
-            'ALTER TABLE users ADD COLUMN IF NOT EXISTS hide_online BOOLEAN DEFAULT FALSE'
+            'ALTER TABLE users ADD COLUMN IF NOT EXISTS hide_online BOOLEAN DEFAULT FALSE',
+            'ALTER TABLE users ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT \'{}\''
         ];
         
         for (const query of alterQueries) {
@@ -745,6 +746,35 @@ async function getMessageReactions(messageId) {
     }
 }
 
+// === НАСТРОЙКИ ПОЛЬЗОВАТЕЛЯ ===
+
+async function getUserSettings(userId) {
+    try {
+        const result = await pool.query(
+            'SELECT settings FROM users WHERE id = $1',
+            [userId]
+        );
+        if (result.rows.length === 0) return {};
+        return result.rows[0].settings || {};
+    } catch (error) {
+        console.error('Get user settings error:', error);
+        return {};
+    }
+}
+
+async function saveUserSettings(userId, settings) {
+    try {
+        await pool.query(
+            'UPDATE users SET settings = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+            [userId, JSON.stringify(settings)]
+        );
+        return { success: true };
+    } catch (error) {
+        console.error('Save user settings error:', error);
+        return { success: false, error: 'Ошибка сохранения настроек' };
+    }
+}
+
 module.exports = { 
     initDB, 
     createUser, 
@@ -778,5 +808,8 @@ module.exports = {
     deleteMessage,
     addReaction,
     removeReaction,
-    getMessageReactions
+    getMessageReactions,
+    // Настройки
+    getUserSettings,
+    saveUserSettings
 };

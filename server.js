@@ -662,6 +662,40 @@ app.get('/api/user/tag/:username/:tag', authMiddleware, async (req, res) => {
     }
 });
 
+// === НАСТРОЙКИ ПОЛЬЗОВАТЕЛЯ ===
+
+// Получить настройки
+app.get('/api/settings', authMiddleware, async (req, res) => {
+    try {
+        const settings = await db.getUserSettings(req.user.id);
+        res.json(settings);
+    } catch (error) {
+        console.error('Get settings error:', error);
+        res.status(500).json({ error: 'Ошибка получения настроек' });
+    }
+});
+
+// Сохранить настройки
+app.put('/api/settings', authMiddleware, async (req, res) => {
+    try {
+        const settings = req.body;
+        
+        // Ограничиваем размер настроек (без base64 картинок - они слишком большие)
+        const settingsToSave = { ...settings };
+        delete settingsToSave.customBg; // Кастомный фон храним локально, слишком большой
+        
+        const result = await db.saveUserSettings(req.user.id, settingsToSave);
+        if (result.success) {
+            res.json({ success: true });
+        } else {
+            res.status(500).json({ error: result.error });
+        }
+    } catch (error) {
+        console.error('Save settings error:', error);
+        res.status(500).json({ error: 'Ошибка сохранения настроек' });
+    }
+});
+
 // === АДМИН РОУТЫ ===
 
 // Получить всех пользователей
