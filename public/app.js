@@ -1345,17 +1345,12 @@ function openVideoViewer(url, startTime = 0) {
         }
     });
     
-    // Close
-    const closePlayer = () => {
-        video.pause();
-        player.remove();
-    };
-    
-    closeBtn.addEventListener('click', closePlayer);
-    overlay.addEventListener('click', closePlayer);
-    
-    // Keyboard
+    // Keyboard handler (defined before closePlayer so it can be removed)
     const handleKeydown = (e) => {
+        // Игнорируем если фокус в поле ввода
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+            return;
+        }
         if (e.key === 'Escape') closePlayer();
         if (e.key === ' ' || e.key === 'k') { e.preventDefault(); togglePlay(); }
         if (e.key === 'ArrowLeft') video.currentTime -= 5;
@@ -1382,8 +1377,16 @@ function openVideoViewer(url, startTime = 0) {
         if (e.key === 'f') fullscreenBtn.click();
     };
     
+    // Close
+    const closePlayer = () => {
+        document.removeEventListener('keydown', handleKeydown);
+        video.pause();
+        player.remove();
+    };
+    
+    closeBtn.addEventListener('click', closePlayer);
+    overlay.addEventListener('click', closePlayer);
     document.addEventListener('keydown', handleKeydown);
-    player.addEventListener('remove', () => document.removeEventListener('keydown', handleKeydown));
     
     // Show/hide controls on mouse move
     player.addEventListener('mousemove', showControls);
