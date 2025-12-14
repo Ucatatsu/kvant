@@ -355,7 +355,7 @@
           
           <div class="settings-group">
             <h3>Тема</h3>
-            <div class="theme-selector" role="radiogroup" aria-label="Выбор темы">
+            <div class="theme-selector theme-grid" role="radiogroup" aria-label="Выбор темы">
               <div class="theme-option active" data-theme="dark" role="radio" tabindex="0" aria-checked="true">
                 <div class="theme-preview dark"></div>
                 <span>Тёмная</span>
@@ -363,10 +363,6 @@
               <div class="theme-option" data-theme="light" role="radio" tabindex="0" aria-checked="false">
                 <div class="theme-preview light"></div>
                 <span>Светлая</span>
-              </div>
-              <div class="theme-option" data-theme="system" role="radio" tabindex="0" aria-checked="false">
-                <div class="theme-preview system"></div>
-                <span>Системная</span>
               </div>
               <div class="theme-option premium-theme" data-theme="neon" role="radio" tabindex="0" aria-checked="false">
                 <div class="theme-preview neon"></div>
@@ -404,6 +400,21 @@
               <div class="bg-option" data-bg="custom" role="radio" tabindex="0" aria-checked="false">
                 <div class="bg-preview custom-bg">📷</div>
                 <input type="file" id="custom-bg-input" accept="image/*" hidden aria-hidden="true">
+              </div>
+            </div>
+          </div>
+          
+          <div class="settings-group">
+            <h3>Прозрачность</h3>
+            <div class="settings-item opacity-setting">
+              <div class="settings-item-info">
+                <span class="settings-item-title">Прозрачность панелей</span>
+                <span class="settings-item-desc">Прозрачность боковой панели и хедера</span>
+              </div>
+              <div class="opacity-control">
+                <span class="opacity-icon">◐</span>
+                <input type="range" id="opacity-slider" min="20" max="100" value="85">
+                <span class="opacity-value" id="opacity-value">85%</span>
               </div>
             </div>
           </div>

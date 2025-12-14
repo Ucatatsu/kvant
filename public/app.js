@@ -1548,6 +1548,12 @@ function adjustColor(color, amount) {
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
+function applyPanelOpacity(opacity) {
+    // Конвертируем проценты в значение 0-1
+    const value = opacity / 100;
+    document.documentElement.style.setProperty('--panel-opacity', value);
+}
+
 function applyTheme(theme) {
     const root = document.documentElement;
     
@@ -4092,6 +4098,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const vol = parseInt(e.target.value);
             state.settings.volume = vol;
             volumeValue.textContent = `${vol}%`;
+            saveSettings();
+        });
+    }
+    
+    // Прозрачность панелей
+    const opacitySlider = document.getElementById('opacity-slider');
+    const opacityValue = document.getElementById('opacity-value');
+    if (opacitySlider) {
+        opacitySlider.value = state.settings.panelOpacity ?? 85;
+        opacityValue.textContent = `${opacitySlider.value}%`;
+        applyPanelOpacity(state.settings.panelOpacity ?? 85);
+        
+        opacitySlider.addEventListener('input', (e) => {
+            const opacity = parseInt(e.target.value);
+            state.settings.panelOpacity = opacity;
+            opacityValue.textContent = `${opacity}%`;
+            applyPanelOpacity(opacity);
             saveSettings();
         });
     }
