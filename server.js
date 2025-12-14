@@ -811,11 +811,11 @@ app.post('/api/push-subscribe', authMiddleware, async (req, res) => {
 
 app.post('/api/groups', authMiddleware, async (req, res) => {
     try {
-        const { name, memberIds } = req.body;
+        const { name, description, memberIds, avatarUrl } = req.body;
         if (!name || name.trim().length < 1) {
             return res.status(400).json({ success: false, error: 'Укажите название группы' });
         }
-        const result = await db.createGroup(req.user.id, name.trim(), memberIds || []);
+        const result = await db.createGroup(req.user.id, name.trim(), memberIds || [], description, avatarUrl);
         res.json(result);
     } catch (error) {
         console.error('Create group error:', error);
@@ -890,11 +890,11 @@ app.get('/api/groups/:groupId/messages', authMiddleware, async (req, res) => {
 
 app.post('/api/channels', authMiddleware, async (req, res) => {
     try {
-        const { name, description, isPublic } = req.body;
+        const { name, description, isPublic, avatarUrl } = req.body;
         if (!name || name.trim().length < 1) {
             return res.status(400).json({ success: false, error: 'Укажите название канала' });
         }
-        const result = await db.createChannel(req.user.id, name.trim(), description || '', isPublic !== false);
+        const result = await db.createChannel(req.user.id, name.trim(), description || '', isPublic !== false, avatarUrl);
         res.json(result);
     } catch (error) {
         console.error('Create channel error:', error);
@@ -970,11 +970,11 @@ app.post('/api/channels/:channelId/posts', authMiddleware, async (req, res) => {
 
 app.post('/api/servers', authMiddleware, async (req, res) => {
     try {
-        const { name, description } = req.body;
+        const { name, description, iconUrl } = req.body;
         if (!name || name.trim().length < 1) {
             return res.status(400).json({ success: false, error: 'Укажите название сервера' });
         }
-        const result = await db.createServer(req.user.id, name.trim(), description || '');
+        const result = await db.createServer(req.user.id, name.trim(), description || '', iconUrl);
         res.json(result);
     } catch (error) {
         console.error('Create server error:', error);

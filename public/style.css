@@ -6699,3 +6699,39 @@ input[type="range"]:focus::-moz-range-thumb {
   font-size: 14px;
   max-width: 200px;
 }
+
+
+/* === FIX: Create member avatars === */
+.create-member-item .user-avatar {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--bg-darkest);
+  overflow: hidden;
+}
+
+.create-member-item .user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.create-member-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  color: var(--text);
+}
+
+.create-member-item:hover {
+  background: var(--bg-light);
+}

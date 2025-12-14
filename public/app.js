@@ -1905,14 +1905,37 @@ function sendMessage() {
     const input = document.getElementById('message-input');
     const text = input.value.trim();
     
-    if (!text || !state.selectedUser || !state.socket) return;
+    if (!text || !state.socket) return;
+    
+    // Проверяем что выбран какой-то чат
+    if (!state.selectedUser && !state.selectedGroup && !state.selectedChannel && !state.selectedServerChannel) return;
     
     stopTyping();
     
-    state.socket.emit('send-message', {
-        receiverId: state.selectedUser.id,
-        text
-    });
+    // Отправляем в зависимости от типа чата
+    if (state.selectedGroup) {
+        state.socket.emit('group-message', {
+            groupId: state.selectedGroup.id,
+            text,
+            messageType: 'text'
+        });
+    } else if (state.selectedChannel) {
+        state.socket.emit('channel-post', {
+            channelId: state.selectedChannel.id,
+            text
+        });
+    } else if (state.selectedServerChannel) {
+        state.socket.emit('server-message', {
+            channelId: state.selectedServerChannel.id,
+            text,
+            messageType: 'text'
+        });
+    } else if (state.selectedUser) {
+        state.socket.emit('send-message', {
+            receiverId: state.selectedUser.id,
+            text
+        });
+    }
     
     input.value = '';
 }
@@ -5150,6 +5173,22 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Поиск участников для группы
     document.getElementById('create-members-search')?.addEventListener('input', debounce(searchMembersForGroup, 300));
+    
+    // Выбор аватарки при создании
+    const avatarPreview = document.getElementById('create-avatar-preview');
+    const avatarInput = document.getElementById('create-avatar-input');
+    
+    avatarPreview?.addEventListener('click', () => avatarInput?.click());
+    avatarInput?.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                avatarPreview.innerHTML = `<img src="${ev.target.result}" alt="Preview">`;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
 });
 
 function switchSidebarTab(tab) {
@@ -5270,6 +5309,8 @@ async function handleCreateSubmit(e) {
     const type = activeTab?.dataset.create || 'group';
     const name = document.getElementById('create-name').value.trim();
     const description = document.getElementById('create-description').value.trim();
+    const avatarInput = document.getElementById('create-avatar-input');
+    const avatarFile = avatarInput?.files[0];
     
     if (!name) {
         showToast('Укажите название', 'error');
@@ -5277,14 +5318,28 @@ async function handleCreateSubmit(e) {
     }
     
     try {
+        showToast('Создание...', 'info');
+        
+        // Сначала загружаем аватарку если есть
+        let avatarUrl = null;
+        if (avatarFile) {
+            const formData = new FormData();
+            formData.append('file', avatarFile);
+            const uploadRes = await api.uploadFile('/api/upload-message-file', formData);
+            const uploadResult = await uploadRes.json();
+            if (uploadResult.success) {
+                avatarUrl = uploadResult.fileUrl;
+            }
+        }
+        
         let res;
         if (type === 'group') {
-            res = await api.post('/api/groups', { name, memberIds: selectedMemberIds });
+            res = await api.post('/api/groups', { name, description, memberIds: selectedMemberIds, avatarUrl });
         } else if (type === 'channel') {
             const isPublic = document.getElementById('create-channel-public')?.checked;
-            res = await api.post('/api/channels', { name, description, isPublic });
+            res = await api.post('/api/channels', { name, description, isPublic, avatarUrl });
         } else {
-            res = await api.post('/api/servers', { name, description });
+            res = await api.post('/api/servers', { name, description, iconUrl: avatarUrl });
         }
         
         const result = await res.json();
@@ -5293,6 +5348,9 @@ async function handleCreateSubmit(e) {
             showToast(`${type === 'group' ? 'Группа' : type === 'channel' ? 'Канал' : 'Сервер'} создан!`, 'success');
             closeCreateModal();
             selectedMemberIds = [];
+            // Сбрасываем превью аватарки
+            document.getElementById('create-avatar-preview').innerHTML = '📷';
+            avatarInput.value = '';
             
             // Перезагружаем список
             if (type === 'group') { await loadGroups(); switchSidebarTab('groups'); }

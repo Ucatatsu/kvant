@@ -1300,23 +1300,21 @@ async function saveUserSettings(userId, settings) {
 
 // === ГРУППОВЫЕ ЧАТЫ ===
 
-async function createGroup(ownerId, name, memberIds = []) {
+async function createGroup(ownerId, name, memberIds = [], description = '', avatarUrl = null) {
     try {
         const id = uuidv4();
         const created_at = new Date().toISOString();
         
         if (USE_SQLITE) {
-            sqlite.prepare('INSERT INTO group_chats (id, name, owner_id, created_at) VALUES (?, ?, ?, ?)').run(id, name, ownerId, created_at);
-            // Добавляем владельца как админа
+            sqlite.prepare('INSERT INTO group_chats (id, name, description, avatar_url, owner_id, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(id, name, description, avatarUrl, ownerId, created_at);
             sqlite.prepare('INSERT INTO group_members (id, group_id, user_id, role) VALUES (?, ?, ?, ?)').run(uuidv4(), id, ownerId, 'admin');
-            // Добавляем остальных участников
             for (const memberId of memberIds) {
                 if (memberId !== ownerId) {
                     sqlite.prepare('INSERT INTO group_members (id, group_id, user_id, role) VALUES (?, ?, ?, ?)').run(uuidv4(), id, memberId, 'member');
                 }
             }
         } else {
-            await pool.query('INSERT INTO group_chats (id, name, owner_id, created_at) VALUES ($1, $2, $3, $4)', [id, name, ownerId, created_at]);
+            await pool.query('INSERT INTO group_chats (id, name, description, avatar_url, owner_id, created_at) VALUES ($1, $2, $3, $4, $5, $6)', [id, name, description, avatarUrl, ownerId, created_at]);
             await pool.query('INSERT INTO group_members (id, group_id, user_id, role) VALUES ($1, $2, $3, $4)', [uuidv4(), id, ownerId, 'admin']);
             for (const memberId of memberIds) {
                 if (memberId !== ownerId) {
@@ -1325,7 +1323,7 @@ async function createGroup(ownerId, name, memberIds = []) {
             }
         }
         
-        return { success: true, group: { id, name, owner_id: ownerId, created_at } };
+        return { success: true, group: { id, name, description, avatar_url: avatarUrl, owner_id: ownerId, created_at } };
     } catch (error) {
         console.error('Create group error:', error);
         return { success: false, error: 'Ошибка создания группы' };
@@ -1487,22 +1485,22 @@ async function getGroupMessages(groupId, limit = 50, before = null) {
 
 // === КАНАЛЫ (Telegram-style) ===
 
-async function createChannel(ownerId, name, description = '', isPublic = true) {
+async function createChannel(ownerId, name, description = '', isPublic = true, avatarUrl = null) {
     try {
         const id = uuidv4();
         const created_at = new Date().toISOString();
         
         if (USE_SQLITE) {
-            sqlite.prepare('INSERT INTO channels (id, name, description, owner_id, is_public, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(id, name, description, ownerId, isPublic ? 1 : 0, created_at);
+            sqlite.prepare('INSERT INTO channels (id, name, description, avatar_url, owner_id, is_public, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, name, description, avatarUrl, ownerId, isPublic ? 1 : 0, created_at);
             sqlite.prepare('INSERT INTO channel_admins (id, channel_id, user_id) VALUES (?, ?, ?)').run(uuidv4(), id, ownerId);
             sqlite.prepare('INSERT INTO channel_subscribers (id, channel_id, user_id) VALUES (?, ?, ?)').run(uuidv4(), id, ownerId);
         } else {
-            await pool.query('INSERT INTO channels (id, name, description, owner_id, is_public, subscriber_count, created_at) VALUES ($1, $2, $3, $4, $5, 1, $6)', [id, name, description, ownerId, isPublic, created_at]);
+            await pool.query('INSERT INTO channels (id, name, description, avatar_url, owner_id, is_public, subscriber_count, created_at) VALUES ($1, $2, $3, $4, $5, $6, 1, $7)', [id, name, description, avatarUrl, ownerId, isPublic, created_at]);
             await pool.query('INSERT INTO channel_admins (id, channel_id, user_id) VALUES ($1, $2, $3)', [uuidv4(), id, ownerId]);
             await pool.query('INSERT INTO channel_subscribers (id, channel_id, user_id) VALUES ($1, $2, $3)', [uuidv4(), id, ownerId]);
         }
         
-        return { success: true, channel: { id, name, description, owner_id: ownerId, is_public: isPublic, subscriber_count: 1, created_at } };
+        return { success: true, channel: { id, name, description, avatar_url: avatarUrl, owner_id: ownerId, is_public: isPublic, subscriber_count: 1, created_at } };
     } catch (error) {
         console.error('Create channel error:', error);
         return { success: false, error: 'Ошибка создания канала' };
@@ -1634,24 +1632,21 @@ async function getChannelPosts(channelId, limit = 20, before = null) {
 
 // === СЕРВЕРЫ (Discord-style) ===
 
-async function createServer(ownerId, name, description = '') {
+async function createServer(ownerId, name, description = '', iconUrl = null) {
     try {
         const id = uuidv4();
         const created_at = new Date().toISOString();
         
         if (USE_SQLITE) {
-            sqlite.prepare('INSERT INTO servers (id, name, description, owner_id, member_count, created_at) VALUES (?, ?, ?, ?, 1, ?)').run(id, name, description, ownerId, created_at);
-            // Создаём роль @everyone
+            sqlite.prepare('INSERT INTO servers (id, name, description, icon_url, owner_id, member_count, created_at) VALUES (?, ?, ?, ?, ?, 1, ?)').run(id, name, description, iconUrl, ownerId, created_at);
             const everyoneRoleId = uuidv4();
             sqlite.prepare('INSERT INTO server_roles (id, server_id, name, is_default, position) VALUES (?, ?, ?, 1, 0)').run(everyoneRoleId, id, '@everyone');
-            // Добавляем владельца
             sqlite.prepare('INSERT INTO server_members (id, server_id, user_id) VALUES (?, ?, ?)').run(uuidv4(), id, ownerId);
-            // Создаём категорию и канал по умолчанию
             const categoryId = uuidv4();
             sqlite.prepare('INSERT INTO server_categories (id, server_id, name, position) VALUES (?, ?, ?, 0)').run(categoryId, id, 'Текстовые каналы');
             sqlite.prepare('INSERT INTO server_channels (id, server_id, category_id, name, type, position) VALUES (?, ?, ?, ?, ?, 0)').run(uuidv4(), id, categoryId, 'общий', 'text');
         } else {
-            await pool.query('INSERT INTO servers (id, name, description, owner_id, member_count, created_at) VALUES ($1, $2, $3, $4, 1, $5)', [id, name, description, ownerId, created_at]);
+            await pool.query('INSERT INTO servers (id, name, description, icon_url, owner_id, member_count, created_at) VALUES ($1, $2, $3, $4, $5, 1, $6)', [id, name, description, iconUrl, ownerId, created_at]);
             const everyoneRoleId = uuidv4();
             await pool.query('INSERT INTO server_roles (id, server_id, name, is_default, position) VALUES ($1, $2, $3, true, 0)', [everyoneRoleId, id, '@everyone']);
             await pool.query('INSERT INTO server_members (id, server_id, user_id) VALUES ($1, $2, $3)', [uuidv4(), id, ownerId]);
@@ -1660,7 +1655,7 @@ async function createServer(ownerId, name, description = '') {
             await pool.query('INSERT INTO server_channels (id, server_id, category_id, name, type, position) VALUES ($1, $2, $3, $4, $5, 0)', [uuidv4(), id, categoryId, 'общий', 'text']);
         }
         
-        return { success: true, server: { id, name, description, owner_id: ownerId, member_count: 1, created_at } };
+        return { success: true, server: { id, name, description, icon_url: iconUrl, owner_id: ownerId, member_count: 1, created_at } };
     } catch (error) {
         console.error('Create server error:', error);
         return { success: false, error: 'Ошибка создания сервера' };
