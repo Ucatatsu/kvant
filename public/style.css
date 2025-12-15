@@ -4960,28 +4960,30 @@ input:focus {
 
 /* Premium badge в списке контактов */
 .user-item .premium-indicator {
+  display: inline-block;
   font-size: 10px;
-  margin-left: 4px;
-  padding: 1px 4px;
+  margin-left: 6px;
+  padding: 2px 6px;
   border-radius: 4px;
-  font-weight: 600;
+  font-weight: 700;
   vertical-align: middle;
+  line-height: 1;
 }
 
 /* P badge (золотой) */
 .user-item .premium-badge {
   background: linear-gradient(135deg, #ffd700, #ffaa00);
-  color: #000;
-  text-shadow: 0 0 4px rgba(255, 215, 0, 0.5);
-  box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+  color: #000 !important;
+  text-shadow: none;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
 }
 
 /* P+ badge (фиолетовый) */
 .user-item .premium-plus-badge {
   background: linear-gradient(135deg, #a855f7, #6366f1);
-  color: #fff;
-  text-shadow: 0 0 4px rgba(168, 85, 247, 0.5);
-  box-shadow: 0 0 8px rgba(168, 85, 247, 0.6);
+  color: #fff !important;
+  text-shadow: none;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.7);
 }
 
 /* Кастомный тег */
