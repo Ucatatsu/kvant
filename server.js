@@ -782,6 +782,18 @@ app.post('/api/admin/user/:userId/premium', authMiddleware, adminMiddleware, asy
     }
 });
 
+// Снять премиум
+app.delete('/api/admin/user/:userId/premium', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const result = await db.removePremium(userId);
+        res.json(result);
+    } catch (error) {
+        console.error('Admin remove premium error:', error);
+        res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    }
+});
+
 // Удалить пользователя
 app.delete('/api/admin/user/:userId', authMiddleware, adminMiddleware, async (req, res) => {
     try {

@@ -9807,3 +9807,95 @@ input[type="range"]:focus::-moz-range-thumb {
     display: none;
   }
 }
+
+
+/* === ADMIN ROLE MODAL === */
+.admin-role-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-role-modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.admin-role-modal-content {
+  position: relative;
+  background: var(--bg-dark);
+  border-radius: 16px;
+  padding: 24px;
+  min-width: 280px;
+  max-width: 90vw;
+}
+
+.admin-role-modal-content h3 {
+  margin-bottom: 16px;
+  color: var(--text);
+  font-size: 18px;
+}
+
+.admin-role-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.admin-role-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-medium);
+  border: none;
+  border-radius: 10px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.admin-role-option:hover {
+  background: var(--bg-light);
+}
+
+.admin-role-option.danger {
+  color: #ef4444;
+}
+
+.admin-role-option.danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.admin-role-option .role-icon {
+  font-size: 20px;
+}
+
+.admin-role-option .role-name {
+  font-size: 15px;
+}
+
+.admin-role-option .role-note {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.admin-role-cancel {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.admin-role-cancel:hover {
+  background: var(--bg-medium);
+}

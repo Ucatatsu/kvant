@@ -874,7 +874,7 @@ async function setPremium(userId, days, plan = 'premium') {
 async function getAllUsers(limit = 50, offset = 0) {
     try {
         const result = await pool.query(
-            `SELECT id, username, tag, role, premium_until, display_name, avatar_url, created_at 
+            `SELECT id, username, tag, custom_id, role, premium_until, premium_plan, display_name, avatar_url, created_at 
              FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
             [limit, offset]
         );
@@ -884,13 +884,27 @@ async function getAllUsers(limit = 50, offset = 0) {
         return {
             users: result.rows.map(u => ({
                 ...u,
-                isPremium: u.role === 'admin' || (u.premium_until && new Date(u.premium_until) > new Date())
+                isPremium: u.premium_until && new Date(u.premium_until) > new Date(),
+                premiumPlan: u.premium_plan
             })),
             total: parseInt(countResult.rows[0].count)
         };
     } catch (error) {
         console.error('Get all users error:', error);
         return { users: [], total: 0 };
+    }
+}
+
+async function removePremium(userId) {
+    try {
+        await pool.query(
+            'UPDATE users SET premium_until = NULL, premium_plan = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+            [userId]
+        );
+        return { success: true };
+    } catch (error) {
+        console.error('Remove premium error:', error);
+        return { success: false, error: 'Ошибка снятия премиума' };
     }
 }
 
@@ -1915,6 +1929,7 @@ module.exports = {
     // Админ функции
     setUserRole,
     setPremium,
+    removePremium,
     getAllUsers,
     deleteUser,
     // Поиск

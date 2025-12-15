@@ -4162,41 +4162,43 @@ let adminListenerAdded = false;
 function renderAdminUsers(users) {
     const container = document.getElementById('admin-users');
     
-    container.innerHTML = users.map(user => `
-        <div class="admin-user" data-user-id="${user.id}" data-user-role="${user.role}">
+    container.innerHTML = users.map(user => {
+        // Определяем текущие роли
+        const badges = [];
+        if (user.role === 'admin') badges.push('<span class="profile-badge admin">Админ</span>');
+        if (user.isPremium && user.premiumPlan === 'premium_plus') {
+            badges.push('<span class="profile-badge premium-plus">Premium+</span>');
+        } else if (user.isPremium) {
+            badges.push('<span class="profile-badge premium">Premium</span>');
+        }
+        
+        return `
+        <div class="admin-user" data-user-id="${user.id}" data-user-role="${user.role}" data-user-premium="${user.isPremium ? user.premiumPlan : ''}" data-username="${user.display_name || user.username}">
             <div class="admin-user-avatar" style="${user.avatar_url ? `background-image: url(${user.avatar_url})` : ''}">
                 ${user.avatar_url ? '' : user.username[0].toUpperCase()}
             </div>
             <div class="admin-user-info">
                 <div class="admin-user-name">
                     ${user.display_name || user.username}
-                    <span class="profile-badges">
-                        ${user.role === 'admin' ? '<span class="profile-badge admin">Админ</span>' : ''}
-                        ${user.isPremium ? '<span class="profile-badge premium">Premium</span>' : ''}
-                    </span>
+                    <span class="profile-badges">${badges.join('')}</span>
                 </div>
                 <div class="admin-user-tag">${user.username}#${user.custom_id || user.tag || '????'}</div>
             </div>
             <div class="admin-user-actions">
-                ${user.id !== state.currentUser.id ? `
-                    <button class="admin-btn admin-btn-admin ${user.role === 'admin' ? 'active' : ''}" data-action="toggle-admin">
-                        ${user.role === 'admin' ? 'Снять админа' : 'Админ'}
-                    </button>
-                ` : ''}
-                <button class="admin-btn admin-btn-premium" data-action="give-premium">
-                    <img src="/assets/dimond.svg" class="icon-sm"> Premium
+                <button class="admin-btn admin-btn-remove" data-action="remove-roles" title="Снять роли">
+                    <img src="/assets/block-user.svg" class="icon-sm">
                 </button>
-                <button class="admin-btn admin-btn-premium-plus" data-action="give-premium-plus">
-                    <img src="/assets/dimond-plus.svg" class="icon-sm"> Premium+
+                <button class="admin-btn admin-btn-status" data-action="add-roles" title="Добавить роли">
+                    <img src="/assets/Badge-check.svg" class="icon-sm">
                 </button>
                 ${user.id !== state.currentUser.id ? `
-                    <button class="admin-btn admin-btn-delete" data-action="delete-user">
-                        <img src="/assets/trash.svg" class="icon-sm"> Удалить
+                    <button class="admin-btn admin-btn-delete" data-action="delete-user" title="Удалить">
+                        <img src="/assets/trash.svg" class="icon-sm">
                     </button>
                 ` : ''}
             </div>
         </div>
-    `).join('');
+    `}).join('');
     
     // Делегирование событий - добавляем только один раз
     if (!adminListenerAdded) {
@@ -4214,16 +4216,157 @@ async function handleAdminAction(e) {
     
     const userId = userEl.dataset.userId;
     const userRole = userEl.dataset.userRole;
+    const userPremium = userEl.dataset.userPremium;
+    const username = userEl.dataset.username;
     const action = btn.dataset.action;
     
-    if (action === 'toggle-admin') {
-        await toggleAdmin(userId, userRole);
-    } else if (action === 'give-premium') {
-        await givePremium(userId, 'premium');
-    } else if (action === 'give-premium-plus') {
-        await givePremium(userId, 'premium_plus');
+    if (action === 'add-roles') {
+        await showAddRolesModal(userId, username, userRole, userPremium);
+    } else if (action === 'remove-roles') {
+        await showRemoveRolesModal(userId, username, userRole, userPremium);
     } else if (action === 'delete-user') {
         await deleteUserAdmin(userId);
+    }
+}
+
+// Модалка добавления ролей
+async function showAddRolesModal(userId, username, currentRole, currentPremium) {
+    const isAdmin = currentRole === 'admin';
+    const hasPremium = currentPremium === 'premium';
+    const hasPremiumPlus = currentPremium === 'premium_plus';
+    
+    // Создаём модалку
+    const modal = document.createElement('div');
+    modal.className = 'admin-role-modal';
+    modal.innerHTML = `
+        <div class="admin-role-modal-overlay"></div>
+        <div class="admin-role-modal-content">
+            <h3>Добавить роль: ${username}</h3>
+            <div class="admin-role-options">
+                ${!isAdmin ? `
+                    <button class="admin-role-option" data-role="admin">
+                        <span class="role-icon">👑</span>
+                        <span class="role-name">Администратор</span>
+                    </button>
+                ` : ''}
+                ${!hasPremium && !hasPremiumPlus ? `
+                    <button class="admin-role-option" data-role="premium">
+                        <img src="/assets/dimond.svg" class="icon-sm">
+                        <span class="role-name">Premium</span>
+                    </button>
+                ` : ''}
+                ${!hasPremiumPlus ? `
+                    <button class="admin-role-option" data-role="premium_plus">
+                        <img src="/assets/dimond-plus.svg" class="icon-sm">
+                        <span class="role-name">Premium+</span>
+                        ${hasPremium ? '<span class="role-note">(заменит Premium)</span>' : ''}
+                    </button>
+                ` : ''}
+            </div>
+            <button class="admin-role-cancel">Отмена</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    return new Promise((resolve) => {
+        modal.querySelector('.admin-role-modal-overlay').addEventListener('click', () => {
+            modal.remove();
+            resolve(null);
+        });
+        modal.querySelector('.admin-role-cancel').addEventListener('click', () => {
+            modal.remove();
+            resolve(null);
+        });
+        modal.querySelectorAll('.admin-role-option').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const role = btn.dataset.role;
+                modal.remove();
+                
+                if (role === 'admin') {
+                    await toggleAdmin(userId, currentRole);
+                } else {
+                    await givePremium(userId, role);
+                }
+                resolve(role);
+            });
+        });
+    });
+}
+
+// Модалка снятия ролей
+async function showRemoveRolesModal(userId, username, currentRole, currentPremium) {
+    const isAdmin = currentRole === 'admin';
+    const hasPremium = currentPremium === 'premium' || currentPremium === 'premium_plus';
+    
+    if (!isAdmin && !hasPremium) {
+        showToast('У пользователя нет ролей для снятия', 'info');
+        return;
+    }
+    
+    const modal = document.createElement('div');
+    modal.className = 'admin-role-modal';
+    modal.innerHTML = `
+        <div class="admin-role-modal-overlay"></div>
+        <div class="admin-role-modal-content">
+            <h3>Снять роль: ${username}</h3>
+            <div class="admin-role-options">
+                ${isAdmin ? `
+                    <button class="admin-role-option danger" data-role="remove-admin">
+                        <span class="role-icon">👑</span>
+                        <span class="role-name">Снять админа</span>
+                    </button>
+                ` : ''}
+                ${hasPremium ? `
+                    <button class="admin-role-option danger" data-role="remove-premium">
+                        <img src="/assets/dimond.svg" class="icon-sm">
+                        <span class="role-name">Снять ${currentPremium === 'premium_plus' ? 'Premium+' : 'Premium'}</span>
+                    </button>
+                ` : ''}
+            </div>
+            <button class="admin-role-cancel">Отмена</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    return new Promise((resolve) => {
+        modal.querySelector('.admin-role-modal-overlay').addEventListener('click', () => {
+            modal.remove();
+            resolve(null);
+        });
+        modal.querySelector('.admin-role-cancel').addEventListener('click', () => {
+            modal.remove();
+            resolve(null);
+        });
+        modal.querySelectorAll('.admin-role-option').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const role = btn.dataset.role;
+                modal.remove();
+                
+                if (role === 'remove-admin') {
+                    await toggleAdmin(userId, 'admin');
+                } else if (role === 'remove-premium') {
+                    await removePremiumAdmin(userId);
+                }
+                resolve(role);
+            });
+        });
+    });
+}
+
+// Снять премиум
+async function removePremiumAdmin(userId) {
+    try {
+        const res = await api.request(`/api/admin/user/${userId}/premium`, { method: 'DELETE' });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('Подписка снята');
+            showAdminPanel();
+        } else {
+            showToast(data.error || 'Ошибка', 'error');
+        }
+    } catch (error) {
+        showToast('Ошибка сети', 'error');
     }
 }
 
