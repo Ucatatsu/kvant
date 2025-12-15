@@ -874,8 +874,11 @@ async function setPremium(userId, days, plan = 'premium') {
 async function getAllUsers(limit = 50, offset = 0) {
     try {
         console.log('getAllUsers called with limit:', limit, 'offset:', offset);
+        // Используем только базовые колонки которые точно есть
         const result = await pool.query(
-            `SELECT id, username, tag, custom_id, role, premium_until, premium_plan, display_name, avatar_url, created_at 
+            `SELECT id, username, tag, role, premium_until, display_name, avatar_url, created_at,
+                    COALESCE(custom_id, tag) as custom_id,
+                    COALESCE(premium_plan, 'premium') as premium_plan
              FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
             [limit, offset]
         );
