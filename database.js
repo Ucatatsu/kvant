@@ -861,8 +861,8 @@ async function setPremium(userId, days, plan = 'premium') {
         premiumUntil.setDate(premiumUntil.getDate() + days);
         
         await pool.query(
-            'UPDATE users SET premium_until = $2, premium_plan = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
-            [userId, premiumUntil, plan]
+            'UPDATE users SET premium_until = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+            [userId, premiumUntil]
         );
         return { success: true, premiumUntil, plan };
     } catch (error) {
@@ -904,7 +904,7 @@ async function getAllUsers(limit = 50, offset = 0) {
 async function removePremium(userId) {
     try {
         await pool.query(
-            'UPDATE users SET premium_until = NULL, premium_plan = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+            'UPDATE users SET premium_until = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
             [userId]
         );
         return { success: true };
