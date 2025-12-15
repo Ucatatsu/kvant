@@ -1371,21 +1371,7 @@ button {
     opacity: 0.5;
   }
   
-  /* Анимация появления чата при выборе */
-  .chat-area.mobile-animate {
-    animation: mobileSlideIn 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-  
-  @keyframes mobileSlideIn {
-    from {
-      opacity: 0;
-      transform: translateX(20%);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
+
   
   /* Улучшенные тапы на мобильных */
   .user-item,
@@ -4966,9 +4952,11 @@ input:focus {
   min-width: 180px;
   backdrop-filter: blur(20px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
+  z-index: 10000;
   animation: contextMenuIn 0.15s ease;
 }
+
+
 
 @keyframes contextMenuIn {
   from { opacity: 0; transform: scale(0.95); }
@@ -9792,5 +9780,30 @@ input[type="range"]:focus::-moz-range-thumb {
     height: 100%;
     max-height: none;
     border-radius: 0;
+  }
+}
+
+/*
+ Кнопка выйти в навигации (только мобильные) */
+.settings-nav-logout {
+  display: none;
+  margin-top: auto;
+  color: #ef4444 !important;
+  border-top: 1px solid var(--glass-border);
+  padding-top: 12px;
+}
+
+.settings-nav-logout:hover {
+  background: rgba(239, 68, 68, 0.15) !important;
+}
+
+@media (max-width: 768px) {
+  .settings-nav-logout {
+    display: flex;
+  }
+  
+  /* Скрываем старую кнопку выйти на мобильных */
+  .settings-sidebar-footer .settings-logout-btn {
+    display: none;
   }
 }

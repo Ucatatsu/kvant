@@ -898,10 +898,14 @@ async function loadSettingsFromServer() {
         });
         if (res.ok) {
             const serverSettings = await res.json();
-            // Мержим серверные настройки с локальными (локальный customBg сохраняем)
-            const localCustomBg = state.settings.customBg;
+            // Сохраняем локальные настройки (звук, громкость)
+            const localSounds = state.settings.sounds;
+            const localVolume = state.settings.volume;
+            // Мержим серверные настройки с локальными
             state.settings = { ...state.settings, ...serverSettings };
-            if (localCustomBg) state.settings.customBg = localCustomBg;
+            // Восстанавливаем локальные настройки
+            if (localSounds !== undefined) state.settings.sounds = localSounds;
+            if (localVolume !== undefined) state.settings.volume = localVolume;
             localStorage.setItem('kvant_settings', JSON.stringify(state.settings));
         }
     } catch (e) {
@@ -1482,8 +1486,18 @@ function createMessageElement(msg, isSent) {
         initVideoMessage(div.querySelector('.video-message'));
     }
     
-    // Контекстное меню по правому клику
+    // Контекстное меню: ПК — правый клик, мобильные — обычный тап
     div.addEventListener('contextmenu', (e) => showMessageContextMenu(e, msg, isSent));
+    
+    // На мобильных открываем меню по обычному тапу на сообщение
+    if (isMobile()) {
+        div.addEventListener('click', (e) => {
+            // Не открываем если кликнули на ссылку, кнопку или медиа
+            if (e.target.closest('a, button, img, video, .add-reaction-btn')) return;
+            e.stopPropagation();
+            showMessageContextMenu(e, msg, isSent);
+        });
+    }
     
     // Добавление реакции
     div.querySelector('.add-reaction-btn')?.addEventListener('click', (e) => {
@@ -2289,19 +2303,9 @@ function isMobile() {
 
 function handleMobileAfterSelect() {
     if (isMobile()) {
-        const sidebar = document.querySelector('.sidebar');
-        const chatArea = document.querySelector('.chat-area');
+        document.querySelector('.sidebar')?.classList.add('hidden-mobile');
         
-        sidebar?.classList.add('hidden-mobile');
-        
-        // Добавляем анимацию появления чата
-        if (chatArea) {
-            chatArea.classList.remove('mobile-animate');
-            void chatArea.offsetWidth; // Trigger reflow
-            chatArea.classList.add('mobile-animate');
-        }
-        
-        // Вибрация на поддерживаемых устройствах
+        // Лёгкая вибрация
         if (navigator.vibrate) {
             navigator.vibrate(10);
         }
@@ -2322,7 +2326,10 @@ function syncSettingsToServer() {
     settingsSyncTimeout = setTimeout(async () => {
         try {
             const settingsToSync = { ...state.settings };
-            delete settingsToSync.customBg; // Слишком большой для сервера
+            // Локальные настройки - не синхронизируем
+            delete settingsToSync.sounds; // Звук - локальная настройка
+            delete settingsToSync.volume; // Громкость - локальная настройка
+            // customBg синхронизируем для привязки к аккаунту
             
             await fetch('/api/settings', {
                 method: 'PUT',
@@ -3515,6 +3522,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
     document.getElementById('logout-btn-mobile')?.addEventListener('click', handleLogout);
+    document.getElementById('nav-logout-btn')?.addEventListener('click', handleLogout);
     
     // Кнопка админ-панели
     document.getElementById('admin-btn')?.addEventListener('click', () => {
