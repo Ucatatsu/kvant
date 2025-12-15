@@ -1333,7 +1333,7 @@ function renderUsers(users) {
                 <div class="online-indicator ${userStatus || 'offline'}"></div>
             </div>
             <div class="user-info">
-                <div class="user-name" ${nameStyle}>${escapeHtml(displayName)}${isPremium ? ' <span class="premium-indicator">👑</span>' : ''}${isMuted ? ' <span class="muted-indicator">🔕</span>' : ''}</div>
+                <div class="user-name" ${nameStyle}>${escapeHtml(displayName)}${isPremium ? ' <span class="premium-indicator">👑</span>' : ''}${isMuted ? ' <span class="muted-indicator"><img src="/assets/bell.svg" alt="muted" class="icon-sm" style="opacity:0.5"></span>' : ''}</div>
                 <div class="user-last-message">${localNickname ? `@${escapeHtml(user.username)} · ` : ''}${statusText}</div>
             </div>
             ${unread > 0 ? `<div class="unread-badge">${unread}</div>` : ''}
@@ -3364,7 +3364,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Обновляем состояние уведомлений
         const isMuted = isUserMuted(state.selectedUser.id);
-        document.getElementById('ctx-notif-icon').textContent = isMuted ? '🔕' : '🔔';
+        document.getElementById('ctx-notif-icon').innerHTML = isMuted 
+            ? '<img src="/assets/bell.svg" alt="" class="icon-sm" style="opacity:0.5">' 
+            : '<img src="/assets/bell.svg" alt="" class="icon-sm">';
         document.getElementById('ctx-notif-text').textContent = isMuted ? 'Включить уведомления' : 'Отключить уведомления';
         
         // Позиционируем меню под кнопкой

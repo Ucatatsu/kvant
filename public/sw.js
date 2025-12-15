@@ -1,7 +1,7 @@
 // === КВАНТ - SERVICE WORKER ===
 
-const CACHE_NAME = 'kvant-v4';
-const APP_VERSION = '1.5.1'; // Увеличивай при каждом обновлении
+const CACHE_NAME = 'kvant-v5';
+const APP_VERSION = '1.5.2'; // Увеличивай при каждом обновлении
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -32,7 +32,14 @@ const STATIC_ASSETS = [
     '/assets/bell.svg',
     '/assets/cross.svg',
     '/assets/Expand.svg',
-    '/assets/menu dots vertical.svg'
+    '/assets/menu dots vertical.svg',
+    '/assets/power.svg',
+    '/assets/Badge-check.svg',
+    '/assets/image.svg',
+    '/assets/message.svg',
+    '/assets/messenga-lock.svg',
+    '/assets/messenge-info.svg',
+    '/assets/messenge-question.svg'
 ];
 
 // Установка - кэширование статических ресурсов
