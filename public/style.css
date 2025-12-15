@@ -9448,3 +9448,47 @@ input[type="range"]:focus::-moz-range-thumb {
   height: 12px;
   filter: brightness(0) invert(0.5);
 }
+
+
+/* Dock иконки */
+.dock-icon {
+  width: 24px;
+  height: 24px;
+  filter: brightness(0) invert(1);
+  transition: filter 0.2s;
+}
+
+.dock-item.active .dock-icon,
+.dock-item:hover .dock-icon {
+  filter: brightness(0) saturate(100%) invert(76%) sepia(52%) saturate(1000%) hue-rotate(166deg) brightness(101%) contrast(96%);
+}
+
+/* Empty tab иконки */
+.empty-tab-icon .icon-xl {
+  width: 48px;
+  height: 48px;
+  filter: brightness(0) invert(0.5);
+}
+
+/* Create tabs иконки */
+.create-tab .icon-sm {
+  filter: brightness(0) invert(0.8);
+  margin-right: 4px;
+}
+
+.create-tab.active .icon-sm {
+  filter: brightness(0) saturate(100%) invert(76%) sepia(52%) saturate(1000%) hue-rotate(166deg) brightness(101%) contrast(96%);
+}
+
+/* Premium indicator */
+.premium-indicator .icon-sm {
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+}
+
+/* Plan badge */
+.plan-badge .icon {
+  width: 24px;
+  height: 24px;
+}

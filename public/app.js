@@ -943,7 +943,7 @@ function renderGroups() {
     if (state.groups.length === 0) {
         list.innerHTML = `
             <div class="empty-tab">
-                <div class="empty-tab-icon">👥</div>
+                <div class="empty-tab-icon"><img src="/assets/group.svg" class="icon-xl"></div>
                 <div class="empty-tab-text">У вас пока нет групп. Создайте первую!</div>
             </div>`;
         return;
@@ -951,7 +951,7 @@ function renderGroups() {
     
     list.innerHTML = state.groups.map(g => `
         <div class="group-item ${state.selectedGroup?.id === g.id ? 'active' : ''}" data-group-id="${g.id}">
-            <div class="group-avatar">${g.avatar_url ? `<img src="${g.avatar_url}">` : '👥'}</div>
+            <div class="group-avatar">${g.avatar_url ? `<img src="${g.avatar_url}">` : '<img src="/assets/group.svg" class="icon">'}</div>
             <div class="group-info">
                 <div class="group-name">${escapeHtml(g.name)}</div>
                 <div class="group-members-count">${g.member_count || 0} участников</div>
@@ -1049,7 +1049,7 @@ function renderChannels() {
     if (state.channels.length === 0) {
         list.innerHTML = `
             <div class="empty-tab">
-                <div class="empty-tab-icon">📢</div>
+                <div class="empty-tab-icon"><img src="/assets/megaphone.svg" class="icon-xl"></div>
                 <div class="empty-tab-text">У вас пока нет каналов. Создайте или подпишитесь!</div>
             </div>`;
         return;
@@ -1057,7 +1057,7 @@ function renderChannels() {
     
     list.innerHTML = state.channels.map(c => `
         <div class="channel-item ${state.selectedChannel?.id === c.id ? 'active' : ''}" data-channel-id="${c.id}">
-            <div class="channel-avatar">${c.avatar_url ? `<img src="${c.avatar_url}">` : '📢'}</div>
+            <div class="channel-avatar">${c.avatar_url ? `<img src="${c.avatar_url}">` : '<img src="/assets/megaphone.svg" class="icon">'}</div>
             <div class="channel-info">
                 <div class="channel-name">${escapeHtml(c.name)}</div>
                 <div class="channel-subscribers">${c.subscriber_count || 0} подписчиков</div>
@@ -1163,7 +1163,7 @@ function renderServers() {
     if (state.servers.length === 0) {
         list.innerHTML = `
             <div class="empty-tab">
-                <div class="empty-tab-icon">🏠</div>
+                <div class="empty-tab-icon"><img src="/assets/Castle.svg" class="icon-xl"></div>
                 <div class="empty-tab-text">У вас пока нет серверов. Создайте или присоединитесь!</div>
             </div>`;
         return;
@@ -1171,7 +1171,7 @@ function renderServers() {
     
     list.innerHTML = state.servers.map(s => `
         <div class="server-item ${state.selectedServer?.id === s.id ? 'active' : ''}" data-server-id="${s.id}">
-            <div class="server-icon">${s.icon_url ? `<img src="${s.icon_url}">` : '🏠'}</div>
+            <div class="server-icon">${s.icon_url ? `<img src="${s.icon_url}">` : '<img src="/assets/Castle.svg" class="icon">'}</div>
             <div class="server-info">
                 <div class="server-name">${escapeHtml(s.name)}</div>
                 <div class="server-members">${s.member_count || 0} участников</div>
@@ -1333,7 +1333,7 @@ function renderUsers(users) {
                 <div class="online-indicator ${userStatus || 'offline'}"></div>
             </div>
             <div class="user-info">
-                <div class="user-name" ${nameStyle}>${escapeHtml(displayName)}${isPremium ? ' <span class="premium-indicator">👑</span>' : ''}${isMuted ? ' <span class="muted-indicator"><img src="/assets/bell.svg" alt="muted" class="icon-sm" style="opacity:0.5"></span>' : ''}</div>
+                <div class="user-name" ${nameStyle}>${escapeHtml(displayName)}${isPremium ? ' <span class="premium-indicator"><img src="/assets/dimond.svg" alt="premium" class="icon-sm"></span>' : ''}${isMuted ? ' <span class="muted-indicator"><img src="/assets/bell.svg" alt="muted" class="icon-sm" style="opacity:0.5"></span>' : ''}</div>
                 <div class="user-last-message">${localNickname ? `@${escapeHtml(user.username)} · ` : ''}${statusText}</div>
             </div>
             ${unread > 0 ? `<div class="unread-badge">${unread}</div>` : ''}
@@ -5411,12 +5411,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const dockContainer = document.getElementById('sidebar-dock');
     if (dockContainer && window.Dock) {
         const dockItems = [
-            { icon: '💬', label: 'Чаты', tab: 'chats' },
-            { icon: '👥', label: 'Группы', tab: 'groups' },
-            { icon: '📢', label: 'Каналы', tab: 'channels' },
-            { icon: '🏠', label: 'Серверы', tab: 'servers' },
-            { icon: '👑', label: 'Подписка', action: 'subscription' },
-            { icon: '➕', label: 'Создать', action: 'create' }
+            { icon: '<img src="/assets/message.svg" class="dock-icon">', label: 'Чаты', tab: 'chats' },
+            { icon: '<img src="/assets/group.svg" class="dock-icon">', label: 'Группы', tab: 'groups' },
+            { icon: '<img src="/assets/megaphone.svg" class="dock-icon">', label: 'Каналы', tab: 'channels' },
+            { icon: '<img src="/assets/Castle.svg" class="dock-icon">', label: 'Серверы', tab: 'servers' },
+            { icon: '<img src="/assets/badge-dollar.svg" class="dock-icon">', label: 'Подписка', action: 'subscription' },
+            { icon: '<img src="/assets/Plus.svg" class="dock-icon">', label: 'Создать', action: 'create' }
         ];
         
         window.sidebarDock = new Dock(dockContainer, {
@@ -5641,7 +5641,11 @@ function updateSubscriptionUI(data) {
     // Обновляем статус
     statusEl.className = 'subscription-current ' + (data.plan || 'free');
     
-    const icons = { free: '✨', premium: '👑', premium_plus: '💎' };
+    const icons = { 
+        free: '✨', 
+        premium: '<img src="/assets/dimond.svg" class="icon-sm">', 
+        premium_plus: '<img src="/assets/dimond-plus.svg" class="icon-sm">' 
+    };
     const names = { free: 'Бесплатный план', premium: 'Premium', premium_plus: 'Premium+' };
     const descs = { 
         free: 'Базовые функции мессенджера',
