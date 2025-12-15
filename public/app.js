@@ -4124,7 +4124,9 @@ async function showAdminPanel() {
     
     try {
         const res = await api.get('/api/admin/users?limit=100');
+        console.log('Admin API response status:', res.status);
         const data = await res.json();
+        console.log('Admin API data:', data);
         
         // Статистика
         const statsEl = document.getElementById('admin-stats');
