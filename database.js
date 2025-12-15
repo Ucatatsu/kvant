@@ -374,6 +374,9 @@ async function initDB() {
         // Миграция: добавляем self_destruct_at в messages
         try { sqlite.exec('ALTER TABLE messages ADD COLUMN self_destruct_at TEXT'); } catch {}
         
+        // Миграция: добавляем premium_plan в users
+        try { sqlite.exec("ALTER TABLE users ADD COLUMN premium_plan TEXT DEFAULT 'premium'"); } catch {}
+        
         console.log('✅ SQLite база данных инициализирована');
         return;
     }
@@ -1159,7 +1162,7 @@ async function getContacts(userId) {
         let rows;
         if (USE_SQLITE) {
             rows = sqlite.prepare(`
-                SELECT DISTINCT u.id, u.username, u.tag, u.display_name, u.avatar_url, u.role, u.premium_until, u.name_color, u.custom_id,
+                SELECT DISTINCT u.id, u.username, u.tag, u.display_name, u.avatar_url, u.role, u.premium_until, u.premium_plan, u.name_color, u.custom_id,
                     (SELECT COUNT(*) FROM messages m WHERE m.sender_id = u.id AND m.receiver_id = ? AND m.is_read = 0) as unread_count,
                     (SELECT MAX(created_at) FROM messages m WHERE (m.sender_id = u.id AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = u.id)) as last_message_at,
                     (SELECT 1 FROM pinned_chats pc WHERE pc.user_id = ? AND pc.chat_id = u.id AND pc.chat_type = 'user') as is_pinned,
@@ -1174,7 +1177,7 @@ async function getContacts(userId) {
             `).all(userId, userId, userId, userId, userId, userId, userId);
         } else {
             const result = await pool.query(`
-                SELECT DISTINCT u.id, u.username, u.tag, u.display_name, u.avatar_url, u.role, u.premium_until, u.name_color, u.custom_id,
+                SELECT DISTINCT u.id, u.username, u.tag, u.display_name, u.avatar_url, u.role, u.premium_until, u.premium_plan, u.name_color, u.custom_id,
                     (SELECT COUNT(*) FROM messages m WHERE m.sender_id = u.id AND m.receiver_id = $1 AND m.is_read = FALSE) as unread_count,
                     (SELECT MAX(created_at) FROM messages m WHERE (m.sender_id = u.id AND m.receiver_id = $1) OR (m.sender_id = $1 AND m.receiver_id = u.id)) as last_message_at,
                     (SELECT 1 FROM pinned_chats pc WHERE pc.user_id = $1 AND pc.chat_id = u.id AND pc.chat_type = 'user') as is_pinned,
@@ -1192,6 +1195,7 @@ async function getContacts(userId) {
         return rows.map(u => ({
             ...u,
             isPremium: u.role === 'admin' || (u.premium_until && new Date(u.premium_until) > new Date()),
+            premiumPlan: u.premium_plan || 'premium',
             isPinned: !!u.is_pinned
         }));
     } catch (error) {

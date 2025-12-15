@@ -3411,6 +3411,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     selfDestructBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
+        
+        // Позиционируем меню над кнопкой
+        if (selfDestructMenu && selfDestructBtn) {
+            const btnRect = selfDestructBtn.getBoundingClientRect();
+            selfDestructMenu.style.left = `${btnRect.left}px`;
+            selfDestructMenu.style.bottom = `${window.innerHeight - btnRect.top + 10}px`;
+        }
+        
         selfDestructMenu?.classList.toggle('hidden');
     });
     
@@ -5703,6 +5711,13 @@ function applySettings() {
         document.documentElement.style.setProperty('--accent', state.settings.accentColor);
         document.documentElement.style.setProperty('--message-sent', 
             `linear-gradient(135deg, ${state.settings.accentColor}, ${adjustColor(state.settings.accentColor, -30)})`);
+        
+        // Устанавливаем filter параметры для иконок на основе акцентного цвета
+        const filterParams = getAccentFilterParams(state.settings.accentColor);
+        document.documentElement.style.setProperty('--accent-invert', filterParams.invert);
+        document.documentElement.style.setProperty('--accent-sepia', filterParams.sepia);
+        document.documentElement.style.setProperty('--accent-saturate', filterParams.saturate);
+        document.documentElement.style.setProperty('--accent-hue', filterParams.hue);
     }
     
     if (state.settings.theme) {
@@ -5711,6 +5726,44 @@ function applySettings() {
     
     // Применяем стиль пузырей
     applyBubbleStyle();
+}
+
+// Получить параметры filter для акцентного цвета
+function getAccentFilterParams(hexColor) {
+    // Конвертируем hex в HSL
+    const hex = hexColor.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16) / 255;
+    const g = parseInt(hex.substr(2, 2), 16) / 255;
+    const b = parseInt(hex.substr(4, 2), 16) / 255;
+    
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h, s, l = (max + min) / 2;
+    
+    if (max === min) {
+        h = s = 0;
+    } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+            case g: h = ((b - r) / d + 2) / 6; break;
+            case b: h = ((r - g) / d + 4) / 6; break;
+        }
+    }
+    
+    // Преобразуем HSL в параметры filter
+    const hue = Math.round(h * 360);
+    const saturate = Math.round(s * 2000) + 500;
+    const invert = l > 0.5 ? '80%' : '50%';
+    const sepia = '80%';
+    
+    return {
+        hue: `${hue}deg`,
+        saturate: `${saturate}%`,
+        invert,
+        sepia
+    };
 }
 
 // Применить стиль пузырей сообщений (Premium+)

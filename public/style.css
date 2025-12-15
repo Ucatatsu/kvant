@@ -9515,9 +9515,25 @@ input[type="range"]:focus::-moz-range-thumb {
   height: 18px;
 }
 
+/* Иконки в настройках - используют акцентный цвет */
+.settings-nav-item .nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.settings-nav-item .nav-icon .icon-sm {
+  width: 18px;
+  height: 18px;
+  filter: brightness(0) invert(0.6);
+  transition: filter 0.2s;
+}
+
 .settings-nav-item.active .nav-icon .icon-sm,
 .settings-nav-item:hover .nav-icon .icon-sm {
-  filter: brightness(0) saturate(100%) invert(76%) sepia(52%) saturate(1000%) hue-rotate(166deg) brightness(101%) contrast(96%);
+  filter: brightness(0) saturate(100%) invert(var(--accent-invert, 76%)) sepia(var(--accent-sepia, 52%)) saturate(var(--accent-saturate, 1000%)) hue-rotate(var(--accent-hue, 166deg)) brightness(101%) contrast(96%);
 }
 
 /* Muted indicator в списке контактов */
@@ -10138,9 +10154,7 @@ input[type="range"]:focus::-moz-range-thumb {
 }
 
 .self-destruct-menu {
-  position: absolute;
-  bottom: calc(var(--panel-height) + 10px);
-  left: 60px;
+  position: fixed;
   background: var(--bg-dark);
   border: 1px solid var(--glass-border);
   border-radius: 12px;
