@@ -394,6 +394,7 @@ async function initDB() {
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS tag TEXT UNIQUE',
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT \'user\'',
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_until TIMESTAMP',
+            'ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_plan TEXT DEFAULT \'premium\'',
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS name_color TEXT',
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_theme TEXT DEFAULT \'default\'',
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_color TEXT',
@@ -793,11 +794,11 @@ async function getUser(userId) {
     try {
         let user;
         if (USE_SQLITE) {
-            user = sqlite.prepare(`SELECT id, username, tag, role, premium_until, display_name, phone, bio, avatar_url, banner_url, 
+            user = sqlite.prepare(`SELECT id, username, tag, role, premium_until, premium_plan, display_name, phone, bio, avatar_url, banner_url, 
                     name_color, profile_theme, profile_color, custom_id, hide_online, created_at FROM users WHERE id = ?`).get(userId);
         } else {
             const result = await pool.query(
-                `SELECT id, username, tag, role, premium_until, display_name, phone, bio, avatar_url, banner_url, 
+                `SELECT id, username, tag, role, premium_until, premium_plan, display_name, phone, bio, avatar_url, banner_url, 
                         name_color, profile_theme, profile_color, custom_tag, custom_id, hide_online, created_at 
                  FROM users WHERE id = $1`,
                 [userId]
@@ -805,7 +806,8 @@ async function getUser(userId) {
             user = result.rows[0];
         }
         if (!user) return null;
-        user.isPremium = user.role === 'admin' || (user.premium_until && new Date(user.premium_until) > new Date());
+        user.isPremium = user.premium_until && new Date(user.premium_until) > new Date();
+        user.premiumPlan = user.premium_plan || 'premium';
         return user;
     } catch (error) {
         console.error('Get user error:', error);
@@ -861,8 +863,8 @@ async function setPremium(userId, days, plan = 'premium') {
         premiumUntil.setDate(premiumUntil.getDate() + days);
         
         await pool.query(
-            'UPDATE users SET premium_until = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
-            [userId, premiumUntil]
+            'UPDATE users SET premium_until = $2, premium_plan = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+            [userId, premiumUntil, plan]
         );
         return { success: true, premiumUntil, plan };
     } catch (error) {
@@ -876,7 +878,7 @@ async function getAllUsers(limit = 50, offset = 0) {
         console.log('getAllUsers called with limit:', limit, 'offset:', offset);
         // Используем только базовые колонки которые точно есть
         const result = await pool.query(
-            `SELECT id, username, tag, role, premium_until, display_name, avatar_url, created_at
+            `SELECT id, username, tag, role, premium_until, premium_plan, display_name, avatar_url, created_at
              FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
             [limit, offset]
         );
@@ -890,7 +892,7 @@ async function getAllUsers(limit = 50, offset = 0) {
                 ...u,
                 custom_id: u.tag,
                 isPremium: u.premium_until && new Date(u.premium_until) > new Date(),
-                premiumPlan: 'premium' // По умолчанию premium, пока нет колонки
+                premiumPlan: u.premium_plan || 'premium'
             })),
             total: parseInt(countResult.rows[0].count)
         };
@@ -904,7 +906,7 @@ async function getAllUsers(limit = 50, offset = 0) {
 async function removePremium(userId) {
     try {
         await pool.query(
-            'UPDATE users SET premium_until = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+            'UPDATE users SET premium_until = NULL, premium_plan = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
             [userId]
         );
         return { success: true };

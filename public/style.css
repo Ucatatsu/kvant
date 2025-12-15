@@ -1579,6 +1579,13 @@ button {
 .profile-badge.premium {
   background: linear-gradient(135deg, #ffd700, #ffaa00);
   color: #1a1a2e;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.profile-badge.premium-plus {
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  color: white;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.6);
 }
 
 .profile-badge:empty {

@@ -3797,7 +3797,12 @@ async function showMyProfile() {
             badges += '<span class="profile-badge admin">Админ</span>';
         }
         if (isPremium) {
-            badges += '<span class="profile-badge premium">Premium</span>';
+            const premiumPlan = profile?.premiumPlan || profile?.premium_plan;
+            if (premiumPlan === 'premium_plus') {
+                badges += '<span class="profile-badge premium-plus">P+</span>';
+            } else {
+                badges += '<span class="profile-badge premium">P</span>';
+            }
         }
         
         badgesEl.innerHTML = badges;
@@ -4022,7 +4027,12 @@ async function showUserProfile(userId) {
                 badges += '<span class="profile-badge admin">Админ</span>';
             }
             if (profile.isPremium) {
-                badges += '<span class="profile-badge premium">Premium</span>';
+                const premiumPlan = profile.premiumPlan || profile.premium_plan;
+                if (premiumPlan === 'premium_plus') {
+                    badges += '<span class="profile-badge premium-plus">P+</span>';
+                } else {
+                    badges += '<span class="profile-badge premium">P</span>';
+                }
             }
             badgesEl.innerHTML = badges;
         }
@@ -4169,9 +4179,9 @@ function renderAdminUsers(users) {
         const badges = [];
         if (user.role === 'admin') badges.push('<span class="profile-badge admin">Админ</span>');
         if (user.isPremium && user.premiumPlan === 'premium_plus') {
-            badges.push('<span class="profile-badge premium-plus">Premium+</span>');
+            badges.push('<span class="profile-badge premium-plus">P+</span>');
         } else if (user.isPremium) {
-            badges.push('<span class="profile-badge premium">Premium</span>');
+            badges.push('<span class="profile-badge premium">P</span>');
         }
         
         return `
