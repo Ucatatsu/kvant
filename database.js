@@ -876,9 +876,7 @@ async function getAllUsers(limit = 50, offset = 0) {
         console.log('getAllUsers called with limit:', limit, 'offset:', offset);
         // Используем только базовые колонки которые точно есть
         const result = await pool.query(
-            `SELECT id, username, tag, role, premium_until, display_name, avatar_url, created_at,
-                    COALESCE(custom_id, tag) as custom_id,
-                    COALESCE(premium_plan, 'premium') as premium_plan
+            `SELECT id, username, tag, role, premium_until, display_name, avatar_url, created_at
              FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
             [limit, offset]
         );
@@ -890,8 +888,9 @@ async function getAllUsers(limit = 50, offset = 0) {
         return {
             users: result.rows.map(u => ({
                 ...u,
+                custom_id: u.tag,
                 isPremium: u.premium_until && new Date(u.premium_until) > new Date(),
-                premiumPlan: u.premium_plan
+                premiumPlan: 'premium' // По умолчанию premium, пока нет колонки
             })),
             total: parseInt(countResult.rows[0].count)
         };
