@@ -730,11 +730,16 @@ button {
 
 .pin-indicator {
   position: absolute;
-  top: 4px;
+  top: 6px;
   right: 8px;
-  font-size: 10px;
-  opacity: 0.7;
   z-index: 1;
+}
+
+.pin-indicator .icon-sm {
+  width: 14px;
+  height: 14px;
+  filter: brightness(0) saturate(100%) invert(76%) sepia(52%) saturate(1000%) hue-rotate(166deg);
+  opacity: 0.8;
 }
 
 @keyframes onlinePulse {
@@ -4955,10 +4960,26 @@ input:focus {
 
 /* Premium badge в списке контактов */
 .user-item .premium-indicator {
-  width: 14px;
-  height: 14px;
   font-size: 10px;
   margin-left: 4px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+/* P badge (золотой) */
+.user-item .premium-badge {
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  color: #000;
+  text-shadow: 0 0 4px rgba(255, 215, 0, 0.5);
+}
+
+/* P+ badge (фиолетовый) */
+.user-item .premium-plus-badge {
+  background: linear-gradient(135deg, #a855f7, #6366f1);
+  color: #fff;
+  text-shadow: 0 0 4px rgba(168, 85, 247, 0.5);
 }
 
 /* Кастомный тег */
@@ -4999,12 +5020,23 @@ input:focus {
   font-size: 14px;
 }
 
+.context-menu-item .ctx-icon {
+  width: 18px;
+  height: 18px;
+  filter: brightness(0) invert(0.8);
+  flex-shrink: 0;
+}
+
 .context-menu-item:hover {
   background: rgba(79, 195, 247, 0.15);
 }
 
 .context-menu-item.danger {
   color: #ef4444;
+}
+
+.context-menu-item.danger .ctx-icon {
+  filter: brightness(0) saturate(100%) invert(40%) sepia(90%) saturate(2000%) hue-rotate(340deg);
 }
 
 .context-menu-item.danger:hover {
@@ -10094,15 +10126,16 @@ input[type="range"]:focus::-moz-range-thumb {
 }
 
 .self-destruct-menu {
-  position: absolute;
-  bottom: calc(var(--panel-height) + 10px);
-  left: 80px;
+  position: fixed;
+  top: 80px;
+  right: 20px;
   background: var(--bg-dark);
   border: 1px solid var(--glass-border);
   border-radius: 12px;
   padding: 12px;
-  z-index: 100;
+  z-index: 1000;
   min-width: 180px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .self-destruct-title {

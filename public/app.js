@@ -1331,17 +1331,28 @@ function renderUsers(users) {
         const displayName = localNickname || user.display_name || user.username;
         const isMuted = isUserMuted(user.id);
         const isPremiumUser = user.isPremium || user.role === 'admin';
+        const premiumPlan = user.premiumPlan || user.premium_plan || 'premium';
         const avatarClass = 'user-avatar';
         const nameStyle = user.name_color ? `style="--name-color: ${escapeAttr(user.name_color)}" data-name-color` : '';
         
+        // Бейдж P или P+ в списке контактов
+        let premiumBadge = '';
+        if (isPremiumUser) {
+            if (premiumPlan === 'premium_plus') {
+                premiumBadge = ' <span class="premium-indicator premium-plus-badge">P+</span>';
+            } else {
+                premiumBadge = ' <span class="premium-indicator premium-badge">P</span>';
+            }
+        }
+        
         item.innerHTML = `
-            ${isPinned ? '<span class="pin-indicator">📌</span>' : ''}
+            ${isPinned ? '<span class="pin-indicator"><img src="/assets/bookmark.svg" alt="" class="icon-sm"></span>' : ''}
             <div class="${avatarClass}" style="${avatarStyle}">
                 ${avatarContent}
                 <div class="online-indicator ${userStatus || 'offline'}"></div>
             </div>
             <div class="user-info">
-                <div class="user-name" ${nameStyle}>${escapeHtml(displayName)}${isPremiumUser ? ' <span class="premium-indicator"><img src="/assets/dimond.svg" alt="premium" class="icon-sm"></span>' : ''}${isMuted ? ' <span class="muted-indicator"><img src="/assets/bell.svg" alt="muted" class="icon-sm" style="opacity:0.5"></span>' : ''}</div>
+                <div class="user-name" ${nameStyle}>${escapeHtml(displayName)}${premiumBadge}${isMuted ? ' <span class="muted-indicator"><img src="/assets/bell.svg" alt="muted" class="icon-sm" style="opacity:0.5"></span>' : ''}</div>
                 <div class="user-last-message">${localNickname ? `@${escapeHtml(user.username)} · ` : ''}${statusText}</div>
             </div>
             ${unread > 0 ? `<div class="unread-badge">${unread}</div>` : ''}
@@ -1853,17 +1864,17 @@ function showMessageContextMenu(e, msg, isSent) {
     menu.className = 'message-context-menu';
     
     let menuItems = `
-        <div class="context-menu-item" data-action="react">😊 Реакция</div>
-        <div class="context-menu-item" data-action="copy">📋 Копировать</div>
+        <div class="context-menu-item" data-action="react"><img src="/assets/emoji.svg" alt="" class="icon-sm ctx-icon"> Реакция</div>
+        <div class="context-menu-item" data-action="copy"><img src="/assets/copy.svg" alt="" class="icon-sm ctx-icon"> Копировать</div>
     `;
     
     if (isSent) {
         const isPremiumPlus = state.currentUserProfile?.premiumPlan === 'premium_plus' || state.currentUser?.role === 'admin';
         menuItems += `
             <div class="context-menu-divider"></div>
-            <div class="context-menu-item" data-action="edit">✏️ Редактировать</div>
-            <div class="context-menu-item danger" data-action="delete">🗑️ Удалить у себя</div>
-            ${isPremiumPlus ? '<div class="context-menu-item danger" data-action="delete-all">🗑️ Удалить у всех <span class="badge-premium-plus">P+</span></div>' : ''}
+            <div class="context-menu-item" data-action="edit"><img src="/assets/edit.svg" alt="" class="icon-sm ctx-icon"> Редактировать</div>
+            <div class="context-menu-item danger" data-action="delete"><img src="/assets/trash.svg" alt="" class="icon-sm ctx-icon"> Удалить у себя</div>
+            ${isPremiumPlus ? '<div class="context-menu-item danger" data-action="delete-all"><img src="/assets/trash.svg" alt="" class="icon-sm ctx-icon"> Удалить у всех <span class="badge-premium-plus">P+</span></div>' : ''}
         `;
     }
     
@@ -3498,7 +3509,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Обновляем состояние закрепления
         const userItem = document.querySelector(`[data-id="${state.selectedUser.id}"]`);
         const isPinned = userItem?.classList.contains('pinned');
-        document.getElementById('ctx-pin-icon').textContent = isPinned ? '📍' : '📌';
+        document.getElementById('ctx-pin-icon').innerHTML = isPinned 
+            ? '<img src="/assets/bookmark-slash.svg" alt="" class="icon-sm">' 
+            : '<img src="/assets/bookmark.svg" alt="" class="icon-sm">';
         document.getElementById('ctx-pin-text').textContent = isPinned ? 'Открепить чат' : 'Закрепить чат';
         
         // Позиционируем меню под кнопкой
@@ -3916,9 +3929,9 @@ async function showMyProfile() {
         if (isPremium) {
             const premiumPlan = profile?.premiumPlan || profile?.premium_plan;
             if (premiumPlan === 'premium_plus') {
-                badges += '<span class="profile-badge premium-plus">P+</span>';
+                badges += '<span class="profile-badge premium-plus">Premium+</span>';
             } else {
-                badges += '<span class="profile-badge premium">P</span>';
+                badges += '<span class="profile-badge premium">Premium</span>';
             }
         }
         
@@ -4159,9 +4172,9 @@ async function showUserProfile(userId) {
             if (profile.isPremium) {
                 const premiumPlan = profile.premiumPlan || profile.premium_plan;
                 if (premiumPlan === 'premium_plus') {
-                    badges += '<span class="profile-badge premium-plus">P+</span>';
+                    badges += '<span class="profile-badge premium-plus">Premium+</span>';
                 } else {
-                    badges += '<span class="profile-badge premium">P</span>';
+                    badges += '<span class="profile-badge premium">Premium</span>';
                 }
             }
             badgesEl.innerHTML = badges;
@@ -4313,6 +4326,7 @@ function renderAdminUsers(users) {
         } else if (user.isPremium) {
             badges.push('<span class="profile-badge premium">P</span>');
         }
+        // В админке оставляем короткие P/P+ для компактности
         
         return `
         <div class="admin-user" data-user-id="${user.id}" data-user-role="${user.role}" data-user-premium="${user.isPremium ? user.premiumPlan : ''}" data-username="${user.display_name || user.username}">
