@@ -164,8 +164,12 @@
           </span>
         </div>
         <div class="user-panel-actions">
-          <button class="panel-action-btn" id="panel-mic-btn" title="Микрофон" aria-label="Микрофон">🎤</button>
-          <button class="panel-action-btn" id="panel-cam-btn" title="Камера" aria-label="Камера">📹</button>
+          <button class="panel-action-btn" id="panel-mic-btn" title="Микрофон" aria-label="Микрофон">
+            <img src="/assets/microphone.svg" alt="" class="icon">
+          </button>
+          <button class="panel-action-btn" id="panel-cam-btn" title="Камера" aria-label="Камера">
+            <img src="/assets/camera.svg" alt="" class="icon">
+          </button>
         </div>
       </div>
       
@@ -173,7 +177,9 @@
       <div class="user-card-popup hidden" id="user-card-popup">
         <div class="user-card-banner" id="user-card-banner"></div>
         <div class="user-card-avatar" id="user-card-avatar"></div>
-        <button class="user-card-settings" id="user-card-settings" title="Настройки">⚙️</button>
+        <button class="user-card-settings" id="user-card-settings" title="Настройки">
+          <img src="/assets/settings.svg" alt="" class="icon">
+        </button>
         <div class="user-card-body">
           <div class="user-card-name" id="user-card-name"></div>
           <div class="user-card-status-selector" id="status-selector">
@@ -212,7 +218,9 @@
     
     <!-- Область чата -->
     <header class="chat-header" id="chat-header">
-      <button class="back-btn" id="back-btn" aria-label="Назад к списку чатов">←</button>
+      <button class="back-btn" id="back-btn" aria-label="Назад к списку чатов">
+        <img src="/assets/arrow-left.svg" alt="" class="icon">
+      </button>
       
       <!-- Pill-контейнер по центру -->
       <div class="chat-header-pill" id="chat-user-info-btn" role="button" tabindex="0" 
@@ -223,29 +231,35 @@
           <span class="chat-user-status"></span>
         </div>
         <div class="chat-header-actions">
-          <button class="header-action-btn" title="Аудиозвонок" aria-label="Начать аудиозвонок">📞</button>
-          <button class="header-action-btn" title="Видеозвонок" aria-label="Начать видеозвонок">📹</button>
-          <button class="header-action-btn header-menu-btn" id="chat-menu-btn" title="Меню" aria-label="Меню">⋮</button>
+          <button class="header-action-btn" title="Аудиозвонок" aria-label="Начать аудиозвонок">
+            <img src="/assets/phone-call.svg" alt="" class="icon">
+          </button>
+          <button class="header-action-btn" title="Видеозвонок" aria-label="Начать видеозвонок">
+            <img src="/assets/video.svg" alt="" class="icon">
+          </button>
+          <button class="header-action-btn header-menu-btn" id="chat-menu-btn" title="Меню" aria-label="Меню">
+            <img src="/assets/menu dots vertical.svg" alt="" class="icon">
+          </button>
         </div>
       </div>
       
       <!-- Контекстное меню чата -->
       <div class="chat-context-menu hidden" id="chat-context-menu">
         <button class="context-menu-item" id="ctx-view-profile">
-          <span class="ctx-icon">👤</span>
+          <span class="ctx-icon"><img src="/assets/profile.svg" alt="" class="icon-sm"></span>
           <span>Профиль</span>
         </button>
         <button class="context-menu-item" id="ctx-set-nickname">
-          <span class="ctx-icon">✏️</span>
+          <span class="ctx-icon"><img src="/assets/edit.svg" alt="" class="icon-sm"></span>
           <span>Записать как...</span>
         </button>
         <div class="context-menu-divider"></div>
         <button class="context-menu-item" id="ctx-toggle-notifications">
-          <span class="ctx-icon" id="ctx-notif-icon">🔔</span>
+          <span class="ctx-icon" id="ctx-notif-icon"><img src="/assets/bell.svg" alt="" class="icon-sm"></span>
           <span id="ctx-notif-text">Отключить уведомления</span>
         </button>
         <button class="context-menu-item" id="ctx-clear-chat">
-          <span class="ctx-icon">🗑️</span>
+          <span class="ctx-icon"><img src="/assets/trash.svg" alt="" class="icon-sm"></span>
           <span>Очистить чат</span>
         </button>
       </div>
@@ -254,26 +268,36 @@
     <!-- Полоска активного звонка -->
     <div class="active-call-bar hidden" id="active-call-bar" role="status">
       <div class="call-bar-info">
-        <span class="call-bar-icon">📞</span>
+        <span class="call-bar-icon"><img src="/assets/phone-call.svg" alt="" class="icon-sm"></span>
         <span class="call-bar-text">Звонок</span>
         <span class="call-bar-name" id="call-bar-name"></span>
         <span class="call-bar-timer" id="call-bar-timer">00:00</span>
       </div>
       <div class="call-bar-actions">
-        <button class="call-bar-btn" id="call-bar-expand" title="Развернуть" aria-label="Развернуть звонок">↗️</button>
-        <button class="call-bar-btn call-bar-end" id="call-bar-end" title="Завершить" aria-label="Завершить звонок">✕</button>
+        <button class="call-bar-btn" id="call-bar-expand" title="Развернуть" aria-label="Развернуть звонок">
+          <img src="/assets/Expand.svg" alt="" class="icon-sm">
+        </button>
+        <button class="call-bar-btn call-bar-end" id="call-bar-end" title="Завершить" aria-label="Завершить звонок">
+          <img src="/assets/cross.svg" alt="" class="icon-sm">
+        </button>
       </div>
     </div>
     
     <main class="messages" id="messages" role="log" aria-label="Сообщения" aria-live="polite"></main>
     
     <form class="message-form" id="message-form" aria-label="Отправка сообщения">
-      <button type="button" class="attach-btn" id="attach-btn" aria-label="Прикрепить файл" title="Прикрепить файл">📎</button>
+      <button type="button" class="attach-btn" id="attach-btn" aria-label="Прикрепить файл" title="Прикрепить файл">
+        <img src="/assets/Clip.svg" alt="" class="icon">
+      </button>
       <input type="file" id="attach-input" accept="image/*,video/mp4,.gif" hidden aria-hidden="true">
       <input type="text" id="message-input" placeholder="Сообщение..." autocomplete="off" 
              disabled aria-label="Текст сообщения">
-      <button type="button" class="emoji-btn" aria-label="Выбрать эмодзи" aria-haspopup="true">😊</button>
-      <button type="submit" class="send-btn" disabled aria-label="Отправить сообщение">➤</button>
+      <button type="button" class="emoji-btn" aria-label="Выбрать эмодзи" aria-haspopup="true">
+        <img src="/assets/emoji.svg" alt="" class="icon">
+      </button>
+      <button type="submit" class="send-btn" disabled aria-label="Отправить сообщение">
+        <img src="/assets/send.svg" alt="" class="icon">
+      </button>
     </form>
   </div>
 
@@ -787,7 +811,7 @@
           <div class="about-content">
             <img src="icon.png" alt="Квант" class="about-logo">
             <h3>Квант</h3>
-            <p class="about-version">Версия 1.5.0</p>
+            <p class="about-version">Версия 1.5.1</p>
             <p class="about-desc">Современный мессенджер с чистым стилем</p>
             <div class="about-links">
               <a href="#" class="legal-link about-link" data-doc="terms">📄 Условия использования</a>
@@ -842,10 +866,18 @@
         <video id="local-video" autoplay playsinline muted aria-label="Ваше видео"></video>
       </div>
       <div class="call-actions">
-        <button class="call-btn call-btn-mute active" id="mute-btn" title="Микрофон" aria-label="Включить/выключить микрофон">🎤</button>
-        <button class="call-btn call-btn-video" id="toggle-video-btn" title="Камера" aria-label="Включить/выключить камеру">📹</button>
-        <button class="call-btn call-btn-screen" id="screen-share-btn" title="Демонстрация" aria-label="Демонстрация экрана">🖥️</button>
-        <button class="call-btn call-btn-end" id="end-call-btn" title="Завершить" aria-label="Завершить звонок">📵</button>
+        <button class="call-btn call-btn-mute active" id="mute-btn" title="Микрофон" aria-label="Включить/выключить микрофон">
+          <img src="/assets/microphone.svg" alt="" class="icon" id="mute-btn-icon">
+        </button>
+        <button class="call-btn call-btn-video" id="toggle-video-btn" title="Камера" aria-label="Включить/выключить камеру">
+          <img src="/assets/video.svg" alt="" class="icon" id="video-btn-icon">
+        </button>
+        <button class="call-btn call-btn-screen" id="screen-share-btn" title="Демонстрация" aria-label="Демонстрация экрана">
+          <img src="/assets/screen-share.svg" alt="" class="icon" id="screen-btn-icon">
+        </button>
+        <button class="call-btn call-btn-end" id="end-call-btn" title="Завершить" aria-label="Завершить звонок">
+          <img src="/assets/phone-off.svg" alt="" class="icon">
+        </button>
       </div>
     </div>
   </div>
@@ -858,8 +890,12 @@
       <div class="call-user-name" id="incoming-call-name"></div>
       <div class="call-status" id="incoming-call-type" role="status">Входящий звонок...</div>
       <div class="call-actions">
-        <button class="call-btn call-btn-decline" id="decline-call-btn" aria-label="Отклонить звонок">✕</button>
-        <button class="call-btn call-btn-accept" id="accept-call-btn" aria-label="Принять звонок">📞</button>
+        <button class="call-btn call-btn-decline" id="decline-call-btn" aria-label="Отклонить звонок">
+          <img src="/assets/phone-off.svg" alt="" class="icon">
+        </button>
+        <button class="call-btn call-btn-accept" id="accept-call-btn" aria-label="Принять звонок">
+          <img src="/assets/phone-call.svg" alt="" class="icon">
+        </button>
       </div>
     </div>
   </div>

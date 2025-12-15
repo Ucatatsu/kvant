@@ -9256,3 +9256,169 @@ input[type="range"]:focus::-moz-range-thumb {
 .message.channel-post .message-bubble:empty {
   display: none;
 }
+
+
+/* === SVG ICONS === */
+.icon {
+  width: 20px;
+  height: 20px;
+  display: inline-block;
+  vertical-align: middle;
+  fill: currentColor;
+}
+
+.icon-sm {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-lg {
+  width: 24px;
+  height: 24px;
+}
+
+.icon-xl {
+  width: 32px;
+  height: 32px;
+}
+
+/* Кнопки с иконками */
+.icon-btn {
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: background 0.2s, transform 0.1s;
+  color: var(--text);
+}
+
+.icon-btn:hover {
+  background: rgba(79, 195, 247, 0.15);
+}
+
+.icon-btn:active {
+  transform: scale(0.95);
+}
+
+.icon-btn .icon {
+  pointer-events: none;
+}
+
+/* SVG иконки в кнопках действий */
+.header-action-btn .icon,
+.panel-action-btn .icon,
+.call-btn .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.send-btn .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.attach-btn .icon,
+.emoji-btn .icon {
+  width: 22px;
+  height: 22px;
+}
+
+/* Цвета иконок */
+.icon-muted {
+  color: var(--text-muted);
+}
+
+.icon-accent {
+  color: var(--accent);
+}
+
+.icon-danger {
+  color: #ef4444;
+}
+
+.icon-success {
+  color: var(--online);
+}
+
+
+/* Иконки в кнопках - фильтры для цвета */
+.icon {
+  filter: brightness(0) invert(1); /* Белые иконки по умолчанию */
+  opacity: 0.9;
+  transition: opacity 0.2s, filter 0.2s;
+}
+
+.header-action-btn:hover .icon,
+.panel-action-btn:hover .icon,
+.call-btn:hover .icon {
+  opacity: 1;
+}
+
+/* Акцентный цвет для активных кнопок */
+.call-btn.active .icon {
+  filter: brightness(0) saturate(100%) invert(76%) sepia(52%) saturate(1000%) hue-rotate(166deg) brightness(101%) contrast(96%);
+}
+
+/* Красный для кнопки завершения звонка */
+.call-btn-end .icon,
+.call-btn-decline .icon {
+  filter: brightness(0) saturate(100%) invert(36%) sepia(93%) saturate(2000%) hue-rotate(343deg) brightness(95%) contrast(95%);
+}
+
+/* Зелёный для кнопки принятия звонка */
+.call-btn-accept .icon {
+  filter: brightness(0) saturate(100%) invert(60%) sepia(70%) saturate(500%) hue-rotate(85deg) brightness(95%) contrast(95%);
+}
+
+/* Muted состояние */
+.panel-action-btn.muted .icon {
+  filter: brightness(0) saturate(100%) invert(36%) sepia(93%) saturate(2000%) hue-rotate(343deg) brightness(95%) contrast(95%);
+}
+
+/* Контекстное меню */
+.ctx-icon .icon-sm {
+  filter: brightness(0) invert(1);
+  opacity: 0.8;
+}
+
+/* Call bar иконки */
+.call-bar-icon .icon-sm {
+  filter: brightness(0) saturate(100%) invert(76%) sepia(52%) saturate(1000%) hue-rotate(166deg) brightness(101%) contrast(96%);
+}
+
+/* Кнопки формы сообщений */
+.attach-btn .icon,
+.emoji-btn .icon {
+  filter: brightness(0) invert(0.6);
+}
+
+.attach-btn:hover .icon,
+.emoji-btn:hover .icon {
+  filter: brightness(0) saturate(100%) invert(76%) sepia(52%) saturate(1000%) hue-rotate(166deg) brightness(101%) contrast(96%);
+}
+
+.send-btn .icon {
+  filter: brightness(0) invert(1);
+}
+
+.send-btn:disabled .icon {
+  filter: brightness(0) invert(0.4);
+}
+
+/* Кнопка назад */
+.back-btn .icon {
+  filter: brightness(0) invert(1);
+}
+
+/* Настройки в карточке пользователя */
+.user-card-settings .icon {
+  filter: brightness(0) invert(0.7);
+}
+
+.user-card-settings:hover .icon {
+  filter: brightness(0) invert(1);
+}

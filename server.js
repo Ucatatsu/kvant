@@ -1416,6 +1416,8 @@ io.on('connection', async (socket) => {
     
     socket.on('call-user', async (data) => {
         const { to, offer, isVideo } = data;
+        console.log(`📞 call-user: ${userId} -> ${to}, video: ${isVideo}`);
+        
         const receiverData = onlineUsers.get(to);
         
         const callId = `${userId}-${to}-${Date.now()}`;
@@ -1429,7 +1431,7 @@ io.on('connection', async (socket) => {
         });
         
         if (receiverData && receiverData.sockets.size > 0) {
-            // Отправляем на все устройства получателя
+            console.log(`📞 Получатель онлайн, отправляем incoming-call`);
             emitToUser(to, 'incoming-call', { 
                 from: userId, 
                 fromName: socket.user.username, 
@@ -1439,7 +1441,7 @@ io.on('connection', async (socket) => {
             });
             socket.emit('call-initiated', { callId });
         } else {
-            // Пользователь оффлайн - отправляем push-уведомление о звонке
+            console.log(`📞 Получатель оффлайн, отправляем push`);
             const callType = isVideo ? 'Видеозвонок' : 'Звонок';
             sendPushNotification(to, {
                 title: `📞 ${callType} от ${socket.user.username}`,
@@ -1459,13 +1461,12 @@ io.on('connection', async (socket) => {
                 ]
             });
             
-            // Даём время на получение push и открытие приложения
             socket.emit('call-initiated', { callId, waitingForUser: true });
             
-            // Автоматически завершаем звонок через 30 секунд если не ответили
             setTimeout(() => {
                 const call = activeCalls.get(callId);
                 if (call && !call.startTime) {
+                    console.log(`📞 Звонок ${callId} не отвечен, удаляем`);
                     activeCalls.delete(callId);
                     socket.emit('call-failed', { reason: 'Пользователь не ответил', callId });
                 }
@@ -1475,11 +1476,12 @@ io.on('connection', async (socket) => {
 
     socket.on('call-answer', async (data) => {
         const { to, answer, callId } = data;
+        console.log(`📞 call-answer: ${userId} -> ${to}, callId: ${callId}`);
         
         const call = activeCalls.get(callId);
         if (call) {
             call.startTime = Date.now();
-            call.answeredBy = socket.id; // Запоминаем кто ответил
+            call.answeredBy = socket.id;
             activeCalls.set(callId, call);
         }
         emitToUser(to, 'call-answered', { answer, callId });
@@ -1487,6 +1489,7 @@ io.on('connection', async (socket) => {
 
     socket.on('call-decline', (data) => {
         const { to, callId } = data;
+        console.log(`📞 call-decline: ${userId} -> ${to}, callId: ${callId}`);
         emitToUser(to, 'call-declined', { callId });
         if (callId) activeCalls.delete(callId);
     });

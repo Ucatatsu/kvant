@@ -1,7 +1,7 @@
 // === КВАНТ - SERVICE WORKER ===
 
-const CACHE_NAME = 'kvant-v3';
-const APP_VERSION = '1.0.1'; // Увеличивай при каждом обновлении
+const CACHE_NAME = 'kvant-v4';
+const APP_VERSION = '1.5.1'; // Увеличивай при каждом обновлении
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -9,7 +9,30 @@ const STATIC_ASSETS = [
     '/app.js',
     '/icon.png',
     '/background.jpg',
-    '/loading.html'
+    '/loading.html',
+    // SVG иконки
+    '/assets/arrow-left.svg',
+    '/assets/phone-call.svg',
+    '/assets/phone-off.svg',
+    '/assets/video.svg',
+    '/assets/video-off.svg',
+    '/assets/microphone.svg',
+    '/assets/Block-microphone.svg',
+    '/assets/camera.svg',
+    '/assets/camera-off.svg',
+    '/assets/screen-share.svg',
+    '/assets/screen-share-off.svg',
+    '/assets/send.svg',
+    '/assets/Clip.svg',
+    '/assets/emoji.svg',
+    '/assets/settings.svg',
+    '/assets/profile.svg',
+    '/assets/edit.svg',
+    '/assets/trash.svg',
+    '/assets/bell.svg',
+    '/assets/cross.svg',
+    '/assets/Expand.svg',
+    '/assets/menu dots vertical.svg'
 ];
 
 // Установка - кэширование статических ресурсов
