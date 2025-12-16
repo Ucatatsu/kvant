@@ -1658,14 +1658,9 @@ io.on('connection', async (socket) => {
                 return socket.emit('error', { message: 'Слишком много сообщений, подождите' });
             }
             
-            const { text, messageType = 'text', selfDestructMinutes = null } = data;
-            // Приводим receiverId к числу для корректной работы с Map
-            const receiverId = parseInt(data.receiverId, 10);
+            const { receiverId, text, messageType = 'text', selfDestructMinutes = null } = data;
             
-            console.log(`📨 send-message: from=${userId} (${typeof userId}), to=${receiverId} (${typeof receiverId}), text="${text?.substring(0, 20)}..."`);
-            
-            if (!receiverId || isNaN(receiverId) || !text || typeof text !== 'string') {
-                console.log(`📨 Validation failed: receiverId=${receiverId}, text type=${typeof text}`);
+            if (!receiverId || !text || typeof text !== 'string') {
                 return socket.emit('error', { message: 'Неверные данные' });
             }
             
@@ -1711,16 +1706,14 @@ io.on('connection', async (socket) => {
 
     // Индикатор печати
     socket.on('typing-start', (data) => {
-        const receiverId = parseInt(data.receiverId, 10);
-        if (receiverId && !isNaN(receiverId)) {
-            emitToUser(receiverId, 'user-typing', { userId, typing: true });
+        if (data.receiverId) {
+            emitToUser(data.receiverId, 'user-typing', { userId, typing: true });
         }
     });
 
     socket.on('typing-stop', (data) => {
-        const receiverId = parseInt(data.receiverId, 10);
-        if (receiverId && !isNaN(receiverId)) {
-            emitToUser(receiverId, 'user-typing', { userId, typing: false });
+        if (data.receiverId) {
+            emitToUser(data.receiverId, 'user-typing', { userId, typing: false });
         }
     });
 
@@ -1728,9 +1721,8 @@ io.on('connection', async (socket) => {
     
     socket.on('edit-message', async (data) => {
         try {
-            const { messageId, text } = data;
-            const receiverId = parseInt(data.receiverId, 10);
-            if (!messageId || !text || !receiverId || isNaN(receiverId)) return;
+            const { messageId, text, receiverId } = data;
+            if (!messageId || !text || !receiverId) return;
             
             const result = await db.editMessage(messageId, userId, text.trim().substring(0, 5000));
             if (result.success) {
@@ -1745,8 +1737,7 @@ io.on('connection', async (socket) => {
     
     socket.on('delete-message', async (data) => {
         try {
-            const { messageId, deleteForAll = false } = data;
-            const receiverId = parseInt(data.receiverId, 10);
+            const { messageId, receiverId, deleteForAll = false } = data;
             if (!messageId) return;
             
             // Проверяем Premium+ для "удалить у всех"
@@ -1761,7 +1752,7 @@ io.on('connection', async (socket) => {
                 const deleteData = { messageId, deleteForAll: canDeleteForAll };
                 emitToUser(userId, 'message-deleted', deleteData);
                 // Отправляем получателю только если "удалить у всех"
-                if (canDeleteForAll && receiverId && !isNaN(receiverId)) {
+                if (canDeleteForAll && receiverId) {
                     emitToUser(receiverId, 'message-deleted', deleteData);
                 }
             }
@@ -1774,9 +1765,8 @@ io.on('connection', async (socket) => {
     
     socket.on('add-reaction', async (data) => {
         try {
-            const { messageId, emoji } = data;
-            const receiverId = parseInt(data.receiverId, 10);
-            if (!messageId || !emoji || !receiverId || isNaN(receiverId)) return;
+            const { messageId, emoji, receiverId } = data;
+            if (!messageId || !emoji || !receiverId) return;
             
             await db.addReaction(messageId, userId, emoji);
             const reaction = { messageId, odataId: userId, emoji };
@@ -1789,9 +1779,8 @@ io.on('connection', async (socket) => {
     
     socket.on('remove-reaction', async (data) => {
         try {
-            const { messageId, emoji } = data;
-            const receiverId = parseInt(data.receiverId, 10);
-            if (!messageId || !emoji || !receiverId || isNaN(receiverId)) return;
+            const { messageId, emoji, receiverId } = data;
+            if (!messageId || !emoji || !receiverId) return;
             
             await db.removeReaction(messageId, userId, emoji);
             const reaction = { messageId, odataId: userId, emoji };
@@ -1910,11 +1899,10 @@ io.on('connection', async (socket) => {
             return socket.emit('error', { message: 'Слишком много звонков, подождите' });
         }
         
-        const { offer, isVideo } = data;
-        const to = parseInt(data.to, 10);
+        const { to, offer, isVideo } = data;
         
         // Проверяем что получатель существует
-        if (!to || isNaN(to)) {
+        if (!to) {
             return socket.emit('call-failed', { reason: 'Неверный получатель' });
         }
         
@@ -1982,8 +1970,7 @@ io.on('connection', async (socket) => {
     });
 
     socket.on('call-answer', async (data) => {
-        const { answer, callId } = data;
-        const to = parseInt(data.to, 10);
+        const { to, answer, callId } = data;
         console.log(`📞 call-answer: ${userId} -> ${to}, callId: ${callId}`);
         
         const call = activeCalls.get(callId);
@@ -1992,24 +1979,22 @@ io.on('connection', async (socket) => {
             call.answeredBy = socket.id;
             activeCalls.set(callId, call);
         }
-        if (to && !isNaN(to)) {
+        if (to) {
             emitToUser(to, 'call-answered', { answer, callId });
         }
     });
 
     socket.on('call-decline', (data) => {
-        const { callId } = data;
-        const to = parseInt(data.to, 10);
+        const { to, callId } = data;
         console.log(`📞 call-decline: ${userId} -> ${to}, callId: ${callId}`);
-        if (to && !isNaN(to)) {
+        if (to) {
             emitToUser(to, 'call-declined', { callId });
         }
         if (callId) activeCalls.delete(callId);
     });
 
     socket.on('call-end', async (data) => {
-        const { callId } = data;
-        const to = parseInt(data.to, 10);
+        const { to, callId } = data;
         
         const call = activeCalls.get(callId);
         if (call && call.startTime) {
@@ -2028,7 +2013,7 @@ io.on('connection', async (socket) => {
             }
         }
         
-        if (to && !isNaN(to)) {
+        if (to) {
             emitToUser(to, 'call-ended', { callId });
         }
         
@@ -2036,40 +2021,37 @@ io.on('connection', async (socket) => {
     });
 
     socket.on('ice-candidate', (data) => {
-        const { candidate } = data;
-        const to = parseInt(data.to, 10);
-        if (to && !isNaN(to)) {
+        const { to, candidate } = data;
+        if (to) {
             emitToUser(to, 'ice-candidate', { candidate });
         }
     });
 
     socket.on('video-renegotiate', (data) => {
-        const { offer } = data;
-        const to = parseInt(data.to, 10);
-        if (to && !isNaN(to)) {
+        const { to, offer } = data;
+        if (to) {
             emitToUser(to, 'video-renegotiate', { offer });
         }
     });
 
     socket.on('video-renegotiate-answer', (data) => {
-        const { answer } = data;
-        const to = parseInt(data.to, 10);
-        if (to && !isNaN(to)) {
+        const { to, answer } = data;
+        if (to) {
             emitToUser(to, 'video-renegotiate-answer', { answer });
         }
     });
 
     // Уведомление о демонстрации экрана
     socket.on('screen-share-started', (data) => {
-        const to = parseInt(data.to, 10);
-        if (to && !isNaN(to)) {
+        const { to } = data;
+        if (to) {
             emitToUser(to, 'screen-share-started', { from: userId });
         }
     });
 
     socket.on('screen-share-stopped', (data) => {
-        const to = parseInt(data.to, 10);
-        if (to && !isNaN(to)) {
+        const { to } = data;
+        if (to) {
             emitToUser(to, 'screen-share-stopped', { from: userId });
         }
     });
