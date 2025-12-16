@@ -1595,24 +1595,22 @@ function disconnectVoiceChannel() {
 }
 
 function initVoiceConnectionPill() {
-    // Кнопка отключения
+    // Кнопка отключения в voice pill
     document.getElementById('voice-pill-disconnect')?.addEventListener('click', disconnectVoiceChannel);
     
-    // Кнопка мута микрофона
-    document.getElementById('voice-pill-mute')?.addEventListener('click', toggleVoiceMute);
-    
-    // Кнопка отключения звука (deafen)
-    document.getElementById('voice-pill-deafen')?.addEventListener('click', toggleVoiceDeafen);
+    // Кнопки мута/deafen в сайдбаре
+    document.getElementById('panel-mute-btn')?.addEventListener('click', toggleVoiceMute);
+    document.getElementById('panel-deafen-btn')?.addEventListener('click', toggleVoiceDeafen);
 }
 
 function toggleVoiceMute() {
-    if (!state.voiceConnection) return;
+    // Работает даже без активного голосового подключения (для будущих звонков)
+    state.micMuted = !state.micMuted;
     
-    state.voiceConnection.muted = !state.voiceConnection.muted;
-    const btn = document.getElementById('voice-pill-mute');
+    const btn = document.getElementById('panel-mute-btn');
     const icon = btn?.querySelector('img');
     
-    if (state.voiceConnection.muted) {
+    if (state.micMuted) {
         btn?.classList.add('muted');
         if (icon) icon.src = '/assets/Block-microphone.svg';
         showToast('Микрофон выключен');
@@ -1622,36 +1620,55 @@ function toggleVoiceMute() {
         showToast('Микрофон включён');
     }
     
-    // TODO: Реальное отключение микрофона через WebRTC
-    state.socket?.emit('voice-mute', { 
-        channelId: state.voiceConnection.channelId, 
-        muted: state.voiceConnection.muted 
-    });
+    // Если есть активное подключение — отправляем на сервер
+    if (state.voiceConnection) {
+        state.socket?.emit('voice-mute', { 
+            channelId: state.voiceConnection.channelId, 
+            muted: state.micMuted 
+        });
+    }
 }
 
 function toggleVoiceDeafen() {
-    if (!state.voiceConnection) return;
+    state.deafened = !state.deafened;
     
-    state.voiceConnection.deafened = !state.voiceConnection.deafened;
-    const btn = document.getElementById('voice-pill-deafen');
+    const btn = document.getElementById('panel-deafen-btn');
+    const muteBtn = document.getElementById('panel-mute-btn');
+    const muteIcon = muteBtn?.querySelector('img');
     
-    if (state.voiceConnection.deafened) {
+    if (state.deafened) {
         btn?.classList.add('muted');
         showToast('Звук выключен');
-        // Если deafen, то и мут тоже
-        if (!state.voiceConnection.muted) {
-            toggleVoiceMute();
+        
+        // Запоминаем был ли микрофон выключен ДО deafen
+        state.mutedBeforeDeafen = state.micMuted;
+        
+        // Если deafen — мутим микрофон тоже (если ещё не замучен)
+        if (!state.micMuted) {
+            state.micMuted = true;
+            muteBtn?.classList.add('muted');
+            if (muteIcon) muteIcon.src = '/assets/Block-microphone.svg';
         }
     } else {
         btn?.classList.remove('muted');
         showToast('Звук включён');
+        
+        // Если микрофон был выключен только из-за deafen — включаем обратно
+        if (!state.mutedBeforeDeafen && state.micMuted) {
+            state.micMuted = false;
+            muteBtn?.classList.remove('muted');
+            if (muteIcon) muteIcon.src = '/assets/microphone.svg';
+        }
     }
     
-    // TODO: Реальное отключение звука
-    state.socket?.emit('voice-deafen', { 
-        channelId: state.voiceConnection.channelId, 
-        deafened: state.voiceConnection.deafened 
-    });
+    // Если есть активное подключение — отправляем на сервер
+    if (state.voiceConnection) {
+        state.socket?.emit('voice-deafen', { 
+            channelId: state.voiceConnection.channelId, 
+            deafened: state.deafened,
+            muted: state.micMuted
+        });
+    }
 }
 
 function updateChatHeader(name, subtitle, avatarUrl) {

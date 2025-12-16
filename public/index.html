@@ -198,6 +198,14 @@
             <span class="status-text">В сети</span>
           </span>
         </div>
+        <div class="user-panel-actions">
+          <button class="panel-action-btn" id="panel-mute-btn" title="Выключить микрофон">
+            <img src="/assets/microphone.svg" alt="" class="icon">
+          </button>
+          <button class="panel-action-btn" id="panel-deafen-btn" title="Выключить звук">
+            <img src="/assets/bell.svg" alt="" class="icon">
+          </button>
+        </div>
       </div>
       
       <!-- Popup карточка профиля -->
@@ -256,17 +264,9 @@
           <span class="voice-pill-name" id="voice-pill-name">Общий</span>
           <span class="voice-pill-status" id="voice-pill-status">Подключение...</span>
         </div>
-        <div class="voice-pill-actions">
-          <button class="voice-pill-btn" id="voice-pill-mute" title="Выключить микрофон">
-            <img src="/assets/microphone.svg" alt="" class="icon">
-          </button>
-          <button class="voice-pill-btn" id="voice-pill-deafen" title="Выключить звук">
-            <img src="/assets/bell.svg" alt="" class="icon">
-          </button>
-          <button class="voice-pill-btn voice-pill-disconnect" id="voice-pill-disconnect" title="Отключиться">
-            <img src="/assets/phone-off.svg" alt="" class="icon">
-          </button>
-        </div>
+        <button class="voice-pill-disconnect" id="voice-pill-disconnect" title="Отключиться">
+          <img src="/assets/phone-off.svg" alt="" class="icon">
+        </button>
       </div>
       
       <!-- Pill-контейнер по центру -->
