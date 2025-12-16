@@ -1597,6 +1597,61 @@ function disconnectVoiceChannel() {
 function initVoiceConnectionPill() {
     // Кнопка отключения
     document.getElementById('voice-pill-disconnect')?.addEventListener('click', disconnectVoiceChannel);
+    
+    // Кнопка мута микрофона
+    document.getElementById('voice-pill-mute')?.addEventListener('click', toggleVoiceMute);
+    
+    // Кнопка отключения звука (deafen)
+    document.getElementById('voice-pill-deafen')?.addEventListener('click', toggleVoiceDeafen);
+}
+
+function toggleVoiceMute() {
+    if (!state.voiceConnection) return;
+    
+    state.voiceConnection.muted = !state.voiceConnection.muted;
+    const btn = document.getElementById('voice-pill-mute');
+    const icon = btn?.querySelector('img');
+    
+    if (state.voiceConnection.muted) {
+        btn?.classList.add('muted');
+        if (icon) icon.src = '/assets/Block-microphone.svg';
+        showToast('Микрофон выключен');
+    } else {
+        btn?.classList.remove('muted');
+        if (icon) icon.src = '/assets/microphone.svg';
+        showToast('Микрофон включён');
+    }
+    
+    // TODO: Реальное отключение микрофона через WebRTC
+    state.socket?.emit('voice-mute', { 
+        channelId: state.voiceConnection.channelId, 
+        muted: state.voiceConnection.muted 
+    });
+}
+
+function toggleVoiceDeafen() {
+    if (!state.voiceConnection) return;
+    
+    state.voiceConnection.deafened = !state.voiceConnection.deafened;
+    const btn = document.getElementById('voice-pill-deafen');
+    
+    if (state.voiceConnection.deafened) {
+        btn?.classList.add('muted');
+        showToast('Звук выключен');
+        // Если deafen, то и мут тоже
+        if (!state.voiceConnection.muted) {
+            toggleVoiceMute();
+        }
+    } else {
+        btn?.classList.remove('muted');
+        showToast('Звук включён');
+    }
+    
+    // TODO: Реальное отключение звука
+    state.socket?.emit('voice-deafen', { 
+        channelId: state.voiceConnection.channelId, 
+        deafened: state.voiceConnection.deafened 
+    });
 }
 
 function updateChatHeader(name, subtitle, avatarUrl) {
