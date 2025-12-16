@@ -1386,14 +1386,14 @@ async function selectServerChannel(channelId) {
         document.querySelectorAll('.server-channel-item').forEach(i => i.classList.remove('in-voice'));
         document.querySelector(`[data-channel-id="${channelId}"]`)?.classList.add('in-voice');
         
-        // Показываем voice connection bar
-        showVoiceConnectionBar();
+        // Показываем voice connection pill
+        showVoiceConnectionPill();
         
         // Имитируем подключение (TODO: реальный WebRTC)
         setTimeout(() => {
             if (state.voiceConnection?.channelId === channelId) {
                 state.voiceConnection.status = 'connected';
-                updateVoiceConnectionBar();
+                updateVoiceConnectionPill();
             }
         }, 1500);
         
@@ -1485,30 +1485,30 @@ function hideServerChannelsPanel() {
     document.querySelector('.send-btn').disabled = true;
 }
 
-// === VOICE CONNECTION BAR ===
-function showVoiceConnectionBar() {
-    const bar = document.getElementById('voice-connection-bar');
-    if (!bar || !state.voiceConnection) return;
+// === VOICE CONNECTION PILL (in header) ===
+function showVoiceConnectionPill() {
+    const pill = document.getElementById('voice-connection-pill');
+    if (!pill || !state.voiceConnection) return;
     
     // Сначала убираем hidden и добавляем connecting
-    bar.classList.remove('hidden');
-    bar.classList.add('connecting');
+    pill.classList.remove('hidden');
+    pill.classList.add('connecting');
     
     // Небольшая задержка для запуска анимации
     requestAnimationFrame(() => {
-        bar.classList.add('visible');
+        pill.classList.add('visible');
     });
     
-    updateVoiceConnectionBar();
+    updateVoiceConnectionPill();
 }
 
-function updateVoiceConnectionBar() {
-    const bar = document.getElementById('voice-connection-bar');
-    if (!bar || !state.voiceConnection) return;
+function updateVoiceConnectionPill() {
+    const pill = document.getElementById('voice-connection-pill');
+    if (!pill || !state.voiceConnection) return;
     
-    const avatarEl = document.getElementById('voice-connection-avatar');
-    const nameEl = document.getElementById('voice-connection-name');
-    const statusEl = document.getElementById('voice-connection-status');
+    const avatarEl = document.getElementById('voice-pill-avatar');
+    const nameEl = document.getElementById('voice-pill-name');
+    const statusEl = document.getElementById('voice-pill-status');
     
     const vc = state.voiceConnection;
     
@@ -1529,36 +1529,34 @@ function updateVoiceConnectionBar() {
     // Название
     if (nameEl) {
         if (vc.type === 'server') {
-            nameEl.textContent = `🔊 ${vc.channelName}`;
+            nameEl.textContent = vc.channelName;
         } else {
-            nameEl.textContent = `📞 ${vc.userName || 'Звонок'}`;
+            nameEl.textContent = vc.userName || 'Звонок';
         }
     }
     
     // Статус
     if (statusEl) {
-        statusEl.className = 'voice-connection-status';
-        const bar = document.getElementById('voice-connection-bar');
+        statusEl.className = 'voice-pill-status';
         
-        // Убираем старые классы статуса с бара
-        bar?.classList.remove('connecting', 'connected');
+        // Убираем старые классы статуса с pill
+        pill.classList.remove('connecting', 'connected');
         
         switch (vc.status) {
             case 'connecting':
                 statusEl.textContent = 'Подключение...';
                 statusEl.classList.add('connecting');
-                bar?.classList.add('connecting');
+                pill.classList.add('connecting');
                 break;
             case 'connected':
                 statusEl.textContent = 'Подключено';
                 statusEl.classList.add('connected');
-                bar?.classList.remove('connecting');
-                bar?.classList.add('connected');
+                pill.classList.add('connected');
                 break;
             case 'reconnecting':
                 statusEl.textContent = 'Переподключение...';
                 statusEl.classList.add('connecting');
-                bar?.classList.add('connecting');
+                pill.classList.add('connecting');
                 break;
             default:
                 statusEl.textContent = vc.status || '';
@@ -1566,13 +1564,13 @@ function updateVoiceConnectionBar() {
     }
 }
 
-function hideVoiceConnectionBar() {
-    const bar = document.getElementById('voice-connection-bar');
-    if (!bar) return;
+function hideVoiceConnectionPill() {
+    const pill = document.getElementById('voice-connection-pill');
+    if (!pill) return;
     
     // Анимация скрытия
-    bar.classList.remove('visible', 'connecting', 'connected');
-    bar.classList.add('hidden');
+    pill.classList.remove('visible', 'connecting', 'connected');
+    pill.classList.add('hidden');
 }
 
 function disconnectVoiceChannel() {
@@ -1593,20 +1591,12 @@ function disconnectVoiceChannel() {
     }
     
     state.voiceConnection = null;
-    hideVoiceConnectionBar();
+    hideVoiceConnectionPill();
 }
 
-function initVoiceConnectionBar() {
+function initVoiceConnectionPill() {
     // Кнопка отключения
-    document.getElementById('voice-disconnect-btn')?.addEventListener('click', disconnectVoiceChannel);
-    
-    // Кнопка мута микрофона
-    document.getElementById('voice-mute-btn')?.addEventListener('click', () => {
-        const btn = document.getElementById('voice-mute-btn');
-        btn?.classList.toggle('muted');
-        state.voiceMuted = btn?.classList.contains('muted');
-        // TODO: Реально замутить микрофон в WebRTC
-    });
+    document.getElementById('voice-pill-disconnect')?.addEventListener('click', disconnectVoiceChannel);
 }
 
 function updateChatHeader(name, subtitle, avatarUrl) {
@@ -5690,7 +5680,7 @@ function updateChatHeaderAvatar() {
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', () => {
     initSidebarResizer();
-    initVoiceConnectionBar();
+    initVoiceConnectionPill();
     
     // Обработчики для кнопок в хедере (звонки)
     document.querySelectorAll('.header-action-btn').forEach((btn, index) => {

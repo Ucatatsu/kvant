@@ -11306,120 +11306,112 @@ select option {
   color: var(--online);
 }
 
-/* === VOICE CONNECTION BAR (Dynamic Island style) === */
-.voice-connection-bar {
+/* === VOICE CONNECTION PILL (Dynamic Island style in header) === */
+.voice-connection-pill {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 12px;
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05));
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  border-radius: 16px;
-  margin: 0 8px 8px 8px;
-  flex-shrink: 0;
-  overflow: hidden;
+  gap: 10px;
+  padding: 6px 8px 6px 6px;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0.1));
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  border-radius: 50px;
+  backdrop-filter: blur(20px);
+  margin-right: 12px;
   /* Dynamic Island animation */
-  height: 0;
+  max-width: 0;
   opacity: 0;
-  transform: scaleX(0.3) scaleY(0);
-  transform-origin: center bottom;
+  transform: scaleX(0);
+  transform-origin: right center;
+  overflow: hidden;
   transition: 
-    height 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+    max-width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
     opacity 0.3s ease,
     transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
     padding 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
     margin 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.voice-connection-bar.visible {
-  height: 52px;
-  padding: 8px 12px;
+.voice-connection-pill.visible {
+  max-width: 250px;
   opacity: 1;
-  transform: scaleX(1) scaleY(1);
+  transform: scaleX(1);
 }
 
-.voice-connection-bar.hidden {
-  height: 0;
-  padding: 0 12px;
-  margin: 0 8px;
+.voice-connection-pill.hidden {
+  max-width: 0;
+  padding: 6px 0;
+  margin-right: 0;
   opacity: 0;
-  transform: scaleX(0.3) scaleY(0);
+  transform: scaleX(0);
   pointer-events: none;
 }
 
 /* Pulse animation when connecting */
-.voice-connection-bar.connecting {
-  animation: voicePulse 1.5s ease-in-out infinite;
+.voice-connection-pill.connecting {
+  animation: voicePillPulse 1.5s ease-in-out infinite;
 }
 
-@keyframes voicePulse {
+@keyframes voicePillPulse {
   0%, 100% {
     box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+    box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
   }
 }
 
 /* Connected glow */
-.voice-connection-bar.connected {
-  box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+.voice-connection-pill.connected {
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
 }
 
-.voice-connection-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
-
-.voice-connection-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: var(--message-sent);
+.voice-pill-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.2);
   background-size: cover;
   background-position: center;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
-  font-weight: 600;
   flex-shrink: 0;
 }
 
-.voice-connection-details {
+.voice-pill-info {
   display: flex;
   flex-direction: column;
-  min-width: 0;
+  min-width: 60px;
 }
 
-.voice-connection-name {
-  font-size: 13px;
+.voice-pill-name {
+  font-size: 12px;
   font-weight: 600;
   color: var(--online);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100px;
 }
 
-.voice-connection-status {
-  font-size: 11px;
+.voice-pill-status {
+  font-size: 10px;
   color: var(--text-muted);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  white-space: nowrap;
 }
 
-.voice-connection-status.connected {
+.voice-pill-status.connected {
   color: var(--online);
 }
 
-.voice-connection-status.connected::before {
+.voice-pill-status.connected::before {
   content: '';
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   background: var(--online);
   border-radius: 50%;
   animation: statusPulse 2s ease-in-out infinite;
@@ -11430,14 +11422,14 @@ select option {
   50% { opacity: 0.5; transform: scale(0.8); }
 }
 
-.voice-connection-status.connecting {
+.voice-pill-status.connecting {
   color: #f59e0b;
 }
 
-.voice-connection-status.connecting::before {
+.voice-pill-status.connecting::before {
   content: '';
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   background: #f59e0b;
   border-radius: 50%;
   animation: connectingBlink 0.8s ease-in-out infinite;
@@ -11448,51 +11440,28 @@ select option {
   50% { opacity: 0.3; }
 }
 
-.voice-connection-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.voice-action-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
+.voice-pill-disconnect {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.2);
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
-.voice-action-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.voice-action-btn.muted {
-  background: rgba(239, 68, 68, 0.2);
-}
-
-.voice-action-btn.muted .icon {
-  filter: brightness(0) saturate(100%) invert(40%) sepia(90%) saturate(2000%) hue-rotate(340deg);
-}
-
-.voice-action-btn .icon {
-  width: 18px;
-  height: 18px;
-  filter: brightness(0) invert(0.8);
-}
-
-.voice-disconnect-btn {
-  background: rgba(239, 68, 68, 0.2);
-}
-
-.voice-disconnect-btn:hover {
+.voice-pill-disconnect:hover {
   background: rgba(239, 68, 68, 0.4);
+  transform: scale(1.1);
 }
 
-.voice-disconnect-btn .icon {
+.voice-pill-disconnect .icon {
+  width: 16px;
+  height: 16px;
   filter: brightness(0) saturate(100%) invert(40%) sepia(90%) saturate(2000%) hue-rotate(340deg);
 }
 

@@ -189,25 +189,6 @@
         </div>
       </div>
       
-      <!-- Voice Connection Bar -->
-      <div class="voice-connection-bar hidden" id="voice-connection-bar">
-        <div class="voice-connection-info">
-          <div class="voice-connection-avatar" id="voice-connection-avatar"></div>
-          <div class="voice-connection-details">
-            <div class="voice-connection-name" id="voice-connection-name">🔊 Общий</div>
-            <div class="voice-connection-status" id="voice-connection-status">Подключено</div>
-          </div>
-        </div>
-        <div class="voice-connection-actions">
-          <button class="voice-action-btn" id="voice-mute-btn" title="Микрофон">
-            <img src="/assets/microphone.svg" alt="" class="icon">
-          </button>
-          <button class="voice-action-btn voice-disconnect-btn" id="voice-disconnect-btn" title="Отключиться">
-            <img src="/assets/phone-off.svg" alt="" class="icon">
-          </button>
-        </div>
-      </div>
-      
       <div class="sidebar-footer" id="user-panel" role="button" tabindex="0" aria-label="Открыть карточку профиля">
         <div class="current-user-avatar" id="current-user-avatar"></div>
         <div class="current-user-details">
@@ -216,14 +197,6 @@
             <span class="status-dot online"></span>
             <span class="status-text">В сети</span>
           </span>
-        </div>
-        <div class="user-panel-actions">
-          <button class="panel-action-btn" id="panel-mic-btn" title="Микрофон" aria-label="Микрофон">
-            <img src="/assets/microphone.svg" alt="" class="icon">
-          </button>
-          <button class="panel-action-btn" id="panel-cam-btn" title="Камера" aria-label="Камера">
-            <img src="/assets/camera.svg" alt="" class="icon">
-          </button>
         </div>
       </div>
       
@@ -275,6 +248,18 @@
       <button class="back-btn" id="back-btn" aria-label="Назад к списку чатов">
         <img src="/assets/arrow-left.svg" alt="" class="icon">
       </button>
+      
+      <!-- Voice Connection Pill (слева от основного) -->
+      <div class="voice-connection-pill hidden" id="voice-connection-pill">
+        <div class="voice-pill-avatar" id="voice-pill-avatar">🔊</div>
+        <div class="voice-pill-info">
+          <span class="voice-pill-name" id="voice-pill-name">Общий</span>
+          <span class="voice-pill-status" id="voice-pill-status">Подключение...</span>
+        </div>
+        <button class="voice-pill-disconnect" id="voice-pill-disconnect" title="Отключиться">
+          <img src="/assets/phone-off.svg" alt="" class="icon">
+        </button>
+      </div>
       
       <!-- Pill-контейнер по центру -->
       <div class="chat-header-pill" id="chat-user-info-btn" role="button" tabindex="0" 
