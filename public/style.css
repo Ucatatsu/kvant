@@ -10631,14 +10631,23 @@ input[type="range"]:focus::-moz-range-thumb {
   flex: 0 0 100%;
   display: flex;
   flex-direction: column;
-  background: transparent;
+  background: var(--bg-dark);
   transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
   transform: translateX(0);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Когда открыта панель сервера - показываем её */
+.sidebar-lists-container.server-open .server-channels-panel {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* По умолчанию панель справа за пределами видимости */
 .sidebar-lists-container:not(.server-open) .server-channels-panel {
   pointer-events: none;
+  opacity: 0;
 }
 
 .server-panel-header {
@@ -10843,6 +10852,35 @@ input[type="range"]:focus::-moz-range-thumb {
   text-overflow: ellipsis;
 }
 
+/* Кнопка настроек канала */
+.server-channel-settings {
+  opacity: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s, background 0.2s;
+}
+
+.server-channel-item:hover .server-channel-settings {
+  opacity: 0.6;
+}
+
+.server-channel-settings:hover {
+  opacity: 1 !important;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.server-channel-settings .icon-xs {
+  width: 14px;
+  height: 14px;
+  filter: brightness(0) invert(0.7);
+}
+
 .server-channel-unread {
   background: var(--accent);
   color: var(--bg-darkest);
@@ -10852,6 +10890,79 @@ input[type="range"]:focus::-moz-range-thumb {
   border-radius: 10px;
   min-width: 18px;
   text-align: center;
+}
+
+/* Кнопка добавления канала в категорию */
+.server-category-add {
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.server-category-header:hover .server-category-add {
+  opacity: 0.6;
+}
+
+.server-category-add:hover {
+  opacity: 1 !important;
+}
+
+.server-category-add .icon-xs {
+  width: 14px;
+  height: 14px;
+  filter: brightness(0) invert(1);
+}
+
+.server-category-name {
+  flex: 1;
+}
+
+/* Контекстное меню для каналов сервера */
+.server-channel-context-menu,
+.server-list-context-menu {
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.context-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 0;
+}
+
+.server-channel-context-menu .context-menu-item .icon-sm,
+.server-list-context-menu .context-menu-item .icon-sm,
+.server-category-context-menu .context-menu-item .icon-sm {
+  width: 16px;
+  height: 16px;
+  margin-right: 10px;
+  filter: brightness(0) invert(0.8);
+}
+
+.server-channel-context-menu .context-menu-item.danger .icon-sm,
+.server-list-context-menu .context-menu-item.danger .icon-sm,
+.server-category-context-menu .context-menu-item.danger .icon-sm {
+  filter: brightness(0) saturate(100%) invert(40%) sepia(90%) saturate(2000%) hue-rotate(340deg);
+}
+
+.server-category-context-menu {
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 /* Channel type selector */

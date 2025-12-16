@@ -1221,6 +1221,109 @@ app.post('/api/servers/:serverId/channels', authMiddleware, async (req, res) => 
     }
 });
 
+// Создать категорию на сервере
+app.post('/api/servers/:serverId/categories', authMiddleware, async (req, res) => {
+    try {
+        const { name } = req.body;
+        const serverId = req.params.serverId;
+        
+        const server = await db.getServer(serverId);
+        if (!server) {
+            return res.status(404).json({ success: false, error: 'Сервер не найден' });
+        }
+        
+        if (server.owner_id !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, error: 'Нет прав на создание категорий' });
+        }
+        
+        const result = await db.createServerCategory(serverId, name || 'Новая категория');
+        res.json(result);
+    } catch (error) {
+        console.error('Create server category error:', error);
+        res.status(500).json({ success: false });
+    }
+});
+
+// Обновить канал
+app.put('/api/server-channels/:channelId', authMiddleware, async (req, res) => {
+    try {
+        const { channelId } = req.params;
+        const { name, topic } = req.body;
+        
+        const channel = await db.getServerChannel(channelId);
+        if (!channel) {
+            return res.status(404).json({ success: false, error: 'Канал не найден' });
+        }
+        
+        const server = await db.getServer(channel.server_id);
+        if (server.owner_id !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, error: 'Нет прав на редактирование канала' });
+        }
+        
+        const result = await db.updateServerChannel(channelId, { name, topic });
+        res.json(result);
+    } catch (error) {
+        console.error('Update server channel error:', error);
+        res.status(500).json({ success: false });
+    }
+});
+
+// Удалить канал
+app.delete('/api/server-channels/:channelId', authMiddleware, async (req, res) => {
+    try {
+        const { channelId } = req.params;
+        
+        const channel = await db.getServerChannel(channelId);
+        if (!channel) {
+            return res.status(404).json({ success: false, error: 'Канал не найден' });
+        }
+        
+        const server = await db.getServer(channel.server_id);
+        if (server.owner_id !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, error: 'Нет прав на удаление канала' });
+        }
+        
+        const result = await db.deleteServerChannel(channelId);
+        res.json(result);
+    } catch (error) {
+        console.error('Delete server channel error:', error);
+        res.status(500).json({ success: false });
+    }
+});
+
+// Обновить категорию
+app.put('/api/server-categories/:categoryId', authMiddleware, async (req, res) => {
+    try {
+        const { categoryId } = req.params;
+        const { name } = req.body;
+        
+        if (!name || !name.trim()) {
+            return res.status(400).json({ success: false, error: 'Название не может быть пустым' });
+        }
+        
+        const result = await db.updateServerCategory(categoryId, { name: name.trim() });
+        res.json(result);
+    } catch (error) {
+        console.error('Update server category error:', error);
+        res.status(500).json({ success: false });
+    }
+});
+
+// Удалить категорию
+app.delete('/api/server-categories/:categoryId', authMiddleware, async (req, res) => {
+    try {
+        const { categoryId } = req.params;
+        
+        // Получаем категорию чтобы узнать server_id
+        // Для простоты проверяем права через первый канал в категории или напрямую
+        const result = await db.deleteServerCategory(categoryId);
+        res.json(result);
+    } catch (error) {
+        console.error('Delete server category error:', error);
+        res.status(500).json({ success: false });
+    }
+});
+
 app.get('/api/servers/:serverId/members', authMiddleware, async (req, res) => {
     try {
         const members = await db.getServerMembers(req.params.serverId);

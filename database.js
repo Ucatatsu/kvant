@@ -1874,17 +1874,27 @@ async function createServer(ownerId, name, description = '', iconUrl = null) {
             const everyoneRoleId = uuidv4();
             sqlite.prepare('INSERT INTO server_roles (id, server_id, name, is_default, position) VALUES (?, ?, ?, 1, 0)').run(everyoneRoleId, id, '@everyone');
             sqlite.prepare('INSERT INTO server_members (id, server_id, user_id) VALUES (?, ?, ?)').run(uuidv4(), id, ownerId);
-            const categoryId = uuidv4();
-            sqlite.prepare('INSERT INTO server_categories (id, server_id, name, position) VALUES (?, ?, ?, 0)').run(categoryId, id, 'Текстовые каналы');
-            sqlite.prepare('INSERT INTO server_channels (id, server_id, category_id, name, type, position) VALUES (?, ?, ?, ?, ?, 0)').run(uuidv4(), id, categoryId, 'общий', 'text');
+            // Текстовые каналы
+            const textCategoryId = uuidv4();
+            sqlite.prepare('INSERT INTO server_categories (id, server_id, name, position) VALUES (?, ?, ?, 0)').run(textCategoryId, id, 'Текстовые каналы');
+            sqlite.prepare('INSERT INTO server_channels (id, server_id, category_id, name, type, position) VALUES (?, ?, ?, ?, ?, 0)').run(uuidv4(), id, textCategoryId, 'общий', 'text');
+            // Голосовые каналы
+            const voiceCategoryId = uuidv4();
+            sqlite.prepare('INSERT INTO server_categories (id, server_id, name, position) VALUES (?, ?, ?, 1)').run(voiceCategoryId, id, 'Голосовые каналы');
+            sqlite.prepare('INSERT INTO server_channels (id, server_id, category_id, name, type, position) VALUES (?, ?, ?, ?, ?, 0)').run(uuidv4(), id, voiceCategoryId, 'Общий', 'voice');
         } else {
             await pool.query('INSERT INTO servers (id, name, description, icon_url, owner_id, member_count, created_at) VALUES ($1, $2, $3, $4, $5, 1, $6)', [id, name, description, iconUrl, ownerId, created_at]);
             const everyoneRoleId = uuidv4();
             await pool.query('INSERT INTO server_roles (id, server_id, name, is_default, position) VALUES ($1, $2, $3, true, 0)', [everyoneRoleId, id, '@everyone']);
             await pool.query('INSERT INTO server_members (id, server_id, user_id) VALUES ($1, $2, $3)', [uuidv4(), id, ownerId]);
-            const categoryId = uuidv4();
-            await pool.query('INSERT INTO server_categories (id, server_id, name, position) VALUES ($1, $2, $3, 0)', [categoryId, id, 'Текстовые каналы']);
-            await pool.query('INSERT INTO server_channels (id, server_id, category_id, name, type, position) VALUES ($1, $2, $3, $4, $5, 0)', [uuidv4(), id, categoryId, 'общий', 'text']);
+            // Текстовые каналы
+            const textCategoryId = uuidv4();
+            await pool.query('INSERT INTO server_categories (id, server_id, name, position) VALUES ($1, $2, $3, 0)', [textCategoryId, id, 'Текстовые каналы']);
+            await pool.query('INSERT INTO server_channels (id, server_id, category_id, name, type, position) VALUES ($1, $2, $3, $4, $5, 0)', [uuidv4(), id, textCategoryId, 'общий', 'text']);
+            // Голосовые каналы
+            const voiceCategoryId = uuidv4();
+            await pool.query('INSERT INTO server_categories (id, server_id, name, position) VALUES ($1, $2, $3, 1)', [voiceCategoryId, id, 'Голосовые каналы']);
+            await pool.query('INSERT INTO server_channels (id, server_id, category_id, name, type, position) VALUES ($1, $2, $3, $4, $5, 0)', [uuidv4(), id, voiceCategoryId, 'Общий', 'voice']);
         }
         
         return { success: true, server: { id, name, description, icon_url: iconUrl, owner_id: ownerId, member_count: 1, created_at } };
@@ -2004,6 +2014,104 @@ async function createServerChannel(serverId, categoryId, name, type = 'text') {
     } catch (error) {
         console.error('Create server channel error:', error);
         return { success: false };
+    }
+}
+
+async function createServerCategory(serverId, name) {
+    try {
+        const id = uuidv4();
+        if (USE_SQLITE) {
+            const maxPos = sqlite.prepare('SELECT MAX(position) as max FROM server_categories WHERE server_id = ?').get(serverId);
+            const position = (maxPos?.max || 0) + 1;
+            sqlite.prepare('INSERT INTO server_categories (id, server_id, name, position) VALUES (?, ?, ?, ?)').run(id, serverId, name, position);
+        } else {
+            const maxPos = await pool.query('SELECT MAX(position) as max FROM server_categories WHERE server_id = $1', [serverId]);
+            const position = (maxPos.rows[0]?.max || 0) + 1;
+            await pool.query('INSERT INTO server_categories (id, server_id, name, position) VALUES ($1, $2, $3, $4)', [id, serverId, name, position]);
+        }
+        return { success: true, category: { id, server_id: serverId, name, position } };
+    } catch (error) {
+        console.error('Create server category error:', error);
+        return { success: false };
+    }
+}
+
+async function updateServerChannel(channelId, data) {
+    try {
+        const { name, topic, is_private } = data;
+        if (USE_SQLITE) {
+            sqlite.prepare('UPDATE server_channels SET name = COALESCE(?, name), topic = COALESCE(?, topic) WHERE id = ?').run(name, topic, channelId);
+        } else {
+            await pool.query('UPDATE server_channels SET name = COALESCE($1, name), topic = COALESCE($2, topic) WHERE id = $3', [name, topic, channelId]);
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Update server channel error:', error);
+        return { success: false };
+    }
+}
+
+async function deleteServerChannel(channelId) {
+    try {
+        if (USE_SQLITE) {
+            sqlite.prepare('DELETE FROM server_messages WHERE channel_id = ?').run(channelId);
+            sqlite.prepare('DELETE FROM server_channels WHERE id = ?').run(channelId);
+        } else {
+            await pool.query('DELETE FROM server_messages WHERE channel_id = $1', [channelId]);
+            await pool.query('DELETE FROM server_channels WHERE id = $1', [channelId]);
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Delete server channel error:', error);
+        return { success: false };
+    }
+}
+
+async function updateServerCategory(categoryId, data) {
+    try {
+        const { name } = data;
+        if (USE_SQLITE) {
+            sqlite.prepare('UPDATE server_categories SET name = COALESCE(?, name) WHERE id = ?').run(name, categoryId);
+        } else {
+            await pool.query('UPDATE server_categories SET name = COALESCE($1, name) WHERE id = $2', [name, categoryId]);
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Update server category error:', error);
+        return { success: false };
+    }
+}
+
+async function deleteServerCategory(categoryId) {
+    try {
+        if (USE_SQLITE) {
+            // Перемещаем каналы в "без категории"
+            sqlite.prepare('UPDATE server_channels SET category_id = NULL WHERE category_id = ?').run(categoryId);
+            sqlite.prepare('DELETE FROM server_categories WHERE id = ?').run(categoryId);
+        } else {
+            await pool.query('UPDATE server_channels SET category_id = NULL WHERE category_id = $1', [categoryId]);
+            await pool.query('DELETE FROM server_categories WHERE id = $1', [categoryId]);
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Delete server category error:', error);
+        return { success: false };
+    }
+}
+
+async function getServerChannel(channelId) {
+    try {
+        let channel;
+        if (USE_SQLITE) {
+            channel = sqlite.prepare('SELECT * FROM server_channels WHERE id = ?').get(channelId);
+        } else {
+            const result = await pool.query('SELECT * FROM server_channels WHERE id = $1', [channelId]);
+            channel = result.rows[0];
+        }
+        return channel || null;
+    } catch (error) {
+        console.error('Get server channel error:', error);
+        return null;
     }
 }
 
@@ -2348,6 +2456,12 @@ module.exports = {
     leaveServer,
     getServerChannels,
     createServerChannel,
+    createServerCategory,
+    updateServerCategory,
+    updateServerChannel,
+    deleteServerChannel,
+    deleteServerCategory,
+    getServerChannel,
     saveServerMessage,
     getServerMessages,
     getServerMedia,

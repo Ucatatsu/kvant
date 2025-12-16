@@ -1257,7 +1257,7 @@ function renderServerChannels(categories, channels, canManage) {
     
     // Каналы без категории
     if (uncategorized.length > 0) {
-        html += uncategorized.map(ch => renderServerChannelItem(ch)).join('');
+        html += uncategorized.map(ch => renderServerChannelItem(ch, canManage)).join('');
     }
     
     // Категории с каналами
@@ -1266,10 +1266,11 @@ function renderServerChannels(categories, channels, canManage) {
             <div class="server-category" data-category-id="${cat.id}">
                 <div class="server-category-header">
                     <span class="server-category-arrow">▼</span>
-                    <span>${cat.name}</span>
+                    <span class="server-category-name">${escapeHtml(cat.name)}</span>
+                    ${canManage ? `<button class="server-category-add" data-category-id="${cat.id}" title="Создать канал"><img src="/assets/Plus.svg" class="icon-xs"></button>` : ''}
                 </div>
                 <div class="server-category-channels">
-                    ${cat.channels.map(ch => renderServerChannelItem(ch)).join('')}
+                    ${cat.channels.map(ch => renderServerChannelItem(ch, canManage)).join('')}
                 </div>
             </div>
         `;
@@ -1283,25 +1284,72 @@ function renderServerChannels(categories, channels, canManage) {
     
     // Обработчики кликов на каналы
     list.querySelectorAll('.server-channel-item').forEach(el => {
-        el.addEventListener('click', () => selectServerChannel(el.dataset.channelId));
-    });
-    
-    // Сворачивание категорий
-    list.querySelectorAll('.server-category-header').forEach(el => {
-        el.addEventListener('click', () => {
-            el.closest('.server-category').classList.toggle('collapsed');
+        el.addEventListener('click', (e) => {
+            if (e.target.closest('.server-category-add') || e.target.closest('.server-channel-settings')) return;
+            selectServerChannel(el.dataset.channelId);
+        });
+        
+        // Контекстное меню для каналов
+        el.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            showServerChannelContextMenu(e, el.dataset.channelId, canManage);
         });
     });
+    
+    // Кнопки настроек каналов
+    list.querySelectorAll('.server-channel-settings').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openChannelSettingsModal(btn.dataset.channelId);
+        });
+    });
+    
+    // Сворачивание категорий (клик на стрелку или название)
+    list.querySelectorAll('.server-category-header').forEach(el => {
+        el.addEventListener('click', (e) => {
+            if (e.target.closest('.server-category-add')) return;
+            el.closest('.server-category').classList.toggle('collapsed');
+        });
+        
+        // Контекстное меню для категорий
+        if (canManage) {
+            el.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const categoryId = el.closest('.server-category').dataset.categoryId;
+                showServerCategoryContextMenu(e, categoryId);
+            });
+        }
+    });
+    
+    // Кнопки добавления канала в категорию
+    list.querySelectorAll('.server-category-add').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openCreateServerChannelModal(btn.dataset.categoryId);
+        });
+    });
+    
+    // Контекстное меню на пустом месте списка
+    if (canManage) {
+        list.addEventListener('contextmenu', (e) => {
+            if (e.target === list || e.target.classList.contains('empty-list')) {
+                e.preventDefault();
+                showServerListContextMenu(e);
+            }
+        });
+    }
 }
 
-function renderServerChannelItem(channel) {
+function renderServerChannelItem(channel, canManage) {
     const icon = channel.type === 'voice' ? '🔊' : '#';
     const isActive = state.selectedServerChannel?.id === channel.id;
     
     return `
         <div class="server-channel-item ${isActive ? 'active' : ''}" data-channel-id="${channel.id}" data-channel-type="${channel.type}">
             <span class="server-channel-icon">${icon}</span>
-            <span class="server-channel-name">${channel.name}</span>
+            <span class="server-channel-name">${escapeHtml(channel.name)}</span>
+            ${canManage ? `<button class="server-channel-settings" data-channel-id="${channel.id}" title="Настройки"><img src="/assets/settings.svg" class="icon-xs"></button>` : ''}
         </div>
     `;
 }
@@ -5636,7 +5684,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Функции для модалок сервера
-async function openCreateServerChannelModal() {
+async function openCreateServerChannelModal(preselectedCategoryId = null) {
     if (!state.selectedServer) {
         showToast('Сначала выберите сервер', 'error');
         return;
@@ -5658,13 +5706,375 @@ async function openCreateServerChannelModal() {
         const categorySelect = document.getElementById('new-channel-category');
         categorySelect.innerHTML = '<option value="">Без категории</option>';
         (data.categories || []).forEach(cat => {
-            categorySelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+            const selected = preselectedCategoryId === cat.id ? 'selected' : '';
+            categorySelect.innerHTML += `<option value="${cat.id}" ${selected}>${escapeHtml(cat.name)}</option>`;
         });
     } catch (e) {
         console.error('Error loading categories:', e);
     }
     
     modal.classList.remove('hidden');
+}
+
+// Контекстное меню для канала сервера
+function showServerChannelContextMenu(e, channelId, canManage) {
+    hideAllContextMenus();
+    
+    const menu = document.createElement('div');
+    menu.className = 'context-menu server-channel-context-menu';
+    menu.innerHTML = `
+        <div class="context-menu-item" data-action="mark-read">
+            <img src="/assets/Check.svg" class="icon-sm"> Пометить как прочитанное
+        </div>
+        <div class="context-menu-item" data-action="mute">
+            <img src="/assets/bell.svg" class="icon-sm"> Заглушить канал
+        </div>
+        ${canManage ? `
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" data-action="settings">
+            <img src="/assets/settings.svg" class="icon-sm"> Настройки канала
+        </div>
+        <div class="context-menu-item" data-action="invite">
+            <img src="/assets/Plus.svg" class="icon-sm"> Пригласить людей
+        </div>
+        <div class="context-menu-item danger" data-action="delete">
+            <img src="/assets/trash.svg" class="icon-sm"> Удалить канал
+        </div>
+        ` : ''}
+    `;
+    
+    document.body.appendChild(menu);
+    positionContextMenu(menu, e.clientX, e.clientY);
+    
+    menu.querySelectorAll('.context-menu-item').forEach(item => {
+        item.addEventListener('click', async () => {
+            const action = item.dataset.action;
+            menu.remove();
+            
+            switch (action) {
+                case 'mark-read':
+                    showToast('Канал помечен как прочитанный');
+                    break;
+                case 'mute':
+                    showToast('Канал заглушен');
+                    break;
+                case 'settings':
+                    openChannelSettingsModal(channelId);
+                    break;
+                case 'invite':
+                    copyServerInviteLink();
+                    break;
+                case 'delete':
+                    await deleteServerChannel(channelId);
+                    break;
+            }
+        });
+    });
+    
+    // Закрытие по клику вне меню
+    setTimeout(() => {
+        document.addEventListener('click', function closeMenu(e) {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        });
+    }, 10);
+}
+
+// Контекстное меню для пустого места в списке каналов
+function showServerListContextMenu(e) {
+    hideAllContextMenus();
+    
+    const menu = document.createElement('div');
+    menu.className = 'context-menu server-list-context-menu';
+    menu.innerHTML = `
+        <div class="context-menu-item" data-action="create-channel">
+            <img src="/assets/Plus.svg" class="icon-sm"> Создать канал
+        </div>
+        <div class="context-menu-item" data-action="create-category">
+            <img src="/assets/group.svg" class="icon-sm"> Создать категорию
+        </div>
+    `;
+    
+    document.body.appendChild(menu);
+    positionContextMenu(menu, e.clientX, e.clientY);
+    
+    menu.querySelectorAll('.context-menu-item').forEach(item => {
+        item.addEventListener('click', async () => {
+            const action = item.dataset.action;
+            menu.remove();
+            
+            if (action === 'create-channel') {
+                openCreateServerChannelModal();
+            } else if (action === 'create-category') {
+                await createServerCategory();
+            }
+        });
+    });
+    
+    setTimeout(() => {
+        document.addEventListener('click', function closeMenu(e) {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        });
+    }, 10);
+}
+
+// Создать категорию на сервере
+async function createServerCategory() {
+    if (!state.selectedServer) return;
+    
+    const name = await customPrompt({
+        title: 'Новая категория',
+        message: 'Введите название категории',
+        placeholder: 'Название категории',
+        icon: '📁'
+    });
+    
+    if (!name) return;
+    
+    try {
+        const res = await api.post(`/api/servers/${state.selectedServer.id}/categories`, { name });
+        if (res.ok) {
+            showToast('Категория создана!');
+            await showServerChannelsPanel(state.selectedServer);
+        } else {
+            const data = await res.json();
+            showToast(data.error || 'Ошибка создания категории', 'error');
+        }
+    } catch (e) {
+        console.error('Error creating category:', e);
+        showToast('Ошибка создания категории', 'error');
+    }
+}
+
+// Контекстное меню для категории сервера
+function showServerCategoryContextMenu(e, categoryId) {
+    hideAllContextMenus();
+    
+    const menu = document.createElement('div');
+    menu.className = 'context-menu server-category-context-menu';
+    menu.innerHTML = `
+        <div class="context-menu-item" data-action="create-channel">
+            <img src="/assets/Plus.svg" class="icon-sm"> Создать канал
+        </div>
+        <div class="context-menu-item" data-action="edit">
+            <img src="/assets/edit.svg" class="icon-sm"> Редактировать категорию
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item danger" data-action="delete">
+            <img src="/assets/trash.svg" class="icon-sm"> Удалить категорию
+        </div>
+    `;
+    
+    document.body.appendChild(menu);
+    positionContextMenu(menu, e.clientX, e.clientY);
+    
+    menu.querySelectorAll('.context-menu-item').forEach(item => {
+        item.addEventListener('click', async () => {
+            const action = item.dataset.action;
+            menu.remove();
+            
+            switch (action) {
+                case 'create-channel':
+                    openCreateServerChannelModal(categoryId);
+                    break;
+                case 'edit':
+                    await editServerCategory(categoryId);
+                    break;
+                case 'delete':
+                    await deleteServerCategory(categoryId);
+                    break;
+            }
+        });
+    });
+    
+    setTimeout(() => {
+        document.addEventListener('click', function closeMenu(e) {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        });
+    }, 10);
+}
+
+// Редактировать категорию
+async function editServerCategory(categoryId) {
+    if (!state.selectedServer) return;
+    
+    // Получаем текущее название
+    const res = await api.get(`/api/servers/${state.selectedServer.id}/channels`);
+    const data = await res.json();
+    const category = data.categories?.find(c => c.id === categoryId);
+    
+    if (!category) {
+        showToast('Категория не найдена', 'error');
+        return;
+    }
+    
+    const newName = await customPrompt({
+        title: 'Редактировать категорию',
+        message: 'Название категории',
+        placeholder: 'Название',
+        defaultValue: category.name,
+        icon: '📁'
+    });
+    
+    if (!newName || newName === category.name) return;
+    
+    try {
+        const res = await api.put(`/api/server-categories/${categoryId}`, { name: newName });
+        if (res.ok) {
+            showToast('Категория обновлена');
+            await showServerChannelsPanel(state.selectedServer);
+        } else {
+            const data = await res.json();
+            showToast(data.error || 'Ошибка обновления', 'error');
+        }
+    } catch (e) {
+        console.error('Error updating category:', e);
+        showToast('Ошибка обновления категории', 'error');
+    }
+}
+
+// Удалить категорию
+async function deleteServerCategory(categoryId) {
+    const confirmed = await customConfirm({
+        title: 'Удалить категорию?',
+        message: 'Каналы в этой категории станут без категории. Это действие нельзя отменить.',
+        icon: '🗑️',
+        variant: 'danger',
+        okText: 'Удалить',
+        cancelText: 'Отмена'
+    });
+    
+    if (!confirmed) return;
+    
+    try {
+        const res = await api.request(`/api/server-categories/${categoryId}`, { method: 'DELETE' });
+        if (res.ok) {
+            showToast('Категория удалена');
+            await showServerChannelsPanel(state.selectedServer);
+        } else {
+            const data = await res.json();
+            showToast(data.error || 'Ошибка удаления', 'error');
+        }
+    } catch (e) {
+        console.error('Error deleting category:', e);
+        showToast('Ошибка удаления категории', 'error');
+    }
+}
+
+// Удалить канал сервера
+async function deleteServerChannel(channelId) {
+    const confirmed = await customConfirm({
+        title: 'Удалить канал?',
+        message: 'Все сообщения в канале будут удалены. Это действие нельзя отменить.',
+        icon: '🗑️',
+        variant: 'danger',
+        okText: 'Удалить',
+        cancelText: 'Отмена'
+    });
+    
+    if (!confirmed) return;
+    
+    try {
+        const res = await api.request(`/api/server-channels/${channelId}`, { method: 'DELETE' });
+        if (res.ok) {
+            showToast('Канал удалён');
+            // Если удалили текущий канал, сбрасываем выбор
+            if (state.selectedServerChannel?.id === channelId) {
+                state.selectedServerChannel = null;
+                updateChatHeader('Выберите канал', '', null);
+                document.getElementById('messages').innerHTML = '';
+            }
+            await showServerChannelsPanel(state.selectedServer);
+        } else {
+            const data = await res.json();
+            showToast(data.error || 'Ошибка удаления канала', 'error');
+        }
+    } catch (e) {
+        console.error('Error deleting channel:', e);
+        showToast('Ошибка удаления канала', 'error');
+    }
+}
+
+// Модалка настроек канала
+async function openChannelSettingsModal(channelId) {
+    // Получаем данные канала
+    const res = await api.get(`/api/servers/${state.selectedServer.id}/channels`);
+    const data = await res.json();
+    const channel = data.channels?.find(c => c.id === channelId);
+    
+    if (!channel) {
+        showToast('Канал не найден', 'error');
+        return;
+    }
+    
+    const newName = await customPrompt({
+        title: 'Настройки канала',
+        message: 'Название канала',
+        placeholder: 'Название',
+        defaultValue: channel.name,
+        icon: '⚙️'
+    });
+    
+    if (newName === null) return;
+    if (newName === channel.name) return;
+    
+    try {
+        const res = await api.put(`/api/server-channels/${channelId}`, { name: newName });
+        if (res.ok) {
+            showToast('Канал обновлён');
+            await showServerChannelsPanel(state.selectedServer);
+        } else {
+            const data = await res.json();
+            showToast(data.error || 'Ошибка обновления канала', 'error');
+        }
+    } catch (e) {
+        console.error('Error updating channel:', e);
+        showToast('Ошибка обновления канала', 'error');
+    }
+}
+
+// Скопировать ссылку-приглашение на сервер
+function copyServerInviteLink() {
+    if (!state.selectedServer) return;
+    
+    const link = `${window.location.origin}/invite/server/${state.selectedServer.id}`;
+    navigator.clipboard.writeText(link).then(() => {
+        showToast('Ссылка скопирована!');
+    }).catch(() => {
+        showToast('Не удалось скопировать ссылку', 'error');
+    });
+}
+
+// Скрыть все контекстные меню
+function hideAllContextMenus() {
+    document.querySelectorAll('.context-menu').forEach(m => m.remove());
+}
+
+// Позиционирование контекстного меню
+function positionContextMenu(menu, x, y) {
+    menu.style.position = 'fixed';
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+    menu.style.zIndex = '10001';
+    
+    // Корректируем если выходит за границы экрана
+    requestAnimationFrame(() => {
+        const rect = menu.getBoundingClientRect();
+        if (rect.right > window.innerWidth) {
+            menu.style.left = (window.innerWidth - rect.width - 10) + 'px';
+        }
+        if (rect.bottom > window.innerHeight) {
+            menu.style.top = (window.innerHeight - rect.height - 10) + 'px';
+        }
+    });
 }
 
 async function openServerRolesModal() {
