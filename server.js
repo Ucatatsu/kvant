@@ -774,6 +774,30 @@ app.put('/api/settings', authMiddleware, async (req, res) => {
     }
 });
 
+// === ПОДПИСКА ===
+
+// Получить статус подписки
+app.get('/api/subscription/status', authMiddleware, async (req, res) => {
+    try {
+        const user = await db.getUser(req.user.id);
+        if (!user) {
+            return res.status(404).json({ error: 'Пользователь не найден' });
+        }
+        
+        const isPremium = user.role === 'admin' || (user.premium_until && new Date(user.premium_until) > new Date());
+        const plan = isPremium ? (user.premium_plan || 'premium') : 'free';
+        
+        res.json({
+            plan,
+            expires: user.premium_until || null,
+            isPremium
+        });
+    } catch (error) {
+        console.error('Get subscription status error:', error);
+        res.status(500).json({ error: 'Ошибка получения статуса подписки' });
+    }
+});
+
 // === АДМИН РОУТЫ ===
 
 // Получить всех пользователей
