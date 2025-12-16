@@ -2103,6 +2103,90 @@ async function getServerMembers(serverId) {
     }
 }
 
+// === РОЛИ СЕРВЕРА ===
+
+async function getServerRoles(serverId) {
+    try {
+        let roles;
+        if (USE_SQLITE) {
+            roles = sqlite.prepare(`
+                SELECT * FROM server_roles WHERE server_id = ? ORDER BY position DESC
+            `).all(serverId);
+        } else {
+            const result = await pool.query(`
+                SELECT * FROM server_roles WHERE server_id = $1 ORDER BY position DESC
+            `, [serverId]);
+            roles = result.rows;
+        }
+        return roles;
+    } catch (error) {
+        console.error('Get server roles error:', error);
+        return [];
+    }
+}
+
+async function createServerRole(serverId, name, color = '#99aab5', permissions = 0) {
+    try {
+        const id = uuidv4();
+        if (USE_SQLITE) {
+            const maxPos = sqlite.prepare('SELECT MAX(position) as max FROM server_roles WHERE server_id = ?').get(serverId);
+            const position = (maxPos?.max || 0) + 1;
+            sqlite.prepare(`
+                INSERT INTO server_roles (id, server_id, name, color, position, permissions)
+                VALUES (?, ?, ?, ?, ?, ?)
+            `).run(id, serverId, name, color, position, permissions);
+        } else {
+            const maxPos = await pool.query('SELECT MAX(position) as max FROM server_roles WHERE server_id = $1', [serverId]);
+            const position = (maxPos.rows[0]?.max || 0) + 1;
+            await pool.query(`
+                INSERT INTO server_roles (id, server_id, name, color, position, permissions)
+                VALUES ($1, $2, $3, $4, $5, $6)
+            `, [id, serverId, name, color, position, permissions]);
+        }
+        return { success: true, roleId: id };
+    } catch (error) {
+        console.error('Create server role error:', error);
+        return { success: false, error: 'Ошибка создания роли' };
+    }
+}
+
+async function updateServerRole(roleId, data) {
+    try {
+        const { name, color, permissions } = data;
+        if (USE_SQLITE) {
+            sqlite.prepare(`
+                UPDATE server_roles SET name = ?, color = ?, permissions = ? WHERE id = ?
+            `).run(name, color, permissions, roleId);
+        } else {
+            await pool.query(`
+                UPDATE server_roles SET name = $1, color = $2, permissions = $3 WHERE id = $4
+            `, [name, color, permissions, roleId]);
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Update server role error:', error);
+        return { success: false, error: 'Ошибка обновления роли' };
+    }
+}
+
+async function deleteServerRole(roleId) {
+    try {
+        if (USE_SQLITE) {
+            // Удаляем назначения роли
+            sqlite.prepare('DELETE FROM server_member_roles WHERE role_id = ?').run(roleId);
+            // Удаляем роль
+            sqlite.prepare('DELETE FROM server_roles WHERE id = ?').run(roleId);
+        } else {
+            await pool.query('DELETE FROM server_member_roles WHERE role_id = $1', [roleId]);
+            await pool.query('DELETE FROM server_roles WHERE id = $1', [roleId]);
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Delete server role error:', error);
+        return { success: false, error: 'Ошибка удаления роли' };
+    }
+}
+
 // === ЗАКРЕПЛЁННЫЕ ЧАТЫ ===
 
 async function pinChat(userId, chatId, chatType = 'user') {
@@ -2268,6 +2352,11 @@ module.exports = {
     getServerMessages,
     getServerMedia,
     getServerMembers,
+    // Роли сервера
+    getServerRoles,
+    createServerRole,
+    updateServerRole,
+    deleteServerRole,
     // Закреплённые чаты
     pinChat,
     unpinChat,

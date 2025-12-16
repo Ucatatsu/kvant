@@ -1253,6 +1253,77 @@ app.get('/api/servers/:serverId/media', authMiddleware, async (req, res) => {
     }
 });
 
+// Получить роли сервера
+app.get('/api/servers/:serverId/roles', authMiddleware, async (req, res) => {
+    try {
+        const roles = await db.getServerRoles(req.params.serverId);
+        res.json(roles);
+    } catch (error) {
+        console.error('Get server roles error:', error);
+        res.status(500).json([]);
+    }
+});
+
+// Создать роль на сервере
+app.post('/api/servers/:serverId/roles', authMiddleware, async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        const { name, color, permissions } = req.body;
+        
+        // Проверяем права (владелец или админ)
+        const server = await db.getServer(serverId);
+        if (!server) return res.status(404).json({ error: 'Сервер не найден' });
+        if (server.owner_id !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Нет прав для создания ролей' });
+        }
+        
+        const result = await db.createServerRole(serverId, name || 'Новая роль', color || '#99aab5', permissions || 0);
+        res.json(result);
+    } catch (error) {
+        console.error('Create server role error:', error);
+        res.status(500).json({ error: 'Ошибка создания роли' });
+    }
+});
+
+// Обновить роль
+app.put('/api/servers/:serverId/roles/:roleId', authMiddleware, async (req, res) => {
+    try {
+        const { serverId, roleId } = req.params;
+        const { name, color, permissions } = req.body;
+        
+        const server = await db.getServer(serverId);
+        if (!server) return res.status(404).json({ error: 'Сервер не найден' });
+        if (server.owner_id !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Нет прав для редактирования ролей' });
+        }
+        
+        const result = await db.updateServerRole(roleId, { name, color, permissions });
+        res.json(result);
+    } catch (error) {
+        console.error('Update server role error:', error);
+        res.status(500).json({ error: 'Ошибка обновления роли' });
+    }
+});
+
+// Удалить роль
+app.delete('/api/servers/:serverId/roles/:roleId', authMiddleware, async (req, res) => {
+    try {
+        const { serverId, roleId } = req.params;
+        
+        const server = await db.getServer(serverId);
+        if (!server) return res.status(404).json({ error: 'Сервер не найден' });
+        if (server.owner_id !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Нет прав для удаления ролей' });
+        }
+        
+        const result = await db.deleteServerRole(roleId);
+        res.json(result);
+    } catch (error) {
+        console.error('Delete server role error:', error);
+        res.status(500).json({ error: 'Ошибка удаления роли' });
+    }
+});
+
 // === SUPPORT TICKETS ===
 
 // Создать тикет

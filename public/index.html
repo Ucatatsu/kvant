@@ -147,43 +147,46 @@
       <!-- Dock навигация -->
       <div class="sidebar-dock" id="sidebar-dock"></div>
       
-      <!-- Списки -->
-      <div class="sidebar-content">
-        <div class="users-list sidebar-tab active" id="users-list" data-tab="chats" role="list" aria-label="Список контактов"></div>
-        <div class="users-list sidebar-tab" id="groups-list" data-tab="groups" role="list" aria-label="Список групп"></div>
-        <div class="users-list sidebar-tab" id="channels-list" data-tab="channels" role="list" aria-label="Список каналов"></div>
-        <div class="users-list sidebar-tab" id="servers-list" data-tab="servers" role="list" aria-label="Список серверов"></div>
-      </div>
-      
-      <!-- Панель каналов сервера (выезжает поверх списка) -->
-      <div class="server-channels-panel hidden" id="server-channels-panel">
-        <div class="server-panel-header">
-          <button class="server-panel-back" id="server-panel-back" aria-label="Назад">
-            <img src="/assets/arrow-left.svg" alt="" class="icon">
-          </button>
-          <div class="server-panel-info" id="server-panel-info">
-            <div class="server-panel-name" id="server-panel-name"></div>
-            <div class="server-panel-meta" id="server-panel-meta"></div>
+      <!-- Контейнер для слайд-анимации списков -->
+      <div class="sidebar-lists-container" id="sidebar-lists-container">
+        <!-- Списки (уходят влево) -->
+        <div class="sidebar-content" id="sidebar-content">
+          <div class="users-list sidebar-tab active" id="users-list" data-tab="chats" role="list" aria-label="Список контактов"></div>
+          <div class="users-list sidebar-tab" id="groups-list" data-tab="groups" role="list" aria-label="Список групп"></div>
+          <div class="users-list sidebar-tab" id="channels-list" data-tab="channels" role="list" aria-label="Список каналов"></div>
+          <div class="users-list sidebar-tab" id="servers-list" data-tab="servers" role="list" aria-label="Список серверов"></div>
+        </div>
+        
+        <!-- Панель каналов сервера (выезжает справа) -->
+        <div class="server-channels-panel" id="server-channels-panel">
+          <div class="server-panel-header">
+            <button class="server-panel-back" id="server-panel-back" aria-label="Назад">
+              <img src="/assets/arrow-left.svg" alt="" class="icon">
+            </button>
+            <div class="server-panel-info" id="server-panel-info">
+              <div class="server-panel-name" id="server-panel-name"></div>
+              <div class="server-panel-meta" id="server-panel-meta"></div>
+            </div>
+            <button class="server-panel-menu" id="server-panel-menu" aria-label="Меню сервера">
+              <img src="/assets/menu dots vertical.svg" alt="" class="icon">
+            </button>
           </div>
-          <button class="server-panel-menu" id="server-panel-menu" aria-label="Меню сервера">
-            <img src="/assets/menu dots vertical.svg" alt="" class="icon">
-          </button>
+          
+          <!-- Меню сервера (для админов) -->
+          <div class="server-menu hidden" id="server-menu">
+            <button class="server-menu-item" id="server-create-channel">
+              <img src="/assets/Plus.svg" alt="" class="icon-sm"> Создать канал
+            </button>
+            <button class="server-menu-item" id="server-manage-roles">
+              <img src="/assets/Badge-check.svg" alt="" class="icon-sm"> Управление ролями
+            </button>
+            <button class="server-menu-item" id="server-settings">
+              <img src="/assets/settings.svg" alt="" class="icon-sm"> Настройки сервера
+            </button>
+          </div>
+          
+          <div class="server-channels-list" id="server-channels-list"></div>
         </div>
-        
-        <!-- Меню сервера (для админов) -->
-        <div class="server-menu hidden" id="server-menu">
-          <button class="server-menu-item" id="server-create-channel">
-            <img src="/assets/Plus.svg" alt="" class="icon-sm"> Создать канал
-          </button>
-          <button class="server-menu-item" id="server-manage-roles">
-            <img src="/assets/Badge-check.svg" alt="" class="icon-sm"> Управление ролями
-          </button>
-          <button class="server-menu-item" id="server-settings">
-            <img src="/assets/settings.svg" alt="" class="icon-sm"> Настройки сервера
-          </button>
-        </div>
-        
-        <div class="server-channels-list" id="server-channels-list"></div>
       </div>
       <div class="sidebar-footer" id="user-panel" role="button" tabindex="0" aria-label="Открыть карточку профиля">
         <div class="current-user-avatar" id="current-user-avatar"></div>

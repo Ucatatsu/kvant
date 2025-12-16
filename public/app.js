@@ -1209,11 +1209,10 @@ async function selectServer(serverId) {
 }
 
 async function showServerChannelsPanel(server) {
-    const panel = document.getElementById('server-channels-panel');
+    const container = document.getElementById('sidebar-lists-container');
     const nameEl = document.getElementById('server-panel-name');
     const metaEl = document.getElementById('server-panel-meta');
     const menuBtn = document.getElementById('server-panel-menu');
-    const menu = document.getElementById('server-menu');
     
     // Заполняем хедер
     nameEl.textContent = server.name;
@@ -1236,11 +1235,8 @@ async function showServerChannelsPanel(server) {
         console.error('Error loading server channels:', e);
     }
     
-    // Показываем панель с анимацией
-    panel.classList.remove('hidden');
-    requestAnimationFrame(() => {
-        panel.classList.add('visible');
-    });
+    // Показываем панель с анимацией слайда
+    container.classList.add('server-open');
 }
 
 function renderServerChannels(categories, channels, canManage) {
@@ -1390,11 +1386,8 @@ function renderServerMessage(msg) {
 }
 
 function hideServerChannelsPanel() {
-    const panel = document.getElementById('server-channels-panel');
-    panel.classList.remove('visible');
-    setTimeout(() => {
-        panel.classList.add('hidden');
-    }, 300);
+    const container = document.getElementById('sidebar-lists-container');
+    container.classList.remove('server-open');
     
     state.selectedServer = null;
     state.selectedServerChannel = null;
@@ -5551,24 +5544,277 @@ document.addEventListener('DOMContentLoaded', () => {
             showServerInfo(state.selectedServer.id);
         }
     });
+    
+    // === МОДАЛКА СОЗДАНИЯ КАНАЛА НА СЕРВЕРЕ ===
+    
+    document.getElementById('close-create-channel')?.addEventListener('click', () => {
+        document.getElementById('create-server-channel-modal')?.classList.add('hidden');
+    });
+    
+    document.querySelector('#create-server-channel-modal .modal-overlay')?.addEventListener('click', () => {
+        document.getElementById('create-server-channel-modal')?.classList.add('hidden');
+    });
+    
+    // Выбор типа канала
+    document.querySelectorAll('.channel-type-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.channel-type-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+    
+    // Создание канала
+    document.getElementById('create-channel-btn')?.addEventListener('click', async () => {
+        const name = document.getElementById('new-channel-name')?.value.trim();
+        const categoryId = document.getElementById('new-channel-category')?.value || null;
+        const type = document.querySelector('.channel-type-btn.active')?.dataset.type || 'text';
+        
+        if (!name) {
+            showToast('Введите название канала', 'error');
+            return;
+        }
+        
+        if (!state.selectedServer) {
+            showToast('Сервер не выбран', 'error');
+            return;
+        }
+        
+        try {
+            const res = await api.post(`/api/servers/${state.selectedServer.id}/channels`, {
+                name, type, categoryId
+            });
+            
+            if (res.ok) {
+                showToast('Канал создан!');
+                document.getElementById('create-server-channel-modal')?.classList.add('hidden');
+                // Перезагружаем каналы
+                await showServerChannelsPanel(state.selectedServer);
+            } else {
+                const data = await res.json();
+                showToast(data.error || 'Ошибка создания', 'error');
+            }
+        } catch (e) {
+            showToast('Ошибка создания канала', 'error');
+        }
+    });
+    
+    // === МОДАЛКА УПРАВЛЕНИЯ РОЛЯМИ ===
+    
+    document.getElementById('close-manage-roles')?.addEventListener('click', () => {
+        document.getElementById('manage-roles-modal')?.classList.add('hidden');
+    });
+    
+    document.querySelector('#manage-roles-modal .modal-overlay')?.addEventListener('click', () => {
+        document.getElementById('manage-roles-modal')?.classList.add('hidden');
+    });
+    
+    // Добавление новой роли
+    document.getElementById('add-role-btn')?.addEventListener('click', async () => {
+        if (!state.selectedServer) return;
+        
+        const name = await customPrompt({
+            title: 'Новая роль',
+            message: 'Введите название роли',
+            icon: '🎭',
+            placeholder: 'Модератор'
+        });
+        
+        if (!name) return;
+        
+        try {
+            const res = await api.post(`/api/servers/${state.selectedServer.id}/roles`, { name });
+            if (res.ok) {
+                showToast('Роль создана!');
+                openServerRolesModal(); // Перезагружаем
+            } else {
+                showToast('Ошибка создания роли', 'error');
+            }
+        } catch (e) {
+            showToast('Ошибка создания роли', 'error');
+        }
+    });
 });
 
-// Функции для модалок сервера (заглушки)
-function openCreateServerChannelModal() {
+// Функции для модалок сервера
+async function openCreateServerChannelModal() {
+    if (!state.selectedServer) {
+        showToast('Сначала выберите сервер', 'error');
+        return;
+    }
+    
     const modal = document.getElementById('create-server-channel-modal');
-    if (modal) {
-        modal.classList.remove('hidden');
-        document.getElementById('new-channel-name').value = '';
-    } else {
-        showToast('Функция в разработке', 'info');
+    if (!modal) return;
+    
+    // Сбрасываем форму
+    document.getElementById('new-channel-name').value = '';
+    document.querySelectorAll('.channel-type-btn').forEach((btn, i) => {
+        btn.classList.toggle('active', i === 0);
+    });
+    
+    // Загружаем категории
+    try {
+        const res = await api.get(`/api/servers/${state.selectedServer.id}/channels`);
+        const data = await res.json();
+        const categorySelect = document.getElementById('new-channel-category');
+        categorySelect.innerHTML = '<option value="">Без категории</option>';
+        (data.categories || []).forEach(cat => {
+            categorySelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+        });
+    } catch (e) {
+        console.error('Error loading categories:', e);
+    }
+    
+    modal.classList.remove('hidden');
+}
+
+async function openServerRolesModal() {
+    if (!state.selectedServer) {
+        showToast('Сначала выберите сервер', 'error');
+        return;
+    }
+    
+    const modal = document.getElementById('manage-roles-modal');
+    if (!modal) {
+        showToast('Управление ролями в разработке', 'info');
+        return;
+    }
+    
+    // Загружаем роли
+    try {
+        const res = await api.get(`/api/servers/${state.selectedServer.id}/roles`);
+        if (res.ok) {
+            const roles = await res.json();
+            renderRolesList(roles);
+        }
+    } catch (e) {
+        console.error('Error loading roles:', e);
+    }
+    
+    modal.classList.remove('hidden');
+}
+
+function renderRolesList(roles) {
+    const list = document.getElementById('roles-list');
+    if (!list) return;
+    
+    if (!roles || roles.length === 0) {
+        list.innerHTML = '<div class="roles-empty-list">Нет ролей</div>';
+        return;
+    }
+    
+    list.innerHTML = roles.map(role => `
+        <div class="role-item" data-role-id="${role.id}" style="border-left: 3px solid ${role.color || '#99aab5'}">
+            <span class="role-name">${role.name}</span>
+            ${role.is_default ? '<span class="role-badge">По умолчанию</span>' : ''}
+        </div>
+    `).join('');
+    
+    // Обработчики кликов
+    list.querySelectorAll('.role-item').forEach(item => {
+        item.addEventListener('click', () => selectRoleForEdit(item.dataset.roleId, roles));
+    });
+}
+
+function selectRoleForEdit(roleId, roles) {
+    const role = roles.find(r => r.id === roleId);
+    if (!role) return;
+    
+    document.querySelectorAll('.role-item').forEach(i => i.classList.remove('active'));
+    document.querySelector(`[data-role-id="${roleId}"]`)?.classList.add('active');
+    
+    const editor = document.getElementById('roles-editor');
+    editor.innerHTML = `
+        <div class="role-edit-form">
+            <div class="form-group">
+                <label>Название роли</label>
+                <input type="text" id="edit-role-name" value="${role.name}" maxlength="50">
+            </div>
+            <div class="form-group">
+                <label>Цвет</label>
+                <input type="color" id="edit-role-color" value="${role.color || '#99aab5'}">
+            </div>
+            <div class="role-permissions">
+                <h4>Права</h4>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="perm-manage-channels" ${role.permissions & 1 ? 'checked' : ''}>
+                    <span>Управление каналами</span>
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="perm-manage-roles" ${role.permissions & 2 ? 'checked' : ''}>
+                    <span>Управление ролями</span>
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="perm-kick-members" ${role.permissions & 4 ? 'checked' : ''}>
+                    <span>Кикать участников</span>
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="perm-ban-members" ${role.permissions & 8 ? 'checked' : ''}>
+                    <span>Банить участников</span>
+                </label>
+            </div>
+            <div class="role-actions">
+                <button class="btn-primary" onclick="saveRole('${roleId}')">Сохранить</button>
+                ${!role.is_default ? `<button class="btn-danger" onclick="deleteRole('${roleId}')">Удалить</button>` : ''}
+            </div>
+        </div>
+    `;
+}
+
+async function saveRole(roleId) {
+    const name = document.getElementById('edit-role-name')?.value;
+    const color = document.getElementById('edit-role-color')?.value;
+    
+    let permissions = 0;
+    if (document.getElementById('perm-manage-channels')?.checked) permissions |= 1;
+    if (document.getElementById('perm-manage-roles')?.checked) permissions |= 2;
+    if (document.getElementById('perm-kick-members')?.checked) permissions |= 4;
+    if (document.getElementById('perm-ban-members')?.checked) permissions |= 8;
+    
+    try {
+        const res = await api.put(`/api/servers/${state.selectedServer.id}/roles/${roleId}`, {
+            name, color, permissions
+        });
+        if (res.ok) {
+            showToast('Роль сохранена');
+            openServerRolesModal(); // Перезагружаем
+        } else {
+            showToast('Ошибка сохранения', 'error');
+        }
+    } catch (e) {
+        showToast('Ошибка сохранения', 'error');
     }
 }
 
-function openServerRolesModal() {
-    showToast('Управление ролями в разработке', 'info');
+async function deleteRole(roleId) {
+    const confirmed = await customConfirm({
+        title: 'Удалить роль?',
+        message: 'Это действие нельзя отменить',
+        icon: '🗑️',
+        variant: 'danger',
+        okText: 'Удалить',
+        cancelText: 'Отмена'
+    });
+    
+    if (!confirmed) return;
+    
+    try {
+        const res = await api.request(`/api/servers/${state.selectedServer.id}/roles/${roleId}`, {
+            method: 'DELETE'
+        });
+        if (res.ok) {
+            showToast('Роль удалена');
+            openServerRolesModal();
+        }
+    } catch (e) {
+        showToast('Ошибка удаления', 'error');
+    }
 }
 
 function openServerSettingsModal() {
+    if (!state.selectedServer) {
+        showToast('Сначала выберите сервер', 'error');
+        return;
+    }
     showToast('Настройки сервера в разработке', 'info');
 }
 
@@ -5633,9 +5879,11 @@ async function performGlobalSearch(query) {
         const res = await api.get(`/api/search?q=${encodeURIComponent(query)}`);
         if (!res.ok) throw new Error('Search failed');
         
-        const { users, messages } = await res.json();
+        const { users, messages, channels, servers } = await res.json();
         
-        if (users.length === 0 && messages.length === 0) {
+        const hasResults = users?.length > 0 || messages?.length > 0 || channels?.length > 0 || servers?.length > 0;
+        
+        if (!hasResults) {
             renderSearchNotFound();
             return;
         }
@@ -5643,9 +5891,9 @@ async function performGlobalSearch(query) {
         let html = '';
         
         // Пользователи
-        if (users.length > 0) {
+        if (users?.length > 0) {
             html += `<div class="search-section">
-                <div class="search-section-title">Пользователи</div>`;
+                <div class="search-section-title">Люди</div>`;
             
             users.forEach(user => {
                 const avatarStyle = user.avatar_url 
@@ -5668,8 +5916,58 @@ async function performGlobalSearch(query) {
             html += '</div>';
         }
         
+        // Каналы
+        if (channels?.length > 0) {
+            html += `<div class="search-section">
+                <div class="search-section-title">Каналы</div>`;
+            
+            channels.forEach(channel => {
+                const avatarStyle = channel.avatar_url 
+                    ? `background-image: url(${escapeAttr(channel.avatar_url)})`
+                    : '';
+                const avatarText = channel.avatar_url ? '' : '📢';
+                
+                html += `
+                    <div class="search-item" data-type="channel" data-id="${escapeAttr(channel.id)}">
+                        <div class="search-item-avatar channel-avatar" style="${avatarStyle}">${avatarText}</div>
+                        <div class="search-item-info">
+                            <div class="search-item-name">${highlightText(channel.name, query)}</div>
+                            <div class="search-item-text">${channel.subscriber_count || 0} подписчиков</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+        }
+        
+        // Серверы
+        if (servers?.length > 0) {
+            html += `<div class="search-section">
+                <div class="search-section-title">Серверы</div>`;
+            
+            servers.forEach(server => {
+                const avatarStyle = server.icon_url 
+                    ? `background-image: url(${escapeAttr(server.icon_url)})`
+                    : '';
+                const avatarText = server.icon_url ? '' : '🏰';
+                
+                html += `
+                    <div class="search-item" data-type="server" data-id="${escapeAttr(server.id)}">
+                        <div class="search-item-avatar server-avatar" style="${avatarStyle}">${avatarText}</div>
+                        <div class="search-item-info">
+                            <div class="search-item-name">${highlightText(server.name, query)}</div>
+                            <div class="search-item-text">${server.member_count || 0} участников</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+        }
+        
         // Сообщения
-        if (messages.length > 0) {
+        if (messages?.length > 0) {
             html += `<div class="search-section">
                 <div class="search-section-title">Сообщения</div>`;
             
@@ -5705,12 +6003,18 @@ async function performGlobalSearch(query) {
         document.querySelectorAll('.search-item').forEach(item => {
             item.addEventListener('click', () => {
                 const type = item.dataset.type;
+                const id = item.dataset.id;
                 
                 if (type === 'user') {
-                    selectUser(item.dataset.id, item.dataset.name);
+                    selectUser(id, item.dataset.name);
                 } else if (type === 'message') {
-                    // Открываем чат с этим пользователем
                     selectUser(item.dataset.chatId, item.dataset.sender);
+                } else if (type === 'channel') {
+                    switchSidebarTab('channels');
+                    selectChannel(id);
+                } else if (type === 'server') {
+                    switchSidebarTab('servers');
+                    selectServer(id);
                 }
                 
                 closeSearchModal();

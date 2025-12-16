@@ -7916,10 +7916,25 @@ input[type="range"]:focus::-moz-range-thumb {
 
 
 /* === SIDEBAR TABS === */
-.sidebar-content {
+
+/* Контейнер для слайд-анимации */
+.sidebar-lists-container {
   flex: 1;
   overflow: hidden;
   position: relative;
+  display: flex;
+}
+
+.sidebar-content {
+  flex: 0 0 100%;
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Когда открыта панель сервера - списки уходят влево */
+.sidebar-lists-container.server-open .sidebar-content {
+  transform: translateX(-100%);
 }
 
 .sidebar-tab {
@@ -10613,24 +10628,16 @@ input[type="range"]:focus::-moz-range-thumb {
 
 /* === SERVER CHANNELS PANEL (Discord-style) === */
 .server-channels-panel {
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  background: var(--bg-darkest);
-  z-index: 5;
+  flex: 0 0 100%;
   display: flex;
   flex-direction: column;
-  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-.server-channels-panel:not(.hidden) {
+  background: transparent;
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
   transform: translateX(0);
 }
 
-.server-channels-panel.hidden {
-  transform: translateX(-100%);
+/* По умолчанию панель справа за пределами видимости */
+.sidebar-lists-container:not(.server-open) .server-channels-panel {
   pointer-events: none;
 }
 
@@ -10981,6 +10988,70 @@ input[type="range"]:focus::-moz-range-thumb {
   justify-content: center;
   height: 100%;
   color: var(--text-muted);
+}
+
+.roles-empty-list {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.role-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: rgba(79, 195, 247, 0.2);
+  color: var(--accent);
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
+.role-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.role-permissions {
+  background: var(--bg-medium);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.role-permissions h4 {
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.role-permissions .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+
+.role-permissions .checkbox-label input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.role-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.role-actions .btn-danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.role-actions .btn-danger:hover {
+  background: rgba(239, 68, 68, 0.3);
 }
 
 .role-editor-section {
