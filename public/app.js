@@ -1369,15 +1369,34 @@ async function selectServerChannel(channelId) {
     
     // Для голосового канала — подключаемся к войсу, но не меняем чат
     if (channel.type === 'voice') {
-        state.selectedServerChannel = channel;
+        // Сохраняем информацию о голосовом подключении
+        state.voiceConnection = {
+            type: 'server',
+            serverId: state.selectedServer.id,
+            serverName: state.selectedServer.name,
+            serverIcon: state.selectedServer.icon_url,
+            channelId: channelId,
+            channelName: channel.name,
+            status: 'connecting'
+        };
+        
         state.socket?.emit('join-voice-channel', { serverId: state.selectedServer.id, channelId });
         
         // Обновляем UI — показываем что мы в голосовом канале
         document.querySelectorAll('.server-channel-item').forEach(i => i.classList.remove('in-voice'));
         document.querySelector(`[data-channel-id="${channelId}"]`)?.classList.add('in-voice');
         
-        showToast(`Подключение к 🔊 ${channel.name}...`);
-        // TODO: Реализовать WebRTC подключение к голосовому каналу
+        // Показываем voice connection bar
+        showVoiceConnectionBar();
+        
+        // Имитируем подключение (TODO: реальный WebRTC)
+        setTimeout(() => {
+            if (state.voiceConnection?.channelId === channelId) {
+                state.voiceConnection.status = 'connected';
+                updateVoiceConnectionBar();
+            }
+        }, 1500);
+        
         return;
     }
     
@@ -1464,6 +1483,130 @@ function hideServerChannelsPanel() {
     document.getElementById('message-input').disabled = true;
     document.getElementById('message-input').placeholder = 'Выберите чат...';
     document.querySelector('.send-btn').disabled = true;
+}
+
+// === VOICE CONNECTION BAR ===
+function showVoiceConnectionBar() {
+    const bar = document.getElementById('voice-connection-bar');
+    if (!bar || !state.voiceConnection) return;
+    
+    // Сначала убираем hidden и добавляем connecting
+    bar.classList.remove('hidden');
+    bar.classList.add('connecting');
+    
+    // Небольшая задержка для запуска анимации
+    requestAnimationFrame(() => {
+        bar.classList.add('visible');
+    });
+    
+    updateVoiceConnectionBar();
+}
+
+function updateVoiceConnectionBar() {
+    const bar = document.getElementById('voice-connection-bar');
+    if (!bar || !state.voiceConnection) return;
+    
+    const avatarEl = document.getElementById('voice-connection-avatar');
+    const nameEl = document.getElementById('voice-connection-name');
+    const statusEl = document.getElementById('voice-connection-status');
+    
+    const vc = state.voiceConnection;
+    
+    // Аватар
+    if (avatarEl) {
+        if (vc.type === 'server' && vc.serverIcon) {
+            avatarEl.style.backgroundImage = `url(${vc.serverIcon})`;
+            avatarEl.textContent = '';
+        } else if (vc.type === 'call' && vc.userAvatar) {
+            avatarEl.style.backgroundImage = `url(${vc.userAvatar})`;
+            avatarEl.textContent = '';
+        } else {
+            avatarEl.style.backgroundImage = '';
+            avatarEl.textContent = vc.type === 'server' ? '🔊' : '📞';
+        }
+    }
+    
+    // Название
+    if (nameEl) {
+        if (vc.type === 'server') {
+            nameEl.textContent = `🔊 ${vc.channelName}`;
+        } else {
+            nameEl.textContent = `📞 ${vc.userName || 'Звонок'}`;
+        }
+    }
+    
+    // Статус
+    if (statusEl) {
+        statusEl.className = 'voice-connection-status';
+        const bar = document.getElementById('voice-connection-bar');
+        
+        // Убираем старые классы статуса с бара
+        bar?.classList.remove('connecting', 'connected');
+        
+        switch (vc.status) {
+            case 'connecting':
+                statusEl.textContent = 'Подключение...';
+                statusEl.classList.add('connecting');
+                bar?.classList.add('connecting');
+                break;
+            case 'connected':
+                statusEl.textContent = 'Подключено';
+                statusEl.classList.add('connected');
+                bar?.classList.remove('connecting');
+                bar?.classList.add('connected');
+                break;
+            case 'reconnecting':
+                statusEl.textContent = 'Переподключение...';
+                statusEl.classList.add('connecting');
+                bar?.classList.add('connecting');
+                break;
+            default:
+                statusEl.textContent = vc.status || '';
+        }
+    }
+}
+
+function hideVoiceConnectionBar() {
+    const bar = document.getElementById('voice-connection-bar');
+    if (!bar) return;
+    
+    // Анимация скрытия
+    bar.classList.remove('visible', 'connecting', 'connected');
+    bar.classList.add('hidden');
+}
+
+function disconnectVoiceChannel() {
+    if (!state.voiceConnection) return;
+    
+    const vc = state.voiceConnection;
+    
+    if (vc.type === 'server') {
+        state.socket?.emit('leave-voice-channel', { serverId: vc.serverId, channelId: vc.channelId });
+        
+        // Убираем индикатор с канала
+        document.querySelectorAll('.server-channel-item').forEach(i => i.classList.remove('in-voice'));
+        
+        showToast('Отключено от голосового канала');
+    } else if (vc.type === 'call') {
+        // Завершаем звонок
+        endCall();
+    }
+    
+    state.voiceConnection = null;
+    hideVoiceConnectionBar();
+}
+
+function initVoiceConnectionBar() {
+    // Кнопка отключения
+    document.getElementById('voice-disconnect-btn')?.addEventListener('click', disconnectVoiceChannel);
+    
+    // Кнопка мута микрофона
+    document.getElementById('voice-mute-btn')?.addEventListener('click', () => {
+        const btn = document.getElementById('voice-mute-btn');
+        btn?.classList.toggle('muted');
+        state.voiceMuted = btn?.classList.contains('muted');
+        // TODO: Реально замутить микрофон в WebRTC
+    });
 }
 
 function updateChatHeader(name, subtitle, avatarUrl) {
@@ -5547,6 +5690,7 @@ function updateChatHeaderAvatar() {
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', () => {
     initSidebarResizer();
+    initVoiceConnectionBar();
     
     // Обработчики для кнопок в хедере (звонки)
     document.querySelectorAll('.header-action-btn').forEach((btn, index) => {
