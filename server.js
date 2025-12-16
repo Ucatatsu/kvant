@@ -1662,7 +1662,10 @@ io.on('connection', async (socket) => {
             // Приводим receiverId к числу для корректной работы с Map
             const receiverId = parseInt(data.receiverId, 10);
             
+            console.log(`📨 send-message: from=${userId} (${typeof userId}), to=${receiverId} (${typeof receiverId}), text="${text?.substring(0, 20)}..."`);
+            
             if (!receiverId || isNaN(receiverId) || !text || typeof text !== 'string') {
+                console.log(`📨 Validation failed: receiverId=${receiverId}, text type=${typeof text}`);
                 return socket.emit('error', { message: 'Неверные данные' });
             }
             
@@ -1701,7 +1704,7 @@ io.on('connection', async (socket) => {
             // Отправляем отправителю на все его устройства (синхронизация)
             emitToUser(userId, 'message-sent', message);
         } catch (error) {
-            console.error('Send message error:', error);
+            console.error('Send message error:', error.message, error.stack);
             socket.emit('error', { message: 'Ошибка отправки' });
         }
     });
