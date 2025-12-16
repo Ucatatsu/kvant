@@ -4995,6 +4995,16 @@ input:focus {
   padding: 2px 5px;
 }
 
+/* Fallback текст для P+ если пустой */
+.user-item .premium-plus-badge:empty::after {
+  content: 'P+';
+}
+
+/* Fallback текст для P если пустой */
+.user-item .premium-badge:empty::after {
+  content: 'P';
+}
+
 /* Кастомный тег */
 .custom-tag {
   color: var(--accent);
