@@ -4341,6 +4341,200 @@ document.addEventListener('DOMContentLoaded', () => {
         e.target.value = '';
     });
     
+    // === РЕДАКТИРОВАНИЕ НАЗВАНИЯ/ОПИСАНИЯ ГРУППЫ ===
+    
+    // Кнопка редактирования названия группы
+    document.getElementById('edit-group-name-btn')?.addEventListener('click', async () => {
+        const groupId = document.getElementById('group-info-modal').dataset.groupId;
+        if (!groupId) return;
+        
+        const currentName = document.getElementById('group-info-name').textContent;
+        const newName = await customPrompt({
+            title: 'Название группы',
+            icon: '✏️',
+            placeholder: 'Введите название',
+            defaultValue: currentName
+        });
+        
+        if (newName && newName !== currentName) {
+            try {
+                const res = await api.put(`/api/groups/${groupId}`, { name: newName });
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('group-info-name').textContent = newName;
+                    showToast('Название обновлено!');
+                    updateGroupsList();
+                } else {
+                    showToast(data.error || 'Ошибка', 'error');
+                }
+            } catch (err) {
+                console.error('Update group name error:', err);
+                showToast('Ошибка обновления', 'error');
+            }
+        }
+    });
+    
+    // Кнопка редактирования описания группы
+    document.getElementById('edit-group-desc-btn')?.addEventListener('click', async () => {
+        const groupId = document.getElementById('group-info-modal').dataset.groupId;
+        if (!groupId) return;
+        
+        const currentDesc = document.getElementById('group-info-desc').textContent;
+        const defaultDesc = currentDesc === 'Нет описания' ? '' : currentDesc;
+        const newDesc = await customPrompt({
+            title: 'Описание группы',
+            icon: '📝',
+            placeholder: 'Введите описание',
+            defaultValue: defaultDesc
+        });
+        
+        if (newDesc !== null && newDesc !== defaultDesc) {
+            try {
+                const res = await api.put(`/api/groups/${groupId}`, { description: newDesc });
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('group-info-desc').textContent = newDesc || 'Нет описания';
+                    showToast('Описание обновлено!');
+                } else {
+                    showToast(data.error || 'Ошибка', 'error');
+                }
+            } catch (err) {
+                console.error('Update group desc error:', err);
+                showToast('Ошибка обновления', 'error');
+            }
+        }
+    });
+    
+    // === РЕДАКТИРОВАНИЕ НАЗВАНИЯ/ОПИСАНИЯ КАНАЛА ===
+    
+    document.getElementById('edit-channel-name-btn')?.addEventListener('click', async () => {
+        const channelId = document.getElementById('channel-info-modal').dataset.channelId;
+        if (!channelId) return;
+        
+        const currentName = document.getElementById('channel-info-name').textContent;
+        const newName = await customPrompt({
+            title: 'Название канала',
+            icon: '✏️',
+            placeholder: 'Введите название',
+            defaultValue: currentName
+        });
+        
+        if (newName && newName !== currentName) {
+            try {
+                const res = await api.put(`/api/channels/${channelId}`, { name: newName });
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('channel-info-name').textContent = newName;
+                    showToast('Название обновлено!');
+                    updateChannelsList();
+                } else {
+                    showToast(data.error || 'Ошибка', 'error');
+                }
+            } catch (err) {
+                console.error('Update channel name error:', err);
+                showToast('Ошибка обновления', 'error');
+            }
+        }
+    });
+    
+    document.getElementById('edit-channel-desc-btn')?.addEventListener('click', async () => {
+        const channelId = document.getElementById('channel-info-modal').dataset.channelId;
+        if (!channelId) return;
+        
+        const currentDesc = document.getElementById('channel-info-desc').textContent;
+        const defaultDesc = currentDesc === 'Нет описания' ? '' : currentDesc;
+        const newDesc = await customPrompt({
+            title: 'Описание канала',
+            icon: '📝',
+            placeholder: 'Введите описание',
+            defaultValue: defaultDesc
+        });
+        
+        if (newDesc !== null && newDesc !== defaultDesc) {
+            try {
+                const res = await api.put(`/api/channels/${channelId}`, { description: newDesc });
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('channel-info-desc').textContent = newDesc || 'Нет описания';
+                    showToast('Описание обновлено!');
+                } else {
+                    showToast(data.error || 'Ошибка', 'error');
+                }
+            } catch (err) {
+                console.error('Update channel desc error:', err);
+                showToast('Ошибка обновления', 'error');
+            }
+        }
+    });
+    
+    // === РЕДАКТИРОВАНИЕ НАЗВАНИЯ/ОПИСАНИЯ СЕРВЕРА ===
+    
+    document.getElementById('edit-server-name-btn')?.addEventListener('click', async () => {
+        const serverId = document.getElementById('server-info-modal').dataset.serverId;
+        if (!serverId) return;
+        
+        const currentName = document.getElementById('server-info-name').textContent;
+        const newName = await customPrompt({
+            title: 'Название сервера',
+            icon: '✏️',
+            placeholder: 'Введите название',
+            defaultValue: currentName
+        });
+        
+        if (newName && newName !== currentName) {
+            try {
+                const res = await api.put(`/api/servers/${serverId}`, { name: newName });
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('server-info-name').textContent = newName;
+                    showToast('Название обновлено!');
+                    updateServersList();
+                } else {
+                    showToast(data.error || 'Ошибка', 'error');
+                }
+            } catch (err) {
+                console.error('Update server name error:', err);
+                showToast('Ошибка обновления', 'error');
+            }
+        }
+    });
+    
+    document.getElementById('edit-server-desc-btn')?.addEventListener('click', async () => {
+        const serverId = document.getElementById('server-info-modal').dataset.serverId;
+        if (!serverId) return;
+        
+        const currentDesc = document.getElementById('server-info-desc').textContent;
+        const defaultDesc = currentDesc === 'Нет описания' ? '' : currentDesc;
+        const newDesc = await customPrompt({
+            title: 'Описание сервера',
+            icon: '📝',
+            placeholder: 'Введите описание',
+            defaultValue: defaultDesc
+        });
+        
+        if (newDesc !== null && newDesc !== defaultDesc) {
+            try {
+                const res = await api.put(`/api/servers/${serverId}`, { description: newDesc });
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('server-info-desc').textContent = newDesc || 'Нет описания';
+                    showToast('Описание обновлено!');
+                } else {
+                    showToast(data.error || 'Ошибка', 'error');
+                }
+            } catch (err) {
+                console.error('Update server desc error:', err);
+                showToast('Ошибка обновления', 'error');
+            }
+        }
+    });
+    
     // === НАСТРОЙКИ ===
     
     document.getElementById('settings-btn')?.addEventListener('click', showSettings);
@@ -4926,6 +5120,8 @@ async function showGroupInfo(groupId) {
         // Показываем/скрываем кнопки редактирования
         document.getElementById('edit-group-banner-btn')?.classList.toggle('hidden', !isOwner);
         document.getElementById('edit-group-avatar-btn')?.classList.toggle('hidden', !isOwner);
+        document.getElementById('edit-group-name-btn')?.classList.toggle('hidden', !isOwner);
+        document.getElementById('edit-group-desc-btn')?.classList.toggle('hidden', !isOwner);
         
         // Инфо
         document.getElementById('group-info-name').textContent = group.name;
@@ -4981,6 +5177,9 @@ async function showChannelInfo(channelId) {
         
         if (!channel) return;
         
+        // Проверяем владельца
+        const isOwner = channel.owner_id === state.currentUser.id;
+        
         // Аватар
         const avatarEl = document.getElementById('channel-info-avatar');
         if (channel.avatar_url) {
@@ -4991,10 +5190,17 @@ async function showChannelInfo(channelId) {
             avatarEl.innerHTML = '<img src="/assets/megaphone.svg" alt="" class="icon-lg">';
         }
         
+        // Показываем/скрываем кнопки редактирования
+        document.getElementById('edit-channel-name-btn')?.classList.toggle('hidden', !isOwner);
+        document.getElementById('edit-channel-desc-btn')?.classList.toggle('hidden', !isOwner);
+        
         // Инфо
         document.getElementById('channel-info-name').textContent = channel.name;
         document.getElementById('channel-info-meta').textContent = `${channel.subscriber_count || 0} подписчиков`;
         document.getElementById('channel-info-desc').textContent = channel.description || 'Нет описания';
+        
+        // Сохраняем ID канала для редактирования
+        document.getElementById('channel-info-modal').dataset.channelId = channelId;
         
         // Ссылка-приглашение
         const linkEl = document.getElementById('channel-info-link');
@@ -5031,6 +5237,9 @@ async function showServerInfo(serverId) {
         
         if (!server) return;
         
+        // Проверяем владельца
+        const isOwner = server.owner_id === state.currentUser.id;
+        
         // Аватар
         const avatarEl = document.getElementById('server-info-avatar');
         if (server.icon_url) {
@@ -5049,10 +5258,17 @@ async function showServerInfo(serverId) {
             bannerEl.style.backgroundImage = '';
         }
         
+        // Показываем/скрываем кнопки редактирования
+        document.getElementById('edit-server-name-btn')?.classList.toggle('hidden', !isOwner);
+        document.getElementById('edit-server-desc-btn')?.classList.toggle('hidden', !isOwner);
+        
         // Инфо
         document.getElementById('server-info-name').textContent = server.name;
         document.getElementById('server-info-meta').textContent = `${members.length} участников`;
         document.getElementById('server-info-desc').textContent = server.description || 'Нет описания';
+        
+        // Сохраняем ID сервера для редактирования
+        document.getElementById('server-info-modal').dataset.serverId = serverId;
         
         // Ссылка-приглашение
         const linkEl = document.getElementById('server-info-link');

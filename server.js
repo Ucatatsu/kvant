@@ -1048,6 +1048,36 @@ app.post('/api/groups/:groupId/banner', authMiddleware, upload.single('banner'),
     }
 });
 
+// Обновление группы (название, описание)
+app.put('/api/groups/:groupId', authMiddleware, async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const { name, description } = req.body;
+        
+        // Проверяем что пользователь - владелец группы
+        const group = await db.getGroup(groupId);
+        if (!group) {
+            return res.status(404).json({ success: false, error: 'Группа не найдена' });
+        }
+        if (group.owner_id !== req.user.id) {
+            return res.status(403).json({ success: false, error: 'Только владелец может редактировать группу' });
+        }
+        
+        if (name !== undefined && name.trim().length < 1) {
+            return res.status(400).json({ success: false, error: 'Название не может быть пустым' });
+        }
+        
+        const result = await db.updateGroup(groupId, { 
+            name: name?.trim(), 
+            description: description?.trim() 
+        });
+        res.json(result);
+    } catch (error) {
+        console.error('Update group error:', error);
+        res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    }
+});
+
 // === КАНАЛЫ ===
 
 app.post('/api/channels', authMiddleware, async (req, res) => {
@@ -1082,6 +1112,35 @@ app.get('/api/channels/:channelId', authMiddleware, async (req, res) => {
     } catch (error) {
         console.error('Get channel error:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// Обновление канала (название, описание)
+app.put('/api/channels/:channelId', authMiddleware, async (req, res) => {
+    try {
+        const { channelId } = req.params;
+        const { name, description } = req.body;
+        
+        const channel = await db.getChannel(channelId);
+        if (!channel) {
+            return res.status(404).json({ success: false, error: 'Канал не найден' });
+        }
+        if (channel.owner_id !== req.user.id) {
+            return res.status(403).json({ success: false, error: 'Только владелец может редактировать канал' });
+        }
+        
+        if (name !== undefined && name.trim().length < 1) {
+            return res.status(400).json({ success: false, error: 'Название не может быть пустым' });
+        }
+        
+        const result = await db.updateChannel(channelId, { 
+            name: name?.trim(), 
+            description: description?.trim() 
+        });
+        res.json(result);
+    } catch (error) {
+        console.error('Update channel error:', error);
+        res.status(500).json({ success: false, error: 'Ошибка сервера' });
     }
 });
 
@@ -1187,6 +1246,35 @@ app.get('/api/servers/:serverId', authMiddleware, async (req, res) => {
     } catch (error) {
         console.error('Get server error:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// Обновление сервера (название, описание)
+app.put('/api/servers/:serverId', authMiddleware, async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        const { name, description } = req.body;
+        
+        const server = await db.getServer(serverId);
+        if (!server) {
+            return res.status(404).json({ success: false, error: 'Сервер не найден' });
+        }
+        if (server.owner_id !== req.user.id) {
+            return res.status(403).json({ success: false, error: 'Только владелец может редактировать сервер' });
+        }
+        
+        if (name !== undefined && name.trim().length < 1) {
+            return res.status(400).json({ success: false, error: 'Название не может быть пустым' });
+        }
+        
+        const result = await db.updateServer(serverId, { 
+            name: name?.trim(), 
+            description: description?.trim() 
+        });
+        res.json(result);
+    } catch (error) {
+        console.error('Update server error:', error);
+        res.status(500).json({ success: false, error: 'Ошибка сервера' });
     }
 });
 

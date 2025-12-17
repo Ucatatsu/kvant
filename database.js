@@ -1719,6 +1719,31 @@ async function updateGroupBanner(groupId, bannerUrl) {
     }
 }
 
+async function updateGroup(groupId, data) {
+    try {
+        const { name, description } = data;
+        if (USE_SQLITE) {
+            if (name !== undefined) {
+                sqlite.prepare('UPDATE group_chats SET name = ? WHERE id = ?').run(name, groupId);
+            }
+            if (description !== undefined) {
+                sqlite.prepare('UPDATE group_chats SET description = ? WHERE id = ?').run(description, groupId);
+            }
+        } else {
+            if (name !== undefined) {
+                await pool.query('UPDATE group_chats SET name = $1 WHERE id = $2', [name, groupId]);
+            }
+            if (description !== undefined) {
+                await pool.query('UPDATE group_chats SET description = $1 WHERE id = $2', [description, groupId]);
+            }
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Update group error:', error);
+        return { success: false, error: 'Ошибка обновления группы' };
+    }
+}
+
 // === КАНАЛЫ (Telegram-style) ===
 
 async function createChannel(ownerId, name, description = '', isPublic = true, avatarUrl = null) {
@@ -1953,6 +1978,31 @@ async function getChannelMedia(channelId, limit = 50) {
     }
 }
 
+async function updateChannel(channelId, data) {
+    try {
+        const { name, description } = data;
+        if (USE_SQLITE) {
+            if (name !== undefined) {
+                sqlite.prepare('UPDATE channels SET name = ? WHERE id = ?').run(name, channelId);
+            }
+            if (description !== undefined) {
+                sqlite.prepare('UPDATE channels SET description = ? WHERE id = ?').run(description, channelId);
+            }
+        } else {
+            if (name !== undefined) {
+                await pool.query('UPDATE channels SET name = $1 WHERE id = $2', [name, channelId]);
+            }
+            if (description !== undefined) {
+                await pool.query('UPDATE channels SET description = $1 WHERE id = $2', [description, channelId]);
+            }
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Update channel error:', error);
+        return { success: false, error: 'Ошибка обновления канала' };
+    }
+}
+
 // === СЕРВЕРЫ (Discord-style) ===
 
 async function createServer(ownerId, name, description = '', iconUrl = null) {
@@ -2054,6 +2104,31 @@ async function updateServerSlug(serverId, slug) {
     } catch (error) {
         console.error('Update server slug error:', error);
         return { success: false, error: 'Ошибка обновления' };
+    }
+}
+
+async function updateServer(serverId, data) {
+    try {
+        const { name, description } = data;
+        if (USE_SQLITE) {
+            if (name !== undefined) {
+                sqlite.prepare('UPDATE servers SET name = ? WHERE id = ?').run(name, serverId);
+            }
+            if (description !== undefined) {
+                sqlite.prepare('UPDATE servers SET description = ? WHERE id = ?').run(description, serverId);
+            }
+        } else {
+            if (name !== undefined) {
+                await pool.query('UPDATE servers SET name = $1 WHERE id = $2', [name, serverId]);
+            }
+            if (description !== undefined) {
+                await pool.query('UPDATE servers SET description = $1 WHERE id = $2', [description, serverId]);
+            }
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Update server error:', error);
+        return { success: false, error: 'Ошибка обновления сервера' };
     }
 }
 
@@ -2575,8 +2650,10 @@ module.exports = {
     getGroupMedia,
     updateGroupAvatar,
     updateGroupBanner,
+    updateGroup,
     // Каналы
     createChannel,
+    updateChannel,
     getChannel,
     getChannelByIdOrSlug,
     updateChannelSlug,
@@ -2592,6 +2669,7 @@ module.exports = {
     getServer,
     getServerByIdOrSlug,
     updateServerSlug,
+    updateServer,
     getUserServers,
     joinServer,
     leaveServer,

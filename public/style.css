@@ -12243,6 +12243,52 @@ select option {
   filter: brightness(0) invert(1);
 }
 
+/* Name and description edit rows */
+.chat-info-name-row,
+.chat-info-desc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-info-name-row {
+  justify-content: center;
+}
+
+.chat-info-edit-name-btn,
+.chat-info-edit-desc-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, transform 0.2s;
+  flex-shrink: 0;
+}
+
+.chat-info-edit-name-btn:hover,
+.chat-info-edit-desc-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.chat-info-edit-name-btn .icon-sm,
+.chat-info-edit-desc-btn .icon-sm {
+  width: 12px;
+  height: 12px;
+  filter: brightness(0) invert(1);
+  opacity: 0.7;
+}
+
+.chat-info-edit-name-btn:hover .icon-sm,
+.chat-info-edit-desc-btn:hover .icon-sm {
+  opacity: 1;
+}
+
 /* === INVITE MODAL === */
 .invite-modal-content {
   padding: 32px 24px;
