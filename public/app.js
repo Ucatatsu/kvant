@@ -5098,10 +5098,13 @@ function showSettings() {
     settingsUsername.textContent = state.currentUserProfile?.display_name || state.currentUser.username;
     
     // Загружаем текущие значения
-    document.getElementById('notifications-checkbox').checked = state.notificationsEnabled;
-    document.getElementById('sounds-checkbox').checked = state.settings.sounds !== false;
-    document.getElementById('setting-compact').checked = state.settings.compact || false;
-    document.getElementById('setting-avatars').checked = !state.settings.hideAvatars;
+    const notifCheckbox = document.getElementById('notifications-checkbox');
+    const soundsCheckbox = document.getElementById('sounds-checkbox');
+    const avatarsCheckbox = document.getElementById('setting-avatars');
+    
+    if (notifCheckbox) notifCheckbox.checked = state.notificationsEnabled;
+    if (soundsCheckbox) soundsCheckbox.checked = state.settings.sounds !== false;
+    if (avatarsCheckbox) avatarsCheckbox.checked = !state.settings.hideAvatars;
     
     // Premium статус
     const isPremium = state.currentUserProfile?.isPremium || state.currentUser?.role === 'admin';
