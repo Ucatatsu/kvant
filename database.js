@@ -64,6 +64,7 @@ async function initDB() {
                 profile_theme TEXT DEFAULT 'default',
                 profile_color TEXT,
                 custom_id TEXT,
+                bubble_style TEXT DEFAULT 'default',
                 hide_online INTEGER DEFAULT 0,
                 settings TEXT DEFAULT '{}',
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -420,6 +421,7 @@ async function initDB() {
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_color TEXT',
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_tag TEXT',
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_id TEXT',
+            'ALTER TABLE users ADD COLUMN IF NOT EXISTS bubble_style TEXT DEFAULT \'default\'',
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS hide_online BOOLEAN DEFAULT FALSE',
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT \'{}\''
         ];
@@ -829,11 +831,11 @@ async function getUser(userId) {
         let user;
         if (USE_SQLITE) {
             user = sqlite.prepare(`SELECT id, username, tag, role, premium_until, premium_plan, display_name, phone, bio, avatar_url, banner_url, 
-                    name_color, profile_theme, profile_color, custom_id, hide_online, created_at FROM users WHERE id = ?`).get(userId);
+                    name_color, profile_theme, profile_color, custom_id, bubble_style, hide_online, created_at FROM users WHERE id = ?`).get(userId);
         } else {
             const result = await pool.query(
                 `SELECT id, username, tag, role, premium_until, premium_plan, display_name, phone, bio, avatar_url, banner_url, 
-                        name_color, profile_theme, profile_color, custom_tag, custom_id, hide_online, created_at 
+                        name_color, profile_theme, profile_color, custom_tag, custom_id, bubble_style, hide_online, created_at 
                  FROM users WHERE id = $1`,
                 [userId]
             );
@@ -982,17 +984,18 @@ async function updateUser(userId, data) {
 // Premium: обновление настроек профиля
 async function updatePremiumSettings(userId, data) {
     try {
-        const { name_color, profile_theme, profile_color, custom_id, hide_online } = data;
+        const { name_color, profile_theme, profile_color, custom_id, bubble_style, hide_online } = data;
         await pool.query(
             `UPDATE users SET 
                 name_color = COALESCE($2, name_color),
                 profile_theme = COALESCE($3, profile_theme),
                 profile_color = COALESCE($4, profile_color),
                 custom_id = COALESCE($5, custom_id),
-                hide_online = COALESCE($6, hide_online),
+                bubble_style = COALESCE($6, bubble_style),
+                hide_online = COALESCE($7, hide_online),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $1`,
-            [userId, name_color || null, profile_theme || null, profile_color || null, custom_id || null, hide_online]
+            [userId, name_color || null, profile_theme || null, profile_color || null, custom_id || null, bubble_style || null, hide_online]
         );
         return { success: true };
     } catch (error) {

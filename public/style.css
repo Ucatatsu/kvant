@@ -10434,6 +10434,16 @@ input[type="range"]:focus::-moz-range-thumb {
   box-shadow: 0 0 8px var(--accent-glow);
 }
 
+.bubble-style-picker.locked {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.bubble-style-setting.locked::after {
+  content: '🔒';
+  margin-left: 8px;
+}
+
 .bubble-preview {
   width: 36px;
   height: 24px;
@@ -10474,6 +10484,36 @@ input[type="range"]:focus::-moz-range-thumb {
 .bubble-preview.minimal {
   background: transparent;
   border: 1px solid var(--accent);
+}
+
+.bubble-preview.cloud {
+  background: var(--message-sent);
+  border-radius: 18px 18px 18px 4px;
+  position: relative;
+}
+
+.bubble-preview.cloud::before {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 4px;
+  width: 10px;
+  height: 10px;
+  background: inherit;
+  border-radius: 50%;
+}
+
+.bubble-preview.sharp {
+  background: var(--message-sent);
+  border-radius: 0;
+  clip-path: polygon(0 0, 100% 0, 100% 80%, 90% 100%, 0 100%);
+}
+
+.bubble-preview.retro {
+  background: linear-gradient(180deg, #00ff00 0%, #008800 100%);
+  border: 2px solid #00ff00;
+  border-radius: 4px;
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
 }
 
 /* Premium+ badge */
@@ -10538,6 +10578,40 @@ input[type="range"]:focus::-moz-range-thumb {
 .message.sent.bubble-minimal .message-bubble {
   background: transparent;
   border: 2px solid var(--accent);
+}
+
+/* Cloud bubble - мягкая форма облака */
+.message.sent.bubble-cloud .message-bubble {
+  border-radius: 20px 20px 4px 20px;
+  position: relative;
+}
+
+.message.sent.bubble-cloud .message-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: -6px;
+  width: 12px;
+  height: 12px;
+  background: inherit;
+  border-radius: 50%;
+}
+
+/* Sharp bubble - острые углы */
+.message.sent.bubble-sharp .message-bubble {
+  border-radius: 0;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 12px) 100%, 0 100%);
+}
+
+/* Retro bubble - ретро терминал */
+.message.sent.bubble-retro .message-bubble {
+  background: linear-gradient(180deg, #003300 0%, #001a00 100%);
+  border: 2px solid #00ff00;
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3), inset 0 0 20px rgba(0, 255, 0, 0.1);
+  color: #00ff00;
+  font-family: 'Courier New', monospace;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
 }
 
 

@@ -453,7 +453,7 @@ app.put('/api/user/:userId/premium-settings', authMiddleware, ownerMiddleware('u
             return res.status(403).json({ success: false, error: 'Требуется Premium подписка' });
         }
         
-        const { name_color, profile_theme, profile_color, custom_id, hide_online } = req.body;
+        const { name_color, profile_theme, profile_color, custom_id, bubble_style, hide_online } = req.body;
         
         // Проверка кастомного ID (4 цифры)
         if (custom_id) {
@@ -471,6 +471,7 @@ app.put('/api/user/:userId/premium-settings', authMiddleware, ownerMiddleware('u
             profile_theme: profile_theme || null,
             profile_color: profile_color || null,
             custom_id: custom_id || null,
+            bubble_style: bubble_style || null,
             hide_online: hide_online !== undefined ? hide_online : null
         };
         
@@ -1667,17 +1668,22 @@ io.on('connection', async (socket) => {
             const sanitizedText = text.trim().substring(0, 5000);
             if (!sanitizedText) return;
             
+            // Получаем данные отправителя для bubble_style
+            const senderUser = await db.getUser(userId);
+            
             // Проверяем Premium+ для самоуничтожающихся сообщений
             let actualSelfDestruct = null;
             if (selfDestructMinutes && selfDestructMinutes > 0) {
-                const user = await db.getUser(userId);
-                const isPremiumPlus = user?.role === 'admin' || user?.premiumPlan === 'premium_plus';
+                const isPremiumPlus = senderUser?.role === 'admin' || senderUser?.premiumPlan === 'premium_plus';
                 if (isPremiumPlus) {
                     actualSelfDestruct = selfDestructMinutes;
                 }
             }
             
             const message = await db.saveMessage(userId, receiverId, sanitizedText, messageType, 0, actualSelfDestruct);
+            
+            // Добавляем bubble_style отправителя (для отображения у получателя)
+            message.sender_bubble_style = senderUser?.bubble_style || 'default';
             
             // Отправляем получателю (все его устройства)
             const receiverData = onlineUsers.get(receiverId);

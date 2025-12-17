@@ -815,6 +815,15 @@ function logout() {
         state.socket = null;
     }
     
+    // Сбрасываем стили пузырей (убираем Premium+ стили)
+    document.querySelectorAll('.message').forEach(msg => {
+        msg.classList.forEach(cls => {
+            if (cls.startsWith('bubble-')) {
+                msg.classList.remove(cls);
+            }
+        });
+    });
+    
     document.getElementById('settings-modal')?.classList.add('hidden');
     document.getElementById('chat-screen').classList.add('hidden');
     document.getElementById('login-screen').classList.remove('hidden');
@@ -1901,7 +1910,10 @@ function renderMessages(messages) {
 
 function createMessageElement(msg, isSent) {
     const div = document.createElement('div');
-    const bubbleStyleClass = isSent ? getBubbleStyleClass() : '';
+    // Для своих сообщений - свой стиль, для чужих - стиль отправителя
+    const bubbleStyleClass = isSent 
+        ? getBubbleStyleClass() 
+        : getBubbleStyleClass(msg.sender_bubble_style);
     const selfDestructClass = msg.self_destruct_at ? 'self-destruct' : '';
     div.className = `message ${isSent ? 'sent' : 'received'} ${bubbleStyleClass} ${selfDestructClass}`.trim();
     div.dataset.messageId = msg.id;
@@ -4610,19 +4622,6 @@ function showEditProfile() {
         document.getElementById('edit-profile-color').value = state.currentUserProfile?.profile_color || '#1976d2';
         document.getElementById('edit-custom-id').value = state.currentUserProfile?.custom_id || '';
         
-        // Инициализируем выбранный стиль пузырей
-        const currentBubbleStyle = state.settings.bubbleStyle || 'default';
-        document.querySelectorAll('.bubble-style-option').forEach(opt => {
-            opt.classList.toggle('active', opt.dataset.style === currentBubbleStyle);
-        });
-        
-        // Premium+ only секции
-        const isPremiumPlus = state.currentUserProfile?.premiumPlan === 'premium_plus' || state.currentUser?.role === 'admin';
-        const bubbleGroup = document.getElementById('bubble-style-group');
-        if (bubbleGroup) {
-            bubbleGroup.classList.toggle('locked', !isPremiumPlus);
-        }
-        
         if (isPremium) {
             premiumSection.classList.remove('locked');
             premiumOverlay?.classList.add('hidden');
@@ -5135,6 +5134,23 @@ function showSettings() {
     document.querySelectorAll('.theme-option').forEach(opt => {
         opt.classList.toggle('active', opt.dataset.theme === (state.settings.theme || 'dark'));
     });
+    
+    // Стиль пузырей (из профиля, не из локальных настроек)
+    const currentBubbleStyle = state.currentUserProfile?.bubble_style || 'default';
+    document.querySelectorAll('.bubble-style-option').forEach(opt => {
+        opt.classList.toggle('active', opt.dataset.style === currentBubbleStyle);
+    });
+    
+    // Блокируем стили пузырей для не-Premium+ пользователей
+    const isPremiumPlus = state.currentUserProfile?.premiumPlan === 'premium_plus' || state.currentUser?.role === 'admin';
+    const bubbleStyleSetting = document.getElementById('bubble-style-setting');
+    const bubbleStylePicker = document.getElementById('bubble-style-picker');
+    if (bubbleStyleSetting) {
+        bubbleStyleSetting.classList.toggle('locked', !isPremiumPlus);
+    }
+    if (bubbleStylePicker) {
+        bubbleStylePicker.classList.toggle('locked', !isPremiumPlus);
+    }
     
     // Сбрасываем на первый раздел
     document.querySelectorAll('.settings-nav-item').forEach(i => i.classList.remove('active'));
@@ -7225,14 +7241,33 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('edit-banner-preview').style.background = '#1976d2';
     });
     
-    // Выбор стиля пузырей (Premium+)
+    // Выбор стиля пузырей (Premium+) - сохраняется на сервер
     document.querySelectorAll('.bubble-style-option').forEach(opt => {
-        opt.addEventListener('click', () => {
+        opt.addEventListener('click', async () => {
+            // Проверка Premium+
+            const isPremiumPlus = state.currentUserProfile?.premiumPlan === 'premium_plus' || state.currentUser?.role === 'admin';
+            if (!isPremiumPlus && opt.dataset.style !== 'default') {
+                showToast('Стили пузырей доступны только для Premium+', 'error');
+                return;
+            }
+            
             document.querySelectorAll('.bubble-style-option').forEach(o => o.classList.remove('active'));
             opt.classList.add('active');
-            state.settings.bubbleStyle = opt.dataset.style;
-            saveSettings();
-            applyBubbleStyle();
+            
+            // Сохраняем на сервер
+            try {
+                await api.put(`/api/user/${state.currentUser.id}/premium-settings`, {
+                    bubble_style: opt.dataset.style
+                });
+                // Обновляем локальный профиль
+                if (state.currentUserProfile) {
+                    state.currentUserProfile.bubble_style = opt.dataset.style;
+                }
+                applyBubbleStyle();
+                showToast('Стиль пузырей обновлён');
+            } catch (e) {
+                showToast('Ошибка сохранения', 'error');
+            }
         });
     });
     
@@ -7477,7 +7512,7 @@ function getAccentFilterParams(hexColor) {
 
 // Применить стиль пузырей сообщений (Premium+)
 function applyBubbleStyle() {
-    const style = state.settings.bubbleStyle || 'default';
+    const style = state.currentUserProfile?.bubble_style || 'default';
     const messages = document.querySelectorAll('.message.sent');
     
     // Удаляем все bubble-* классы
@@ -7494,9 +7529,14 @@ function applyBubbleStyle() {
     });
 }
 
-// Получить класс стиля пузыря для нового сообщения
-function getBubbleStyleClass() {
-    const style = state.settings.bubbleStyle || 'default';
+// Получить класс стиля пузыря для сообщения (свой или чужой)
+function getBubbleStyleClass(senderBubbleStyle = null) {
+    // Если передан стиль отправителя - используем его
+    if (senderBubbleStyle && senderBubbleStyle !== 'default') {
+        return `bubble-${senderBubbleStyle}`;
+    }
+    // Для своих сообщений используем свой стиль
+    const style = state.currentUserProfile?.bubble_style || 'default';
     return style !== 'default' ? `bubble-${style}` : '';
 }
 
