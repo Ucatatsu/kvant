@@ -5103,12 +5103,13 @@ function showSettings() {
     document.getElementById('setting-compact').checked = state.settings.compact || false;
     document.getElementById('setting-avatars').checked = !state.settings.hideAvatars;
     
+    // Premium статус
+    const isPremium = state.currentUserProfile?.isPremium || state.currentUser?.role === 'admin';
+    
     // Premium: скрытый онлайн
     const hideOnlineCheckbox = document.getElementById('setting-hide-online');
     if (hideOnlineCheckbox) {
         hideOnlineCheckbox.checked = state.currentUserProfile?.hide_online || false;
-        // Блокируем если не премиум
-        const isPremium = state.currentUserProfile?.isPremium || state.currentUser?.role === 'admin';
         const hideOnlineSetting = document.getElementById('hide-online-setting');
         if (hideOnlineSetting) {
             hideOnlineSetting.classList.toggle('locked', !isPremium);
@@ -5116,7 +5117,6 @@ function showSettings() {
     }
     
     // Блокируем премиум-темы для не-премиум пользователей
-    const isPremium = state.currentUserProfile?.isPremium || state.currentUser?.role === 'admin';
     document.querySelectorAll('.theme-option.premium-theme').forEach(opt => {
         opt.classList.toggle('locked', !isPremium);
     });
