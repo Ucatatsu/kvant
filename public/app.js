@@ -2927,6 +2927,11 @@ function applyTheme(theme) {
     // Убираем data-theme атрибут
     root.removeAttribute('data-theme');
     
+    // Сбрасываем inline стили CSS переменных (чтобы CSS темы работали)
+    const cssVars = ['--bg-darkest', '--bg-dark', '--bg-medium', '--bg-light', '--text', '--text-muted', 
+                     '--message-received', '--glass', '--glass-border', '--accent', '--accent-light', '--accent-glow'];
+    cssVars.forEach(v => root.style.removeProperty(v));
+    
     if (theme === 'system') {
         theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
@@ -2948,15 +2953,7 @@ function applyTheme(theme) {
         root.style.setProperty('--glass', 'rgba(255, 255, 255, 0.8)');
         root.style.setProperty('--glass-border', 'rgba(0, 0, 0, 0.1)');
     } else {
-        root.style.setProperty('--bg-darkest', '#0a1628');
-        root.style.setProperty('--bg-dark', '#0f2140');
-        root.style.setProperty('--bg-medium', '#162d50');
-        root.style.setProperty('--bg-light', '#1e3a5f');
-        root.style.setProperty('--text', '#e2e8f0');
-        root.style.setProperty('--text-muted', '#94a3b8');
-        root.style.setProperty('--message-received', '#162d50');
-        root.style.setProperty('--glass', 'rgba(15, 33, 64, 0.6)');
-        root.style.setProperty('--glass-border', 'rgba(79, 195, 247, 0.15)');
+        // dark - дефолтная тема, используем CSS :root
     }
 }
 
@@ -7473,16 +7470,28 @@ function getAccentFilterParams(hexColor) {
 // Применить стиль пузырей сообщений (Premium+)
 function applyBubbleStyle() {
     const style = state.currentUserProfile?.bubble_style || 'default';
-    const messages = document.querySelectorAll('.message.sent');
     
-    // Удаляем все bubble-* классы
+    // Применяем к реальным сообщениям
+    const messages = document.querySelectorAll('.message.sent');
     messages.forEach(msg => {
         msg.classList.forEach(cls => {
             if (cls.startsWith('bubble-')) {
                 msg.classList.remove(cls);
             }
         });
-        // Добавляем новый стиль если не default
+        if (style !== 'default') {
+            msg.classList.add(`bubble-${style}`);
+        }
+    });
+    
+    // Применяем к превью в настройках
+    const previewMessages = document.querySelectorAll('.preview-message.sent');
+    previewMessages.forEach(msg => {
+        msg.classList.forEach(cls => {
+            if (cls.startsWith('bubble-')) {
+                msg.classList.remove(cls);
+            }
+        });
         if (style !== 'default') {
             msg.classList.add(`bubble-${style}`);
         }

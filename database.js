@@ -1120,18 +1120,20 @@ async function saveMessage(senderId, receiverId, text, messageType = 'text', cal
 async function getMessages(userId1, userId2, limit = 50, before = null) {
     try {
         let query = `
-            SELECT id, sender_id, receiver_id, text, message_type, call_duration, created_at, updated_at
-            FROM messages 
-            WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)
+            SELECT m.id, m.sender_id, m.receiver_id, m.text, m.message_type, m.call_duration, m.created_at, m.updated_at,
+                   u.bubble_style as sender_bubble_style
+            FROM messages m
+            LEFT JOIN users u ON m.sender_id = u.id
+            WHERE (m.sender_id = $1 AND m.receiver_id = $2) OR (m.sender_id = $2 AND m.receiver_id = $1)
         `;
         const params = [userId1, userId2];
         
         if (before) {
-            query += ` AND created_at < $3`;
+            query += ` AND m.created_at < $3`;
             params.push(before);
         }
         
-        query += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+        query += ` ORDER BY m.created_at DESC LIMIT $${params.length + 1}`;
         params.push(Math.min(limit, 100)); // Максимум 100
         
         const result = await pool.query(query, params);

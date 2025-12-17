@@ -2929,6 +2929,18 @@ button {
   border-bottom-right-radius: 6px;
 }
 
+/* Preview bubble styles */
+.preview-message.sent.bubble-gradient-purple .preview-bubble { background: linear-gradient(135deg, #a855f7, #6366f1); }
+.preview-message.sent.bubble-gradient-green .preview-bubble { background: linear-gradient(135deg, #22c55e, #14b8a6); }
+.preview-message.sent.bubble-gradient-orange .preview-bubble { background: linear-gradient(135deg, #f97316, #eab308); }
+.preview-message.sent.bubble-gradient-pink .preview-bubble { background: linear-gradient(135deg, #ec4899, #f43f5e); }
+.preview-message.sent.bubble-neon .preview-bubble { background: linear-gradient(135deg, #0ff, #0f0); box-shadow: 0 0 8px rgba(0, 255, 255, 0.4); }
+.preview-message.sent.bubble-glass .preview-bubble { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.2); }
+.preview-message.sent.bubble-minimal .preview-bubble { background: transparent; border: 2px solid var(--accent); }
+.preview-message.sent.bubble-cloud .preview-bubble { border-radius: 18px 18px 4px 18px; }
+.preview-message.sent.bubble-sharp .preview-bubble { border-radius: 0; }
+.preview-message.sent.bubble-retro .preview-bubble { background: linear-gradient(180deg, #003300, #001a00); border: 2px solid #00ff00; color: #00ff00; }
+
 /* Custom background preview */
 .custom-bg .icon {
   width: 24px;
