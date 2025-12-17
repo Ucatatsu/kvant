@@ -2841,56 +2841,6 @@ function syncSettingsToServer() {
     }, 1000);
 }
 
-function applySettings() {
-    const chatScreen = document.getElementById('chat-screen');
-    const messagesDiv = document.getElementById('messages');
-    
-    if (chatScreen) {
-        chatScreen.classList.remove('bg-gradient1', 'bg-gradient2', 'bg-gradient3', 'bg-solid', 'bg-custom', 'bg-mode-contain');
-        chatScreen.style.backgroundImage = '';
-        
-        if (state.settings.background && state.settings.background !== 'default') {
-            if (state.settings.background === 'custom' && state.settings.customBg) {
-                chatScreen.classList.add('bg-custom');
-                chatScreen.style.backgroundImage = `url(${state.settings.customBg})`;
-            } else {
-                chatScreen.classList.add(`bg-${state.settings.background}`);
-            }
-        }
-        
-        // Применяем режим отображения фона
-        if (state.settings.bgMode === 'contain') {
-            chatScreen.classList.add('bg-mode-contain');
-        }
-    }
-    
-    if (messagesDiv) {
-        messagesDiv.className = 'messages';
-        
-        if (state.settings.messageSize && state.settings.messageSize !== 'medium') {
-            messagesDiv.classList.add(`size-${state.settings.messageSize}`);
-        }
-        
-        if (state.settings.compact) {
-            messagesDiv.classList.add('compact');
-        }
-        
-        if (state.settings.hideAvatars) {
-            messagesDiv.classList.add('no-avatars');
-        }
-    }
-    
-    if (state.settings.accentColor) {
-        document.documentElement.style.setProperty('--accent', state.settings.accentColor);
-        document.documentElement.style.setProperty('--message-sent', 
-            `linear-gradient(135deg, ${state.settings.accentColor}, ${adjustColor(state.settings.accentColor, -30)})`);
-    }
-    
-    if (state.settings.theme) {
-        applyTheme(state.settings.theme);
-    }
-}
-
 function adjustColor(color, amount) {
     const hex = color.replace('#', '');
     const r = Math.max(0, Math.min(255, parseInt(hex.substr(0, 2), 16) + amount));
@@ -7470,6 +7420,13 @@ function applySettings() {
     if (state.settings.theme) {
         applyTheme(state.settings.theme);
     }
+    
+    // Применяем новые настройки оформления
+    applyBubbleRadius(state.settings.bubbleRadius ?? 18);
+    applyDensity(state.settings.density || 'normal');
+    applyBgBlur(state.settings.bgBlur ?? 0);
+    applyBgDim(state.settings.bgDim ?? 0);
+    applyPanelOpacity(state.settings.panelOpacity ?? 85);
     
     // Применяем стиль пузырей
     applyBubbleStyle();
