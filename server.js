@@ -1452,6 +1452,74 @@ app.delete('/api/servers/:serverId/roles/:roleId', authMiddleware, async (req, r
     }
 });
 
+// === INVITE LINKS ===
+
+// Получить информацию о канале по инвайт-ссылке (публичный роут)
+app.get('/api/invite/channel/:channelId', async (req, res) => {
+    try {
+        const channel = await db.getChannel(req.params.channelId);
+        if (!channel) {
+            return res.status(404).json({ error: 'Канал не найден' });
+        }
+        // Возвращаем только публичную информацию
+        res.json({
+            id: channel.id,
+            name: channel.name,
+            description: channel.description,
+            avatar_url: channel.avatar_url,
+            subscriber_count: channel.subscriber_count,
+            is_public: channel.is_public
+        });
+    } catch (error) {
+        console.error('Get channel invite info error:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// Получить информацию о сервере по инвайт-ссылке (публичный роут)
+app.get('/api/invite/server/:serverId', async (req, res) => {
+    try {
+        const server = await db.getServer(req.params.serverId);
+        if (!server) {
+            return res.status(404).json({ error: 'Сервер не найден' });
+        }
+        // Возвращаем только публичную информацию
+        res.json({
+            id: server.id,
+            name: server.name,
+            description: server.description,
+            icon_url: server.icon_url,
+            member_count: server.member_count,
+            is_public: server.is_public
+        });
+    } catch (error) {
+        console.error('Get server invite info error:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// Присоединиться к каналу по инвайт-ссылке
+app.post('/api/invite/channel/:channelId/join', authMiddleware, async (req, res) => {
+    try {
+        const result = await db.subscribeToChannel(req.params.channelId, req.user.id);
+        res.json(result);
+    } catch (error) {
+        console.error('Join channel via invite error:', error);
+        res.status(500).json({ success: false, error: 'Ошибка присоединения' });
+    }
+});
+
+// Присоединиться к серверу по инвайт-ссылке
+app.post('/api/invite/server/:serverId/join', authMiddleware, async (req, res) => {
+    try {
+        const result = await db.joinServer(req.params.serverId, req.user.id);
+        res.json(result);
+    } catch (error) {
+        console.error('Join server via invite error:', error);
+        res.status(500).json({ success: false, error: 'Ошибка присоединения' });
+    }
+});
+
 // === SUPPORT TICKETS ===
 
 // Создать тикет
@@ -2102,6 +2170,12 @@ setInterval(() => {
         }
     }
 }, 5 * 60 * 1000);
+
+// === SPA ROUTING ===
+// Catch-all для инвайт-ссылок и других SPA роутов
+app.get('/invite/*', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // === ЗАПУСК ===
 

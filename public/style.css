@@ -12242,3 +12242,71 @@ select option {
   height: 14px;
   filter: brightness(0) invert(1);
 }
+
+/* === INVITE MODAL === */
+.invite-modal-content {
+  padding: 32px 24px;
+  text-align: center;
+  max-width: 380px;
+}
+
+.invite-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.invite-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--bg-medium);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  background-size: cover;
+  background-position: center;
+}
+
+.invite-avatar.server-avatar {
+  border-radius: 16px;
+}
+
+.invite-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.invite-description {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0;
+  max-width: 280px;
+}
+
+.invite-stats {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.invite-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.invite-join-btn {
+  padding: 14px 24px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.invite-cancel-btn {
+  padding: 12px 24px;
+  font-size: 14px;
+}

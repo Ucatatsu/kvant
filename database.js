@@ -1269,12 +1269,12 @@ async function deletePushSubscription(endpoint) {
 async function globalSearch(userId, query) {
     try {
         const sanitized = query.replace(/[%_]/g, '').substring(0, 100);
-        if (sanitized.length < 2) return { users: [], messages: [] };
+        if (sanitized.length < 2) return { users: [], messages: [], channels: [], servers: [] };
         
-        let users, messages;
+        let users, messages, channels, servers;
         
         if (USE_SQLITE) {
-            users = sqlite.prepare(`SELECT id, username, tag, display_name, avatar_url 
+            users = sqlite.prepare(`SELECT id, username, tag, custom_id, display_name, avatar_url 
                 FROM users WHERE (username LIKE ? OR display_name LIKE ?) AND id != ? LIMIT 10`)
                 .all(`%${sanitized}%`, `%${sanitized}%`, userId);
             
@@ -1284,9 +1284,19 @@ async function globalSearch(userId, query) {
                 WHERE (m.sender_id = ? OR m.receiver_id = ?) AND m.text LIKE ? AND m.message_type = 'text'
                 ORDER BY m.created_at DESC LIMIT 20`)
                 .all(userId, userId, `%${sanitized}%`);
+            
+            // Поиск публичных каналов
+            channels = sqlite.prepare(`SELECT id, name, description, avatar_url, subscriber_count 
+                FROM channels WHERE is_public = 1 AND name LIKE ? LIMIT 10`)
+                .all(`%${sanitized}%`);
+            
+            // Поиск публичных серверов
+            servers = sqlite.prepare(`SELECT id, name, description, icon_url, member_count 
+                FROM servers WHERE is_public = 1 AND name LIKE ? LIMIT 10`)
+                .all(`%${sanitized}%`);
         } else {
             const usersResult = await pool.query(
-                `SELECT id, username, tag, display_name, avatar_url 
+                `SELECT id, username, tag, custom_id, display_name, avatar_url 
                  FROM users WHERE (username ILIKE $1 OR display_name ILIKE $1) AND id != $2 LIMIT 10`,
                 [`%${sanitized}%`, userId]
             );
@@ -1301,12 +1311,28 @@ async function globalSearch(userId, query) {
                 [userId, `%${sanitized}%`]
             );
             messages = messagesResult.rows;
+            
+            // Поиск публичных каналов
+            const channelsResult = await pool.query(
+                `SELECT id, name, description, avatar_url, subscriber_count 
+                 FROM channels WHERE is_public = true AND name ILIKE $1 LIMIT 10`,
+                [`%${sanitized}%`]
+            );
+            channels = channelsResult.rows;
+            
+            // Поиск публичных серверов
+            const serversResult = await pool.query(
+                `SELECT id, name, description, icon_url, member_count 
+                 FROM servers WHERE is_public = true AND name ILIKE $1 LIMIT 10`,
+                [`%${sanitized}%`]
+            );
+            servers = serversResult.rows;
         }
         
-        return { users, messages };
+        return { users, messages, channels, servers };
     } catch (error) {
         console.error('Global search error:', error);
-        return { users: [], messages: [] };
+        return { users: [], messages: [], channels: [], servers: [] };
     }
 }
 

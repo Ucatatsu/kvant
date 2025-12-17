@@ -897,6 +897,9 @@ async function showChat() {
     await loadSettingsFromServer();
     requestNotificationPermission();
     applySettings();
+    
+    // Обработка инвайт-ссылок после загрузки
+    handleInviteLink();
 }
 
 // Загрузка настроек с сервера
@@ -1080,7 +1083,109 @@ function renderChannels() {
     
     list.querySelectorAll('.channel-item').forEach(el => {
         el.addEventListener('click', () => selectChannel(el.dataset.channelId));
+        el.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            showChannelContextMenu(e, el.dataset.channelId);
+        });
     });
+}
+
+// Контекстное меню для канала (Telegram-style)
+function showChannelContextMenu(e, channelId) {
+    hideAllContextMenus();
+    
+    const channel = state.channels.find(c => c.id === channelId);
+    if (!channel) return;
+    
+    const isOwner = channel.owner_id === state.currentUser?.id;
+    
+    const menu = document.createElement('div');
+    menu.className = 'context-menu channel-context-menu';
+    menu.innerHTML = `
+        <div class="context-menu-item" data-action="copy-link">
+            <img src="/assets/copy.svg" class="icon-sm"> Скопировать ссылку
+        </div>
+        ${isOwner ? `
+        <div class="context-menu-item danger" data-action="leave">
+            <img src="/assets/Right-from-bracket.svg" class="icon-sm"> Удалить канал
+        </div>
+        ` : `
+        <div class="context-menu-item danger" data-action="leave">
+            <img src="/assets/Right-from-bracket.svg" class="icon-sm"> Отписаться
+        </div>
+        `}
+    `;
+    
+    document.body.appendChild(menu);
+    positionContextMenu(menu, e.clientX, e.clientY);
+    
+    menu.querySelectorAll('.context-menu-item').forEach(item => {
+        item.addEventListener('click', async () => {
+            const action = item.dataset.action;
+            
+            switch (action) {
+                case 'copy-link':
+                    const link = `${window.location.origin}/invite/channel/${channelId}`;
+                    navigator.clipboard.writeText(link).then(() => {
+                        showToast('Ссылка скопирована!');
+                    }).catch(() => {
+                        showToast('Не удалось скопировать ссылку', 'error');
+                    });
+                    break;
+                case 'leave':
+                    if (isOwner) {
+                        const confirmed = await customConfirm({
+                            title: 'Удалить канал?',
+                            message: 'Канал будет удалён навсегда. Это действие нельзя отменить.',
+                            icon: '🗑️',
+                            variant: 'danger',
+                            okText: 'Удалить',
+                            cancelText: 'Отмена'
+                        });
+                        if (confirmed) {
+                            // TODO: Добавить API удаления канала
+                            showToast('Удаление канала в разработке', 'info');
+                        }
+                    } else {
+                        const confirmed = await customConfirm({
+                            title: 'Отписаться от канала?',
+                            message: `Вы уверены, что хотите отписаться от "${channel.name}"?`,
+                            icon: '📢',
+                            okText: 'Отписаться',
+                            cancelText: 'Отмена'
+                        });
+                        if (confirmed) {
+                            try {
+                                const res = await api.post(`/api/channels/${channelId}/unsubscribe`);
+                                if (res.ok) {
+                                    showToast('Вы отписались от канала');
+                                    await loadChannels();
+                                    if (state.selectedChannel?.id === channelId) {
+                                        state.selectedChannel = null;
+                                        document.getElementById('messages').innerHTML = '';
+                                    }
+                                }
+                            } catch (err) {
+                                showToast('Ошибка отписки', 'error');
+                            }
+                        }
+                    }
+                    break;
+            }
+            
+            menu.remove();
+        });
+    });
+    
+    // Закрытие по клику вне меню
+    setTimeout(() => {
+        document.addEventListener('click', function closeMenu(e) {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        });
+    }, 0);
 }
 
 async function selectChannel(channelId) {
@@ -4872,9 +4977,9 @@ async function showChannelInfo(channelId) {
         document.getElementById('channel-info-meta').textContent = `${channel.subscriber_count || 0} подписчиков`;
         document.getElementById('channel-info-desc').textContent = channel.description || 'Нет описания';
         
-        // Ссылка
+        // Ссылка-приглашение
         const linkEl = document.getElementById('channel-info-link');
-        const channelLink = `${window.location.origin}/channel/${channelId}`;
+        const channelLink = `${window.location.origin}/invite/channel/${channelId}`;
         linkEl.innerHTML = `
             <span class="chat-info-link-text">${channelLink}</span>
             <img src="/assets/copy.svg" alt="" class="chat-info-link-copy">
@@ -4929,6 +5034,20 @@ async function showServerInfo(serverId) {
         document.getElementById('server-info-name').textContent = server.name;
         document.getElementById('server-info-meta').textContent = `${members.length} участников`;
         document.getElementById('server-info-desc').textContent = server.description || 'Нет описания';
+        
+        // Ссылка-приглашение
+        const linkEl = document.getElementById('server-info-link');
+        if (linkEl) {
+            const serverLink = `${window.location.origin}/invite/server/${serverId}`;
+            linkEl.innerHTML = `
+                <span class="chat-info-link-text">${serverLink}</span>
+                <img src="/assets/copy.svg" alt="" class="chat-info-link-copy">
+            `;
+            linkEl.onclick = () => {
+                navigator.clipboard.writeText(serverLink);
+                showToast('Ссылка скопирована!');
+            };
+        }
         
         // Участники
         const membersList = document.getElementById('server-members-list');
@@ -6304,6 +6423,18 @@ async function openChannelSettingsModal(channelId) {
     }
 }
 
+// Скопировать ссылку-приглашение на канал
+function copyChannelInviteLink() {
+    if (!state.selectedChannel) return;
+    
+    const link = `${window.location.origin}/invite/channel/${state.selectedChannel.id}`;
+    navigator.clipboard.writeText(link).then(() => {
+        showToast('Ссылка скопирована!');
+    }).catch(() => {
+        showToast('Не удалось скопировать ссылку', 'error');
+    });
+}
+
 // Скопировать ссылку-приглашение на сервер
 function copyServerInviteLink() {
     if (!state.selectedServer) return;
@@ -6313,6 +6444,111 @@ function copyServerInviteLink() {
         showToast('Ссылка скопирована!');
     }).catch(() => {
         showToast('Не удалось скопировать ссылку', 'error');
+    });
+}
+
+// Обработка инвайт-ссылок при загрузке страницы
+async function handleInviteLink() {
+    const path = window.location.pathname;
+    const inviteMatch = path.match(/^\/invite\/(channel|server)\/([a-f0-9-]+)$/i);
+    
+    if (!inviteMatch) return;
+    
+    const [, type, id] = inviteMatch;
+    
+    // Очищаем URL
+    window.history.replaceState({}, '', '/');
+    
+    try {
+        const res = await api.get(`/api/invite/${type}/${id}`);
+        if (!res.ok) {
+            showToast('Приглашение не найдено или недействительно', 'error');
+            return;
+        }
+        
+        const data = await res.json();
+        
+        // Показываем модалку с информацией и кнопкой присоединения
+        showInviteModal(type, data);
+    } catch (error) {
+        console.error('Handle invite link error:', error);
+        showToast('Ошибка обработки приглашения', 'error');
+    }
+}
+
+// Показать модалку приглашения
+function showInviteModal(type, data) {
+    const isChannel = type === 'channel';
+    const icon = isChannel ? '📢' : '🏰';
+    const typeName = isChannel ? 'канал' : 'сервер';
+    const avatarUrl = isChannel ? data.avatar_url : data.icon_url;
+    const memberCount = isChannel ? data.subscriber_count : data.member_count;
+    const memberLabel = isChannel ? 'подписчиков' : 'участников';
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal invite-modal';
+    modal.innerHTML = `
+        <div class="modal-overlay"></div>
+        <div class="modal-content invite-modal-content">
+            <div class="invite-header">
+                <div class="invite-avatar ${isChannel ? 'channel-avatar' : 'server-avatar'}" 
+                     style="${avatarUrl ? `background-image: url(${avatarUrl})` : ''}">
+                    ${avatarUrl ? '' : icon}
+                </div>
+                <h2 class="invite-title">${escapeHtml(data.name)}</h2>
+                ${data.description ? `<p class="invite-description">${escapeHtml(data.description)}</p>` : ''}
+                <div class="invite-stats">${memberCount || 0} ${memberLabel}</div>
+            </div>
+            <div class="invite-actions">
+                <button class="btn btn-primary invite-join-btn" data-type="${type}" data-id="${data.id}">
+                    Присоединиться к ${typeName}у
+                </button>
+                <button class="btn btn-secondary invite-cancel-btn">Отмена</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Обработчики
+    modal.querySelector('.modal-overlay').addEventListener('click', () => modal.remove());
+    modal.querySelector('.invite-cancel-btn').addEventListener('click', () => modal.remove());
+    modal.querySelector('.invite-join-btn').addEventListener('click', async (e) => {
+        const btn = e.target;
+        const joinType = btn.dataset.type;
+        const joinId = btn.dataset.id;
+        
+        btn.disabled = true;
+        btn.textContent = 'Присоединение...';
+        
+        try {
+            const res = await api.post(`/api/invite/${joinType}/${joinId}/join`);
+            if (res.ok) {
+                showToast(`Вы присоединились к ${typeName}у!`, 'success');
+                modal.remove();
+                
+                // Обновляем списки и открываем
+                if (joinType === 'channel') {
+                    await loadChannels();
+                    switchSidebarTab('channels');
+                    selectChannel(joinId);
+                } else {
+                    await loadServers();
+                    switchSidebarTab('servers');
+                    selectServer(joinId);
+                }
+            } else {
+                const error = await res.json();
+                showToast(error.error || 'Ошибка присоединения', 'error');
+                btn.disabled = false;
+                btn.textContent = `Присоединиться к ${typeName}у`;
+            }
+        } catch (error) {
+            console.error('Join via invite error:', error);
+            showToast('Ошибка присоединения', 'error');
+            btn.disabled = false;
+            btn.textContent = `Присоединиться к ${typeName}у`;
+        }
     });
 }
 
