@@ -2032,8 +2032,21 @@ function createMessageElement(msg, isSent) {
     
     // Определяем контент в зависимости от типа сообщения
     let bubbleContent;
-    const isMedia = msg.message_type === 'image' || msg.message_type === 'gif';
-    const isVideo = msg.message_type === 'video';
+    let isMedia = msg.message_type === 'image' || msg.message_type === 'gif';
+    let isVideo = msg.message_type === 'video';
+    
+    // Автодетект изображений по URL (для старых сообщений без message_type)
+    if (!isMedia && !isVideo && msg.text) {
+        const imageExtensions = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;
+        const videoExtensions = /\.(mp4|webm)(\?.*)?$/i;
+        const cloudinaryImage = /res\.cloudinary\.com.*\/(image|video)\/upload/i;
+        
+        if (imageExtensions.test(msg.text) || (cloudinaryImage.test(msg.text) && !msg.text.includes('/video/'))) {
+            isMedia = true;
+        } else if (videoExtensions.test(msg.text) || (cloudinaryImage.test(msg.text) && msg.text.includes('/video/'))) {
+            isVideo = true;
+        }
+    }
     
     if (isMedia) {
         bubbleContent = `<img src="${escapeAttr(msg.text)}" class="message-media" alt="Изображение" loading="lazy">`;
