@@ -868,6 +868,14 @@ button {
   font-weight: 600;
   font-size: 16px;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.chat-header-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .chat-header-info {

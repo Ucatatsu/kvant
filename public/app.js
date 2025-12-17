@@ -5248,7 +5248,7 @@ async function saveGroupChanges() {
         
         // Обновляем информацию
         showGroupInfo(editingGroupId);
-        updateGroupsList();
+        loadGroups();
     } catch (err) {
         console.error('Save group error:', err);
         showToast('Ошибка сохранения', 'error');
@@ -5299,7 +5299,7 @@ async function saveChannelChanges() {
         document.getElementById('edit-channel-modal').classList.add('hidden');
         
         showChannelInfo(editingChannelId);
-        updateChannelsList();
+        loadChannels();
     } catch (err) {
         console.error('Save channel error:', err);
         showToast('Ошибка сохранения', 'error');
@@ -5354,7 +5354,7 @@ async function saveServerChanges() {
         document.getElementById('edit-server-modal').classList.add('hidden');
         
         showServerInfo(editingServerId);
-        updateServersList();
+        loadServers();
     } catch (err) {
         console.error('Save server error:', err);
         showToast('Ошибка сохранения', 'error');
