@@ -3203,7 +3203,7 @@ async function getIceServers() {
             
             cachedIceServers = { 
                 iceServers: data.iceServers,
-                iceTransportPolicy: 'relay', // Принудительно TURN — NAT обрывает прямые соединения
+                // Убираем relay-only — пусть WebRTC пробует все варианты
                 iceCandidatePoolSize: 10
             };
             iceServersExpiry = now + 5 * 60 * 1000; // 5 минут
@@ -3227,7 +3227,7 @@ async function getIceServers() {
 }
 
 // Ждём завершения сбора ICE кандидатов (с таймаутом)
-function waitForIceGathering(timeout = 5000) {
+function waitForIceGathering(timeout = 10000) {
     return new Promise((resolve) => {
         if (!peerConnection) {
             resolve();
