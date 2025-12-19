@@ -955,29 +955,39 @@ async function loadSettingsFromServer() {
 }
 
 // === КОНТАКТЫ ===
-async function loadContacts() {
+async function loadContacts(retryCount = 0) {
+    const maxRetries = 3;
     try {
         const res = await api.get(`/api/contacts/${state.currentUser.id}`);
-        if (!res.ok) throw new Error('Ошибка загрузки');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         
         const contacts = await res.json();
         renderUsers(contacts);
     } catch (e) {
-        console.error('Ошибка загрузки контактов:', e);
-        document.getElementById('users-list').innerHTML = 
-            '<div class="empty-list">Ошибка загрузки</div>';
+        console.error('Ошибка загрузки контактов:', e, `(попытка ${retryCount + 1})`);
+        
+        if (retryCount < maxRetries) {
+            // Повторяем через 1-2-3 секунды
+            setTimeout(() => loadContacts(retryCount + 1), (retryCount + 1) * 1000);
+        } else {
+            document.getElementById('users-list').innerHTML = 
+                '<div class="empty-list" onclick="loadContacts()">Ошибка загрузки. Нажмите чтобы повторить</div>';
+        }
     }
 }
 
 // === ГРУППЫ ===
-async function loadGroups() {
+async function loadGroups(retryCount = 0) {
     try {
         const res = await api.get('/api/groups');
-        if (!res.ok) throw new Error('Ошибка загрузки');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         state.groups = await res.json();
         renderGroups();
     } catch (e) {
         console.error('Ошибка загрузки групп:', e);
+        if (retryCount < 2) {
+            setTimeout(() => loadGroups(retryCount + 1), (retryCount + 1) * 1000);
+        }
     }
 }
 
@@ -1076,14 +1086,17 @@ function renderGroupMessages(messages) {
 }
 
 // === КАНАЛЫ ===
-async function loadChannels() {
+async function loadChannels(retryCount = 0) {
     try {
         const res = await api.get('/api/channels');
-        if (!res.ok) throw new Error('Ошибка загрузки');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         state.channels = await res.json();
         renderChannels();
     } catch (e) {
         console.error('Ошибка загрузки каналов:', e);
+        if (retryCount < 2) {
+            setTimeout(() => loadChannels(retryCount + 1), (retryCount + 1) * 1000);
+        }
     }
 }
 
@@ -1292,14 +1305,17 @@ function renderChannelPosts(posts) {
 }
 
 // === СЕРВЕРЫ ===
-async function loadServers() {
+async function loadServers(retryCount = 0) {
     try {
         const res = await api.get('/api/servers');
-        if (!res.ok) throw new Error('Ошибка загрузки');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         state.servers = await res.json();
         renderServers();
     } catch (e) {
         console.error('Ошибка загрузки серверов:', e);
+        if (retryCount < 2) {
+            setTimeout(() => loadServers(retryCount + 1), (retryCount + 1) * 1000);
+        }
     }
 }
 

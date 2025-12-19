@@ -1902,6 +1902,23 @@ io.on('connection', async (socket) => {
     onlineUsers.set(userId, userData);
     broadcastOnlineUsers();
     
+    // Проверяем есть ли активный входящий звонок для этого пользователя
+    for (const [callId, call] of activeCalls.entries()) {
+        if (call.participants.includes(userId) && call.caller !== userId && !call.startTime) {
+            // Есть входящий звонок, отправляем событие
+            const callerData = await db.getUser(call.caller);
+            console.log(`📞 Отправляем pending incoming-call для ${userId} от ${call.caller}`);
+            socket.emit('incoming-call', {
+                from: call.caller,
+                fromName: callerData?.username || 'Unknown',
+                fromAvatar: callerData?.avatar_url,
+                isVideo: call.isVideo,
+                callId: callId
+            });
+            break; // Только один активный звонок
+        }
+    }
+    
     // Изменение статуса
     socket.on('status-change', (data) => {
         const userData = onlineUsers.get(userId);
