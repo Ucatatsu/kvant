@@ -3190,9 +3190,12 @@ async function getIceServers() {
         const res = await api.get('/api/turn-credentials');
         if (res.ok) {
             const data = await res.json();
-            cachedIceServers = { iceServers: data.iceServers };
+            cachedIceServers = { 
+                iceServers: data.iceServers,
+                iceTransportPolicy: 'relay' // Принудительно только TURN
+            };
             iceServersExpiry = now + 5 * 60 * 1000; // 5 минут
-            console.log('✅ TURN credentials получены:', data.iceServers.length, 'серверов');
+            console.log('✅ TURN credentials получены:', data.iceServers.length, 'серверов (relay-only)');
             return cachedIceServers;
         }
     } catch (e) {
