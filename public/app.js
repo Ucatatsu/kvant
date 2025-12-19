@@ -3202,8 +3202,8 @@ async function getIceServers() {
             });
             
             cachedIceServers = { 
-                iceServers: data.iceServers,
-                iceTransportPolicy: 'relay' // Принудительно только TURN
+                iceServers: data.iceServers
+                // Убрали iceTransportPolicy: 'relay' — пусть WebRTC сам выберет лучший путь
             };
             iceServersExpiry = now + 5 * 60 * 1000; // 5 минут
             console.log('✅ TURN credentials получены:', data.iceServers.length, 'серверов (relay-only mode)');
@@ -3635,22 +3635,31 @@ function handleCallFailed(data) {
 }
 
 async function handleIceCandidate(data) {
-    if (!peerConnection || !data.candidate) return;
+    console.log('🧊 Получен ICE candidate от собеседника:', data.candidate?.candidate?.substring(0, 60));
+    
+    if (!peerConnection) {
+        console.warn('🧊 peerConnection не существует, игнорируем кандидата');
+        return;
+    }
+    if (!data.candidate) {
+        console.log('🧊 Пустой кандидат (end of candidates)');
+        return;
+    }
     
     const candidate = new RTCIceCandidate(data.candidate);
     
     // Если remote description ещё не установлен, буферизуем кандидата
     if (!isRemoteDescriptionSet) {
-        console.log('🧊 ICE candidate буферизован (ждём remote description)');
+        console.log('🧊 ICE candidate буферизован (ждём remote description), всего в буфере:', pendingIceCandidates.length + 1);
         pendingIceCandidates.push(candidate);
         return;
     }
     
     try {
         await peerConnection.addIceCandidate(candidate);
-        console.log('🧊 ICE candidate добавлен');
+        console.log('🧊 ICE candidate добавлен успешно');
     } catch (e) {
-        console.error('❌ ICE candidate error:', e);
+        console.error('❌ ICE candidate error:', e.name, e.message);
     }
 }
 
