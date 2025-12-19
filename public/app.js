@@ -3163,30 +3163,19 @@ const iceServers = {
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' },
-        // Metered TURN серверы (бесплатный tier, более надёжные)
+        // Бесплатные публичные TURN серверы
+        // 1. Numb (viagenie) - проверенный бесплатный
         {
-            urls: 'turn:a.relay.metered.ca:80',
-            username: 'e8dd65c92ae0c7e7e3c5e8f0',
-            credential: 'uWdWNmkhvyqTW1QP'
+            urls: 'turn:numb.viagenie.ca:3478',
+            username: 'webrtc@live.com',
+            credential: 'muazkh'
         },
+        // 2. OpenRelay от Metered (публичный)
         {
-            urls: 'turn:a.relay.metered.ca:80?transport=tcp',
-            username: 'e8dd65c92ae0c7e7e3c5e8f0',
-            credential: 'uWdWNmkhvyqTW1QP'
+            urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
         },
-        {
-            urls: 'turn:a.relay.metered.ca:443',
-            username: 'e8dd65c92ae0c7e7e3c5e8f0',
-            credential: 'uWdWNmkhvyqTW1QP'
-        },
-        {
-            urls: 'turn:a.relay.metered.ca:443?transport=tcp',
-            username: 'e8dd65c92ae0c7e7e3c5e8f0',
-            credential: 'uWdWNmkhvyqTW1QP'
-        },
-        // OpenRelay резервные
         {
             urls: 'turn:openrelay.metered.ca:443',
             username: 'openrelayproject',
@@ -3196,6 +3185,17 @@ const iceServers = {
             urls: 'turn:openrelay.metered.ca:443?transport=tcp',
             username: 'openrelayproject',
             credential: 'openrelayproject'
+        },
+        // 3. Twilio free tier TURN (публичные тестовые)
+        {
+            urls: 'turn:global.turn.twilio.com:3478?transport=udp',
+            username: 'f4b4035eaa76f4a55de5f4351567653ee4ff6fa97b50b6b334fcc1be9c27f3e3',
+            credential: 'w1uxM55V9yVoqyVFjt+mxDBV0F5YRPhmjwbLsGYu1PQ='
+        },
+        {
+            urls: 'turn:global.turn.twilio.com:443?transport=tcp',
+            username: 'f4b4035eaa76f4a55de5f4351567653ee4ff6fa97b50b6b334fcc1be9c27f3e3',
+            credential: 'w1uxM55V9yVoqyVFjt+mxDBV0F5YRPhmjwbLsGYu1PQ='
         }
     ],
     iceCandidatePoolSize: 10,
