@@ -3637,25 +3637,20 @@ function handleCallFailed(data) {
 async function handleIceCandidate(data) {
     console.log('🧊 Получен ICE candidate от собеседника:', data.candidate?.candidate?.substring(0, 60));
     
-    if (!peerConnection) {
-        console.warn('🧊 peerConnection не существует, игнорируем кандидата');
-        return;
-    }
     if (!data.candidate) {
         console.log('🧊 Пустой кандидат (end of candidates)');
         return;
     }
     
-    const candidate = new RTCIceCandidate(data.candidate);
-    
-    // Если remote description ещё не установлен, буферизуем кандидата
-    if (!isRemoteDescriptionSet) {
-        console.log('🧊 ICE candidate буферизован (ждём remote description), всего в буфере:', pendingIceCandidates.length + 1);
-        pendingIceCandidates.push(candidate);
+    // Если peerConnection ещё не создан или remote description не установлен — буферизуем
+    if (!peerConnection || !isRemoteDescriptionSet) {
+        console.log('🧊 ICE candidate буферизован (peerConnection:', !!peerConnection, ', remoteDesc:', isRemoteDescriptionSet, '), всего:', pendingIceCandidates.length + 1);
+        pendingIceCandidates.push(data.candidate); // Сохраняем сырые данные, не RTCIceCandidate
         return;
     }
     
     try {
+        const candidate = new RTCIceCandidate(data.candidate);
         await peerConnection.addIceCandidate(candidate);
         console.log('🧊 ICE candidate добавлен успешно');
     } catch (e) {
@@ -3665,19 +3660,25 @@ async function handleIceCandidate(data) {
 
 // Добавить все буферизованные ICE кандидаты
 async function flushPendingIceCandidates() {
-    if (pendingIceCandidates.length === 0) return;
+    if (pendingIceCandidates.length === 0) {
+        console.log('🧊 Нет буферизованных ICE кандидатов');
+        return;
+    }
     
     console.log(`🧊 Добавляем ${pendingIceCandidates.length} буферизованных ICE кандидатов`);
     
-    for (const candidate of pendingIceCandidates) {
+    const candidates = [...pendingIceCandidates];
+    pendingIceCandidates = [];
+    
+    for (const candidateData of candidates) {
         try {
+            const candidate = new RTCIceCandidate(candidateData);
             await peerConnection.addIceCandidate(candidate);
+            console.log('🧊 Буферизованный ICE candidate добавлен');
         } catch (e) {
-            console.error('❌ Buffered ICE candidate error:', e);
+            console.error('❌ Buffered ICE candidate error:', e.name, e.message);
         }
     }
-    
-    pendingIceCandidates = [];
 }
 
 function handleCallMessage(message) {
