@@ -1,6 +1,6 @@
 // === КВАНТ - SERVICE WORKER ===
 
-const CACHE_NAME = 'kvant-v36';
+const CACHE_NAME = 'kvant-v37';
 const APP_VERSION = '1B0d2'; // KVS версия - синхронизируй с package.json
 const STATIC_ASSETS = [
     '/',

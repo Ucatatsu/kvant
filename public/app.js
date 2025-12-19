@@ -3159,32 +3159,26 @@ let incomingCallData = null;
 // ВАЖНО: Для надёжной работы через мобильный интернет нужны TURN серверы
 const iceServers = {
     iceServers: [
-        // STUN серверы Google (бесплатные, надёжные)
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        // Metered.ca TURN серверы (зарегистрированный аккаунт)
+        // STUN от Metered
+        { urls: 'stun:stun.relay.metered.ca:80' },
+        // TURN серверы Metered.ca (зарегистрированный аккаунт)
         {
-            urls: 'turn:a.relay.metered.ca:80',
+            urls: 'turn:global.relay.metered.ca:80',
             username: '569a0840c6ddd4085c474f32',
             credential: 'dyQoNr8tELSuIR//'
         },
         {
-            urls: 'turn:a.relay.metered.ca:80?transport=tcp',
+            urls: 'turn:global.relay.metered.ca:80?transport=tcp',
             username: '569a0840c6ddd4085c474f32',
             credential: 'dyQoNr8tELSuIR//'
         },
         {
-            urls: 'turn:a.relay.metered.ca:443',
+            urls: 'turn:global.relay.metered.ca:443',
             username: '569a0840c6ddd4085c474f32',
             credential: 'dyQoNr8tELSuIR//'
         },
         {
-            urls: 'turn:a.relay.metered.ca:443?transport=tcp',
-            username: '569a0840c6ddd4085c474f32',
-            credential: 'dyQoNr8tELSuIR//'
-        },
-        {
-            urls: 'turns:a.relay.metered.ca:443?transport=tcp',
+            urls: 'turns:global.relay.metered.ca:443?transport=tcp',
             username: '569a0840c6ddd4085c474f32',
             credential: 'dyQoNr8tELSuIR//'
         }
