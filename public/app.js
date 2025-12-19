@@ -3731,10 +3731,20 @@ function endCall(sendEnd = true) {
     hideCallBar();
 }
 
-function toggleMute() {
+async function toggleMute() {
     if (localStream) {
         isMuted = !isMuted;
-        localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
+        
+        const audioTrack = localStream.getAudioTracks()[0];
+        
+        // Если трек сломан (ended) и мы пытаемся включить микрофон - восстанавливаем
+        if (!isMuted && (!audioTrack || audioTrack.readyState === 'ended')) {
+            console.log('🎤 Audio track broken, restoring...');
+            await restoreAudioAfterScreenShare();
+        } else if (audioTrack) {
+            audioTrack.enabled = !isMuted;
+        }
+        
         const muteBtn = document.getElementById('mute-btn');
         const muteBtnIcon = document.getElementById('mute-btn-icon');
         muteBtn.classList.toggle('active', !isMuted);
@@ -3908,12 +3918,78 @@ async function toggleScreenShare() {
     }
 }
 
+// Восстановление аудио после демонстрации экрана
+async function restoreAudioAfterScreenShare() {
+    if (!peerConnection || !localStream) return;
+    
+    console.log('🎤 Restoring audio after screen share...');
+    
+    // Получаем текущий аудио трек и sender
+    const currentAudioTrack = localStream.getAudioTracks()[0];
+    let audioSender = peerConnection.getSenders().find(s => s.track?.kind === 'audio' || (s.track === null && !s._isVideo));
+    
+    console.log('🎤 Current audio track:', currentAudioTrack?.readyState, 'enabled:', currentAudioTrack?.enabled);
+    console.log('🎤 Audio sender track:', audioSender?.track?.kind, audioSender?.track?.readyState);
+    
+    // Проверяем все senders
+    const allSenders = peerConnection.getSenders();
+    console.log('🎤 All senders:', allSenders.map(s => ({ kind: s.track?.kind, state: s.track?.readyState })));
+    
+    // Всегда пересоздаём аудио трек для надёжности
+    try {
+        console.log('🎤 Recreating audio track...');
+        const newAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const newAudioTrack = newAudioStream.getAudioTracks()[0];
+        
+        // Останавливаем старый трек если есть
+        if (currentAudioTrack) {
+            currentAudioTrack.stop();
+            localStream.removeTrack(currentAudioTrack);
+        }
+        
+        // Добавляем новый трек в localStream
+        localStream.addTrack(newAudioTrack);
+        
+        // Находим audio sender (может быть с null треком)
+        audioSender = peerConnection.getSenders().find(s => 
+            s.track?.kind === 'audio' || 
+            (s.track === null && allSenders.indexOf(s) === allSenders.findIndex(x => x.track?.kind !== 'video' && x.track !== null ? x.track.kind === 'audio' : true))
+        );
+        
+        // Если нет audio sender, ищем любой sender без video трека
+        if (!audioSender) {
+            audioSender = peerConnection.getSenders().find(s => s.track?.kind !== 'video');
+        }
+        
+        if (audioSender) {
+            await audioSender.replaceTrack(newAudioTrack);
+            console.log('🎤 Audio track replaced in sender');
+        } else {
+            // Если sender не найден, добавляем трек напрямую
+            console.log('🎤 No audio sender found, adding track directly');
+            peerConnection.addTrack(newAudioTrack, localStream);
+        }
+        
+        // Применяем текущее состояние mute
+        newAudioTrack.enabled = !isMuted;
+        console.log('🎤 Audio restored successfully, enabled:', newAudioTrack.enabled, 'muted:', isMuted);
+        
+    } catch (e) {
+        console.error('🎤 Failed to restore audio:', e);
+    }
+}
+
 async function stopScreenShare() {
     if (!isScreenSharing || !peerConnection) return;
     
+    console.log('🖥️ Stopping screen share...');
+    
     // Останавливаем треки демонстрации экрана
     if (screenStream) {
-        screenStream.getTracks().forEach(track => track.stop());
+        screenStream.getTracks().forEach(track => {
+            console.log('🖥️ Stopping screen track:', track.kind, track.label);
+            track.stop();
+        });
         screenStream = null;
     }
     
@@ -3932,6 +4008,10 @@ async function stopScreenShare() {
             await videoSender.replaceTrack(null);
         }
     }
+    
+    // ВАЖНО: Восстанавливаем аудио трек после демонстрации экрана
+    // Всегда пересоздаём аудио, т.к. демонстрация экрана может сломать его
+    await restoreAudioAfterScreenShare();
     
     // Уведомляем собеседника об окончании демонстрации
     if (currentCallUser && state.socket) {
