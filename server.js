@@ -405,6 +405,39 @@ app.get('/api/vapid-public-key', (_req, res) => {
     }
 });
 
+// TURN credentials (Xirsys)
+app.get('/api/turn-credentials', authMiddleware, async (_req, res) => {
+    try {
+        const ident = process.env.XIRSYS_IDENT;
+        const secret = process.env.XIRSYS_SECRET;
+        const channel = process.env.XIRSYS_CHANNEL || 'default';
+        
+        if (!ident || !secret) {
+            return res.status(503).json({ error: 'TURN сервер не настроен' });
+        }
+        
+        const response = await fetch(`https://global.xirsys.net/_turn/${channel}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': 'Basic ' + Buffer.from(`${ident}:${secret}`).toString('base64'),
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.s === 'ok' && data.v) {
+            res.json({ iceServers: data.v.iceServers });
+        } else {
+            console.error('Xirsys error:', data);
+            res.status(500).json({ error: 'Ошибка получения TURN credentials' });
+        }
+    } catch (error) {
+        console.error('TURN credentials error:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
 // === ЗАЩИЩЁННЫЕ РОУТЫ ===
 
 // Поиск пользователей

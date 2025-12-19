@@ -3173,24 +3173,41 @@ let incomingCallData = null;
 
 // ICE серверы для WebRTC
 // ВАЖНО: Для надёжной работы через мобильный интернет нужны TURN серверы
-// Xirsys TURN серверы
-const iceServers = {
-    iceServers: [
-        { urls: ['stun:fr-turn3.xirsys.com'] },
-        {
-            username: 'Ug2qXoAAZisMXx3ZA0XBnwEliomEzAeJhjndDeP_q30YTpySpTm0yHW-53pYB3yhAAAAAGlFZLpVY2F0YXRzdQ==',
-            credential: '2db33c48-dce9-11f0-a59e-8ec21c1a10a5',
-            urls: [
-                'turn:fr-turn3.xirsys.com:80?transport=udp',
-                'turn:fr-turn3.xirsys.com:3478?transport=udp',
-                'turn:fr-turn3.xirsys.com:80?transport=tcp',
-                'turn:fr-turn3.xirsys.com:3478?transport=tcp',
-                'turns:fr-turn3.xirsys.com:443?transport=tcp',
-                'turns:fr-turn3.xirsys.com:5349?transport=tcp'
-            ]
+// ICE серверы получаем динамически с сервера (Xirsys)
+let cachedIceServers = null;
+let iceServersExpiry = 0;
+
+async function getIceServers() {
+    const now = Date.now();
+    // Кэшируем на 5 минут (credentials обычно живут дольше)
+    if (cachedIceServers && now < iceServersExpiry) {
+        console.log('🔄 Используем кэшированные ICE servers');
+        return cachedIceServers;
+    }
+    
+    try {
+        console.log('🔄 Запрашиваем свежие TURN credentials...');
+        const res = await api.get('/api/turn-credentials');
+        if (res.ok) {
+            const data = await res.json();
+            cachedIceServers = { iceServers: data.iceServers };
+            iceServersExpiry = now + 5 * 60 * 1000; // 5 минут
+            console.log('✅ TURN credentials получены:', data.iceServers.length, 'серверов');
+            return cachedIceServers;
         }
-    ]
-};
+    } catch (e) {
+        console.error('❌ Ошибка получения TURN credentials:', e);
+    }
+    
+    // Fallback на Google STUN (только для локальных сетей)
+    console.warn('⚠️ Используем fallback STUN серверы');
+    return {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+    };
+}
 
 function startCall(video = false) {
     console.log('📞 startCall called:', { video, selectedUser: state.selectedUser?.id, socketConnected: state.socket?.connected });
@@ -3240,8 +3257,11 @@ async function initCall(video) {
             document.getElementById('call-videos').classList.remove('hidden');
         }
         
+        // Получаем свежие TURN credentials
+        const iceConfig = await getIceServers();
+        
         console.log('🔗 Создаём RTCPeerConnection...');
-        peerConnection = new RTCPeerConnection(iceServers);
+        peerConnection = new RTCPeerConnection(iceConfig);
         
         localStream.getTracks().forEach(track => {
             peerConnection.addTrack(track, localStream);
@@ -3417,8 +3437,11 @@ async function acceptCall() {
             document.getElementById('call-videos').classList.remove('hidden');
         }
         
+        // Получаем свежие TURN credentials
+        const iceConfig = await getIceServers();
+        
         console.log('🔗 Создаём RTCPeerConnection (acceptCall)...');
-        peerConnection = new RTCPeerConnection(iceServers);
+        peerConnection = new RTCPeerConnection(iceConfig);
         
         localStream.getTracks().forEach(track => {
             peerConnection.addTrack(track, localStream);
