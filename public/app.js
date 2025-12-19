@@ -2636,14 +2636,14 @@ function createCallMessageElement(msg, isSent) {
     const mins = Math.floor(duration / 60);
     const secs = duration % 60;
     const durationText = duration > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : '';
-    const icon = msg.message_type === 'video_call' ? '📹' : '📞';
+    const iconSrc = msg.message_type === 'video_call' ? '/assets/video.svg' : '/assets/phone-call.svg';
     
     const div = document.createElement('div');
     div.className = `message ${isSent ? 'sent' : 'received'} call-message`;
     div.innerHTML = `
         <div class="message-content">
             <div class="message-bubble call-bubble">
-                <span class="call-icon">${icon}</span>
+                <span class="call-icon"><img src="${iconSrc}" alt="" class="icon-sm"></span>
                 <span class="call-text">${escapeHtml(msg.text)}</span>
                 ${durationText ? `<span class="call-duration">${durationText}</span>` : ''}
             </div>
