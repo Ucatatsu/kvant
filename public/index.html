@@ -12,6 +12,7 @@
   <link rel="apple-touch-icon" href="icon.png">
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
 </head>
 <body>
   <!-- Skip link для accessibility -->
@@ -1359,7 +1360,7 @@
 
   <!-- Emoji Picker -->
   <div id="emoji-picker" class="emoji-picker hidden" role="dialog" aria-label="Выбор эмодзи">
-    <div class="emoji-grid" role="listbox"></div>
+    <emoji-picker></emoji-picker>
   </div>
 
   <!-- Модалка звонка -->

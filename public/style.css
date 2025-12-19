@@ -1304,12 +1304,9 @@ button {
   position: fixed;
   bottom: 100px;
   right: 80px;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
   border-radius: 16px;
-  padding: 12px;
-  backdrop-filter: blur(20px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   z-index: 100;
   animation: emojiPickerIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -1325,33 +1322,24 @@ button {
   }
 }
 
-.emoji-grid {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 4px;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.emoji-item {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.emoji-item:hover {
-  background: rgba(79, 195, 247, 0.15);
-  transform: scale(1.3);
-}
-
-.emoji-item:active {
-  transform: scale(1.5);
+/* Стилизация emoji-picker-element под тему Квант */
+emoji-picker {
+  --background: rgba(15, 25, 45, 0.95);
+  --border-color: rgba(148, 163, 184, 0.2);
+  --indicator-color: var(--accent);
+  --input-border-color: rgba(148, 163, 184, 0.2);
+  --input-font-color: var(--text-primary);
+  --input-placeholder-color: var(--text-secondary);
+  --outline-color: var(--accent);
+  --category-font-color: var(--text-secondary);
+  --button-active-background: rgba(79, 195, 247, 0.2);
+  --button-hover-background: rgba(79, 195, 247, 0.1);
+  --emoji-padding: 0.4rem;
+  --emoji-size: 1.4rem;
+  --num-columns: 8;
+  --category-emoji-size: 1.2rem;
+  height: 350px;
+  width: 320px;
 }
 
 
@@ -1559,8 +1547,10 @@ button {
     left: 10px;
   }
 
-  .emoji-grid {
-    grid-template-columns: repeat(7, 1fr);
+  emoji-picker {
+    width: 100%;
+    height: 300px;
+    --num-columns: 7;
   }
 
   /* Auth forms mobile */

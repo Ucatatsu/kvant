@@ -3173,38 +3173,21 @@ let incomingCallData = null;
 
 // ICE серверы для WebRTC
 // ВАЖНО: Для надёжной работы через мобильный интернет нужны TURN серверы
-// Open Relay - бесплатные публичные TURN серверы
+// Xirsys TURN серверы
 const iceServers = {
     iceServers: [
-        // STUN серверы (бесплатные)
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun.relay.metered.ca:80' },
-        // Open Relay TURN серверы
+        { urls: ['stun:fr-turn3.xirsys.com'] },
         {
-            urls: 'turn:openrelay.metered.ca:80',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
-        },
-        {
-            urls: 'turn:openrelay.metered.ca:80?transport=tcp',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
-        },
-        {
-            urls: 'turn:openrelay.metered.ca:443',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
-        },
-        {
-            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
-        },
-        {
-            urls: 'turns:openrelay.metered.ca:443?transport=tcp',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
+            username: 'Ug2qXoAAZisMXx3ZA0XBnwEliomEzAeJhjndDeP_q30YTpySpTm0yHW-53pYB3yhAAAAAGlFZLpVY2F0YXRzdQ==',
+            credential: '2db33c48-dce9-11f0-a59e-8ec21c1a10a5',
+            urls: [
+                'turn:fr-turn3.xirsys.com:80?transport=udp',
+                'turn:fr-turn3.xirsys.com:3478?transport=udp',
+                'turn:fr-turn3.xirsys.com:80?transport=tcp',
+                'turn:fr-turn3.xirsys.com:3478?transport=tcp',
+                'turns:fr-turn3.xirsys.com:443?transport=tcp',
+                'turns:fr-turn3.xirsys.com:5349?transport=tcp'
+            ]
         }
     ]
 };
@@ -4856,35 +4839,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const emojiBtn = document.querySelector('.emoji-btn');
     const emojiPicker = document.getElementById('emoji-picker');
-    const emojiGrid = document.querySelector('.emoji-grid');
+    const emojiPickerElement = document.querySelector('emoji-picker');
     
-    const emojis = [
-        '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊',
-        '😇', '🙂', '😉', '😍', '🥰', '😘', '😋', '😜',
-        '🤪', '😎', '🤩', '🥳', '😏', '😒', '😞', '😢',
-        '😭', '😤', '😡', '🤬', '😱', '😨', '😰', '😥',
-        '🤔', '🤫', '🤭', '🙄', '😬', '😮', '😯', '😲',
-        '🥱', '😴', '🤤', '😷', '🤒', '🤕', '🤢', '🤮',
-        '👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '👋',
-        '👏', '🙌', '👐', '🤲', '🤝', '🙏', '💪', '🦾',
-        '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍',
-        '💯', '💢', '💥', '💫', '💦', '💨', '🔥', '⭐',
-        '🎉', '🎊', '🎁', '🎈', '🏆', '🥇', '🎯', '🎮'
-    ];
-    
-    if (emojiGrid) {
-        emojis.forEach(emoji => {
-            const span = document.createElement('span');
-            span.className = 'emoji-item';
-            span.textContent = emoji;
-            span.addEventListener('click', () => {
-                messageInput.value += emoji;
-                messageInput.focus();
-                emojiPicker.classList.add('hidden');
-            });
-            emojiGrid.appendChild(span);
-        });
-    }
+    // Обработка выбора эмодзи из библиотеки
+    emojiPickerElement?.addEventListener('emoji-click', (e) => {
+        messageInput.value += e.detail.unicode;
+        messageInput.focus();
+        emojiPicker.classList.add('hidden');
+    });
     
     emojiBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
