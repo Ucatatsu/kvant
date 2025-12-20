@@ -260,9 +260,9 @@ h1 {
 
 input {
   padding: 14px 18px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  border: 1px solid var(--glass-border);
   border-radius: 12px;
-  background: rgba(10, 22, 40, 0.6);
+  background: var(--bg-darkest);
   color: var(--text);
   font-size: 14px;
   transition: all 0.2s;
@@ -271,7 +271,7 @@ input {
 input:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(79, 195, 247, 0.15);
+  box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 input::placeholder { color: var(--text-muted); }
@@ -313,7 +313,7 @@ button {
 
 .btn-primary:hover { 
   transform: translateY(-2px); 
-  box-shadow: 0 6px 20px rgba(79, 195, 247, 0.4);
+  box-shadow: 0 6px 20px var(--accent-glow);
 }
 
 .btn-primary:active {
@@ -368,7 +368,7 @@ button {
   grid-row: 1 / 4;
   display: flex;
   flex-direction: column;
-  background: rgba(15, 33, 64, var(--panel-opacity));
+  background: var(--glass);
   border: 1px solid var(--glass-border);
   border-radius: 16px;
   backdrop-filter: blur(20px);
@@ -393,7 +393,7 @@ button {
   width: 100%;
   padding: 12px 16px;
   border-radius: 12px;
-  background: rgba(10, 22, 40, 0.6);
+  background: var(--bg-darkest);
   border: 1px solid transparent;
   font-size: 14px;
 }
@@ -427,7 +427,7 @@ button {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--bg-medium);
   border: none;
   font-size: 14px;
   cursor: pointer;
@@ -438,7 +438,7 @@ button {
 }
 
 .panel-action-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--bg-light);
 }
 
 .panel-action-btn.muted {
@@ -646,7 +646,7 @@ button {
 }
 
 .status-option.active {
-  background: rgba(79, 195, 247, 0.2);
+  background: var(--accent-glow);
 }
 
 .user-card-bio {
@@ -690,7 +690,7 @@ button {
 /* Убран тяжёлый ::before эффект для производительности */
 
 .user-item:hover {
-  background: rgba(79, 195, 247, 0.1);
+  background: var(--accent-glow);
 }
 
 .user-item:active {
@@ -698,8 +698,8 @@ button {
 }
 
 .user-item.active {
-  background: rgba(79, 195, 247, 0.15);
-  border: 1px solid rgba(79, 195, 247, 0.3);
+  background: var(--accent-glow);
+  border: 1px solid var(--accent);
   transform: translateX(0);
 }
 
@@ -752,12 +752,12 @@ button {
 
 /* Закреплённые чаты */
 .user-item.pinned {
-  background: rgba(79, 195, 247, 0.05);
+  background: var(--accent-glow);
   border-left: 2px solid var(--accent);
 }
 
 .user-item.pinned:hover {
-  background: rgba(79, 195, 247, 0.12);
+  background: var(--accent-glow);
 }
 
 .pin-indicator {
@@ -869,7 +869,7 @@ button {
   align-items: center;
   gap: 12px;
   padding: 8px 12px 8px 8px;
-  background: rgba(15, 33, 64, var(--panel-opacity));
+  background: var(--glass);
   border: 1px solid var(--glass-border);
   border-radius: 50px;
   backdrop-filter: blur(20px);
@@ -879,7 +879,7 @@ button {
 }
 
 .chat-header-pill:hover {
-  background: rgba(25, 45, 80, var(--panel-opacity));
+  background: var(--bg-medium);
 }
 
 .chat-header-avatar {
@@ -934,7 +934,7 @@ button {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--bg-medium);
   border: none;
   font-size: 16px;
   cursor: pointer;
@@ -945,7 +945,7 @@ button {
 }
 
 .header-action-btn:hover {
-  background: rgba(79, 195, 247, 0.3);
+  background: var(--accent-glow);
 }
 
 .header-menu-btn {
@@ -963,8 +963,8 @@ button {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: rgba(10, 22, 40, 0.6);
-  border: 1px solid rgba(148, 163, 184, 0.15);
+  background: var(--bg-darkest);
+  border: 1px solid var(--glass-border);
   font-size: 16px;
   padding: 0;
   display: flex;
@@ -973,7 +973,7 @@ button {
 }
 
 .action-btn:hover {
-  background: rgba(79, 195, 247, 0.15);
+  background: var(--accent-glow);
   border-color: var(--accent);
 }
 
@@ -1069,7 +1069,7 @@ button {
 }
 
 .message.received .message-bubble {
-  background: rgba(22, 45, 80, 0.8);
+  background: var(--message-received);
   border: 1px solid var(--glass-border);
   border-bottom-left-radius: 6px;
 }
@@ -1091,7 +1091,7 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(15, 33, 64, var(--panel-opacity));
+  background: var(--glass);
   border: 1px solid var(--glass-border);
   border-radius: 16px;
   backdrop-filter: blur(20px);
@@ -1101,8 +1101,8 @@ button {
   flex: 1;
   padding: 14px 20px;
   border-radius: 12px;
-  background: rgba(10, 22, 40, 0.6);
-  border: 1px solid rgba(148, 163, 184, 0.15);
+  background: var(--bg-darkest);
+  border: 1px solid var(--glass-border);
 }
 
 .message-form input:disabled {
@@ -1117,8 +1117,8 @@ button {
   min-height: 44px;
   flex-shrink: 0;
   border-radius: 12px;
-  background: rgba(10, 22, 40, 0.6);
-  border: 1px solid rgba(148, 163, 184, 0.15);
+  background: var(--bg-darkest);
+  border: 1px solid var(--glass-border);
   font-size: 20px;
   padding: 0;
   display: flex;
@@ -1128,7 +1128,7 @@ button {
 }
 
 .emoji-btn:hover {
-  background: rgba(79, 195, 247, 0.15);
+  background: var(--accent-glow);
   border-color: var(--accent);
   transform: scale(1.1);
 }
@@ -1156,7 +1156,7 @@ button {
 
 .send-btn:hover:not(:disabled) {
   transform: scale(1.1) rotate(15deg);
-  box-shadow: 0 4px 15px rgba(79, 195, 247, 0.5);
+  box-shadow: 0 4px 15px var(--accent-glow);
 }
 
 .send-btn:active:not(:disabled) {
@@ -1172,7 +1172,7 @@ button {
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: var(--text-muted); opacity: 0.3; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.3); }
 
 /* ===== MODAL ===== */
@@ -1255,7 +1255,7 @@ button {
 }
 
 .modal-close:hover {
-  background: rgba(79, 195, 247, 0.1);
+  background: var(--accent-glow);
   color: var(--text);
 }
 
@@ -1324,16 +1324,16 @@ button {
 
 /* Стилизация emoji-picker-element под тему Квант */
 emoji-picker {
-  --background: rgba(15, 25, 45, 0.95);
-  --border-color: rgba(148, 163, 184, 0.2);
+  --background: var(--bg-dark);
+  --border-color: var(--glass-border);
   --indicator-color: var(--accent);
-  --input-border-color: rgba(148, 163, 184, 0.2);
-  --input-font-color: var(--text-primary);
-  --input-placeholder-color: var(--text-secondary);
+  --input-border-color: var(--glass-border);
+  --input-font-color: var(--text);
+  --input-placeholder-color: var(--text-muted);
   --outline-color: var(--accent);
-  --category-font-color: var(--text-secondary);
-  --button-active-background: rgba(79, 195, 247, 0.2);
-  --button-hover-background: rgba(79, 195, 247, 0.1);
+  --category-font-color: var(--text-muted);
+  --button-active-background: var(--accent-glow);
+  --button-hover-background: var(--accent-glow);
   --emoji-padding: 0.4rem;
   --emoji-size: 1.4rem;
   --num-columns: 8;
@@ -1351,8 +1351,8 @@ emoji-picker {
   height: 40px;
   min-height: 40px;
   border-radius: 12px;
-  background: rgba(10, 22, 40, 0.6);
-  border: 1px solid rgba(148, 163, 184, 0.15);
+  background: var(--bg-darkest);
+  border: 1px solid var(--glass-border);
   font-size: 18px;
   padding: 0;
   margin-right: 12px;
@@ -1720,7 +1720,7 @@ emoji-picker {
 }
 
 .settings-item:hover {
-  background: rgba(79, 195, 247, 0.1);
+  background: var(--accent-glow);
 }
 
 .settings-divider {
@@ -1783,7 +1783,7 @@ emoji-picker {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: rgba(79, 195, 247, 0.1);
+  background: var(--bg-medium);
   border: 1px solid var(--glass-border);
   font-size: 18px;
   padding: 0;
@@ -1794,7 +1794,7 @@ emoji-picker {
 }
 
 .icon-btn:hover {
-  background: rgba(79, 195, 247, 0.2);
+  background: var(--accent-glow);
 }
 
 /* Chat user info clickable */
@@ -1806,7 +1806,7 @@ emoji-picker {
 }
 
 .chat-user-info:hover {
-  background: rgba(79, 195, 247, 0.1);
+  background: var(--accent-glow);
 }
 
 /* Mobile header with rounded corners */
@@ -2404,7 +2404,7 @@ emoji-picker {
 .settings-sidebar {
   width: 240px;
   min-width: 240px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-dark);
   border-right: 1px solid var(--glass-border);
   display: flex;
   flex-direction: column;
@@ -2468,11 +2468,11 @@ emoji-picker {
 }
 
 .settings-nav-item:hover {
-  background: rgba(79, 195, 247, 0.1);
+  background: var(--accent-glow);
 }
 
 .settings-nav-item.active {
-  background: rgba(79, 195, 247, 0.15);
+  background: var(--accent-glow);
   border-left: 3px solid var(--accent);
 }
 
@@ -3200,7 +3200,7 @@ emoji-picker {
   
   .settings-nav-item.active {
     border-left: none;
-    background: rgba(79, 195, 247, 0.2);
+    background: var(--accent-glow);
     border: 1px solid var(--accent);
   }
   
@@ -4122,11 +4122,11 @@ body,
 }
 
 .status-option:hover {
-  background: rgba(79, 195, 247, 0.1);
+  background: var(--accent-glow);
 }
 
 .status-option.active {
-  background: rgba(79, 195, 247, 0.2);
+  background: var(--accent-glow);
 }
 
 .status-option .status-dot {
@@ -4315,7 +4315,7 @@ body,
 }
 
 .search-item:hover {
-  background: rgba(79, 195, 247, 0.1);
+  background: var(--accent-glow);
 }
 
 .search-item-avatar {
@@ -4355,7 +4355,7 @@ body,
 }
 
 .search-item-text mark {
-  background: rgba(79, 195, 247, 0.3);
+  background: var(--accent-glow);
   color: var(--text);
   padding: 0 2px;
   border-radius: 2px;
@@ -4700,7 +4700,7 @@ body,
   
   .settings-nav-item.active {
     border-left: none;
-    background: rgba(79, 195, 247, 0.2);
+    background: var(--accent-glow);
   }
   
   .settings-sidebar-footer {
@@ -5126,7 +5126,7 @@ input:focus {
 }
 
 .settings-nav-item:hover {
-  background: rgba(79, 195, 247, 0.08);
+  background: var(--accent-glow);
   padding-left: 24px;
 }
 
@@ -5498,7 +5498,7 @@ input:focus {
 }
 
 .context-menu-item:hover {
-  background: rgba(79, 195, 247, 0.15);
+  background: var(--accent-glow);
 }
 
 .context-menu-item.danger {
@@ -5815,8 +5815,8 @@ input:focus {
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  background: rgba(79, 195, 247, 0.15);
-  border: 1px solid rgba(79, 195, 247, 0.3);
+  background: var(--accent-glow);
+  border: 1px solid var(--accent);
   border-radius: 12px;
   font-size: 14px;
   cursor: pointer;
@@ -5824,12 +5824,12 @@ input:focus {
 }
 
 .reaction-badge:hover {
-  background: rgba(79, 195, 247, 0.25);
+  background: var(--accent-glow);
   transform: scale(1.05);
 }
 
 .reaction-badge.own {
-  background: rgba(79, 195, 247, 0.3);
+  background: var(--accent-glow);
   border-color: var(--accent);
 }
 
@@ -5904,7 +5904,7 @@ input:focus {
 }
 
 .context-menu-item:hover {
-  background: rgba(79, 195, 247, 0.15);
+  background: var(--accent-glow);
 }
 
 .context-menu-item.danger {
@@ -5956,7 +5956,7 @@ input:focus {
 }
 
 .chat-context-menu .context-menu-item:hover {
-  background: rgba(79, 195, 247, 0.15);
+  background: var(--accent-glow);
 }
 
 .chat-context-menu .ctx-icon {
@@ -6010,7 +6010,7 @@ input:focus {
 }
 
 .reaction-picker-item:hover {
-  background: rgba(79, 195, 247, 0.2);
+  background: var(--accent-glow);
   transform: scale(1.2);
 }
 
@@ -6182,6 +6182,8 @@ input:focus {
   --accent-light: #ff66ff;
   --accent-glow: rgba(255, 0, 255, 0.4);
   --message-sent: linear-gradient(135deg, #ff00ff, #8b00ff);
+  --message-received: #1a0a2e;
+  --glass: rgba(10, 10, 10, 0.8);
   --glass-border: rgba(255, 0, 255, 0.2);
 }
 
@@ -6195,6 +6197,8 @@ input:focus {
   --accent-light: #ff9966;
   --accent-glow: rgba(255, 107, 53, 0.4);
   --message-sent: linear-gradient(135deg, #ff6b35, #ff3366);
+  --message-received: #4e2a1a;
+  --glass: rgba(26, 10, 10, 0.8);
   --glass-border: rgba(255, 107, 53, 0.2);
 }
 
@@ -6208,6 +6212,8 @@ input:focus {
   --accent-light: #66e0ff;
   --accent-glow: rgba(0, 212, 255, 0.4);
   --message-sent: linear-gradient(135deg, #00d4ff, #0066ff);
+  --message-received: #1a3e4e;
+  --glass: rgba(10, 26, 46, 0.8);
   --glass-border: rgba(0, 212, 255, 0.2);
 }
 
@@ -6221,6 +6227,8 @@ input:focus {
   --accent-light: #818cf8;
   --accent-glow: rgba(99, 102, 241, 0.4);
   --message-sent: linear-gradient(135deg, #6366f1, #4f46e5);
+  --message-received: #1a1a3a;
+  --glass: rgba(13, 13, 26, 0.8);
   --glass-border: rgba(99, 102, 241, 0.2);
   --text: #e2e8f0;
   --text-muted: #94a3b8;
@@ -6236,6 +6244,8 @@ input:focus {
   --accent-light: #4ade80;
   --accent-glow: rgba(34, 197, 94, 0.4);
   --message-sent: linear-gradient(135deg, #22c55e, #16a34a);
+  --message-received: #1a3a1a;
+  --glass: rgba(10, 26, 10, 0.8);
   --glass-border: rgba(34, 197, 94, 0.2);
   --text: #e2e8f0;
   --text-muted: #94a3b8;
@@ -6251,6 +6261,8 @@ input:focus {
   --accent-light: #f9a8d4;
   --accent-glow: rgba(244, 114, 182, 0.4);
   --message-sent: linear-gradient(135deg, #f472b6, #ec4899);
+  --message-received: #3a1a2a;
+  --glass: rgba(26, 10, 20, 0.8);
   --glass-border: rgba(244, 114, 182, 0.2);
   --text: #fce7f3;
   --text-muted: #f9a8d4;
@@ -6373,7 +6385,7 @@ input:focus {
 }
 
 .attach-btn:hover {
-  background: rgba(79, 195, 247, 0.15);
+  background: var(--accent-glow);
   border-color: var(--accent);
   transform: scale(1.1);
 }
@@ -6752,7 +6764,7 @@ input[type="range"]:focus::-moz-range-thumb {
   .chat-header {
     display: flex;
     align-items: center;
-    background: rgba(15, 33, 64, var(--panel-opacity));
+    background: var(--glass);
     backdrop-filter: blur(20px);
   }
   
@@ -11555,7 +11567,7 @@ input[type="range"]:focus::-moz-range-thumb {
 /* Базовые стили для контекстных меню */
 .context-menu {
   position: fixed;
-  background: rgba(15, 25, 45, 0.98);
+  background: var(--bg-dark);
   border: 1px solid var(--glass-border);
   border-radius: 12px;
   padding: 8px;
@@ -11590,7 +11602,7 @@ input[type="range"]:focus::-moz-range-thumb {
 }
 
 .context-menu .context-menu-item:hover {
-  background: rgba(79, 195, 247, 0.15);
+  background: var(--accent-glow);
 }
 
 .context-menu .context-menu-item.danger {

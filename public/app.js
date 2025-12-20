@@ -3146,6 +3146,9 @@ function applyTheme(theme) {
         root.style.setProperty('--message-received', '#e0e0e0');
         root.style.setProperty('--glass', 'rgba(255, 255, 255, 0.8)');
         root.style.setProperty('--glass-border', 'rgba(0, 0, 0, 0.1)');
+        root.style.setProperty('--accent', '#1976d2');
+        root.style.setProperty('--accent-light', '#42a5f5');
+        root.style.setProperty('--accent-glow', 'rgba(25, 118, 210, 0.3)');
     } else {
         // dark - дефолтная тема, используем CSS :root
     }
