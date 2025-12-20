@@ -1728,8 +1728,9 @@ function hideVoiceConnectionPill() {
     const pill = document.getElementById('voice-connection-pill');
     if (!pill) return;
     
-    // Анимация скрытия
+    // Убираем классы состояния — CSS transition автоматически анимирует исчезновение
     pill.classList.remove('visible', 'connecting', 'connected');
+    // hidden добавляем сразу — transition в базовом состоянии обработает анимацию
     pill.classList.add('hidden');
 }
 
@@ -1990,6 +1991,11 @@ function initUserListEvents() {
 async function selectUser(userId, username) {
     state.selectedUser = { id: userId, username };
     
+    // На мобильных сначала запускаем анимацию перехода
+    if (isMobile()) {
+        handleMobileAfterSelect();
+    }
+    
     try {
         const res = await api.get(`/api/user/${userId}`);
         if (res.ok) {
@@ -2018,7 +2024,6 @@ async function selectUser(userId, username) {
     document.querySelector('.send-btn').disabled = false;
     
     await loadMessages();
-    handleMobileAfterSelect();
 }
 
 async function loadMessages() {
@@ -2056,10 +2061,11 @@ function renderMessages(messages) {
     messagesDiv.innerHTML = '';
     messagesDiv.appendChild(fragment);
     
-    // Используем requestAnimationFrame для плавной прокрутки
+    // Мгновенный скролл вниз (без анимации)
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    
+    // Включаем анимации обратно после рендера
     requestAnimationFrame(() => {
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        // Включаем анимации обратно после рендера
         messagesDiv.classList.remove('loading');
     });
 }
@@ -4601,6 +4607,10 @@ function showCallBar() {
 
 function hideCallBar() {
     const bar = document.getElementById('active-call-bar');
+    if (!bar) return;
+    
+    // Добавляем hidden для запуска анимации исчезновения
+    // CSS transition сработает автоматически
     bar.classList.add('hidden');
 }
 
