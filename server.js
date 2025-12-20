@@ -407,10 +407,15 @@ app.get('/api/vapid-public-key', (_req, res) => {
 
 // TURN credentials - используем публичные серверы OpenRelay
 app.get('/api/turn-credentials', authMiddleware, async (_req, res) => {
-    // OpenRelay - бесплатные публичные TURN серверы
+    // OpenRelay - бесплатные публичные TURN серверы от Metered
     // https://www.metered.ca/tools/openrelay/
     const iceServers = [
+        // STUN серверы (бесплатные, для определения публичного IP)
         { urls: 'stun:stun.relay.metered.ca:80' },
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        
+        // TURN серверы от Metered OpenRelay (бесплатные)
         {
             urls: 'turn:global.relay.metered.ca:80',
             username: 'e8dd65c92f6ec24f42cfe786',
@@ -428,6 +433,23 @@ app.get('/api/turn-credentials', authMiddleware, async (_req, res) => {
         },
         {
             urls: 'turns:global.relay.metered.ca:443?transport=tcp',
+            username: 'e8dd65c92f6ec24f42cfe786',
+            credential: 'kMgDyyPqNK/u/yrH'
+        },
+        
+        // Резервные TURN серверы от OpenRelay (другой регион)
+        {
+            urls: 'turn:a.relay.metered.ca:80',
+            username: 'e8dd65c92f6ec24f42cfe786',
+            credential: 'kMgDyyPqNK/u/yrH'
+        },
+        {
+            urls: 'turn:a.relay.metered.ca:443',
+            username: 'e8dd65c92f6ec24f42cfe786',
+            credential: 'kMgDyyPqNK/u/yrH'
+        },
+        {
+            urls: 'turns:a.relay.metered.ca:443?transport=tcp',
             username: 'e8dd65c92f6ec24f42cfe786',
             credential: 'kMgDyyPqNK/u/yrH'
         }

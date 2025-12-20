@@ -3527,6 +3527,9 @@ async function initOutgoingCall(video) {
     // Сбрасываем состояние
     callState.pendingCandidates = [];
     callState.reconnectAttempts = 0;
+    callState.initialNegotiationDone = false;
+    callState.makingOffer = false;
+    callState.ignoreOffer = false;
     
     try {
         // Получаем медиа
@@ -3659,6 +3662,9 @@ async function acceptCall() {
     callState.isPolite = true; // Принимающий - polite
     callState.pendingCandidates = [];
     callState.reconnectAttempts = 0;
+    callState.initialNegotiationDone = false;
+    callState.makingOffer = false;
+    callState.ignoreOffer = false;
     
     // Для обратной совместимости
     isVideoCall = data.isVideo;
