@@ -3178,6 +3178,7 @@ const callState = {
     makingOffer: false,          // Создаём offer?
     ignoreOffer: false,          // Игнорировать входящий offer?
     isSettingRemoteAnswerPending: false,
+    initialNegotiationDone: false, // Первоначальный обмен offer/answer завершён?
     timer: null,                 // Таймер звонка
     seconds: 0,                  // Секунды звонка
     incomingData: null,          // Данные входящего звонка
@@ -3390,14 +3391,22 @@ async function createPeerConnection() {
     };
     
     // Perfect Negotiation: обработка negotiationneeded
+    // ВАЖНО: Этот обработчик используется только для renegotiation (добавление видео и т.д.)
+    // При первоначальном звонке мы создаём offer вручную
     pc.onnegotiationneeded = async () => {
-        rtcLog('🔄', 'Negotiation needed');
+        // Пропускаем если это первоначальная настройка (ещё нет remote description)
+        if (!callState.initialNegotiationDone) {
+            rtcLog('🔄', 'Negotiation needed (пропускаем - первоначальная настройка)');
+            return;
+        }
+        
+        rtcLog('🔄', 'Negotiation needed (renegotiation)');
         
         try {
             callState.makingOffer = true;
             await pc.setLocalDescription();
             
-            rtcLog('📤', 'Отправляем offer (negotiation)');
+            rtcLog('📤', 'Отправляем offer (renegotiation)');
             state.socket.emit('call-signal', {
                 to: callState.remoteUserId,
                 description: pc.localDescription
@@ -3713,6 +3722,9 @@ async function acceptCall() {
         await pc.setLocalDescription(answer);
         rtcLog('✅', 'Local description установлен');
         
+        // Первоначальный обмен завершён - теперь можно использовать onnegotiationneeded
+        callState.initialNegotiationDone = true;
+        
         // Отправляем answer
         rtcLog('📤', 'Отправляем call-answer...');
         state.socket.emit('call-answer', {
@@ -3782,6 +3794,9 @@ async function handleCallAnswered(data) {
         rtcLog('📥', 'Устанавливаем remote description (answer)...');
         await callState.pc.setRemoteDescription(new RTCSessionDescription(data.answer));
         rtcLog('✅', 'Remote description установлен');
+        
+        // Первоначальный обмен завершён - теперь можно использовать onnegotiationneeded
+        callState.initialNegotiationDone = true;
         
         // Добавляем буферизованные кандидаты
         await flushPendingCandidates();
@@ -4072,6 +4087,9 @@ function cleanupCall() {
     callState.callId = null;
     callState.pendingCandidates = [];
     callState.reconnectAttempts = 0;
+    callState.initialNegotiationDone = false;
+    callState.makingOffer = false;
+    callState.ignoreOffer = false;
     
     // Для обратной совместимости
     isScreenSharing = false;
