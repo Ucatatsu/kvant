@@ -2339,7 +2339,16 @@ io.on('connection', async (socket) => {
     socket.on('ice-candidate', (data) => {
         const { to, candidate } = data;
         if (to) {
-            emitToUser(to, 'ice-candidate', { candidate });
+            emitToUser(to, 'ice-candidate', { candidate, from: userId });
+        }
+    });
+
+    // Perfect Negotiation: обработка сигналов (offer/answer)
+    socket.on('call-signal', async (data) => {
+        const { to, description } = data;
+        if (to && description) {
+            console.log(`📡 call-signal: ${userId} -> ${to}, type: ${description.type}`);
+            emitToUser(to, 'call-signal', { description, from: userId });
         }
     });
 

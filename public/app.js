@@ -694,6 +694,7 @@ function initSocket() {
     state.socket.on('screen-share-started', handleScreenShareStarted);
     state.socket.on('screen-share-stopped', handleScreenShareStopped);
     state.socket.on('video-state-changed', handleVideoStateChanged);
+    state.socket.on('call-signal', handleCallSignal);
     
     // Редактирование и удаление сообщений
     state.socket.on('message-edited', (data) => {
@@ -3158,7 +3159,38 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 });
 
 
-// === WEBRTC ЗВОНКИ ===
+// === WEBRTC ЗВОНКИ v2 (Perfect Negotiation Pattern) ===
+
+// Состояние звонка
+const callState = {
+    pc: null,                    // RTCPeerConnection
+    localStream: null,           // Локальный медиа поток
+    screenStream: null,          // Поток демонстрации экрана
+    remoteStream: null,          // Удалённый медиа поток
+    callId: null,                // ID текущего звонка
+    remoteUserId: null,          // ID собеседника
+    remoteUserName: null,        // Имя собеседника
+    isVideo: false,              // Видеозвонок?
+    isScreenSharing: false,      // Демонстрация экрана?
+    isMuted: false,              // Микрофон выключен?
+    isCameraOff: false,          // Камера выключена?
+    isPolite: false,             // Polite peer (для Perfect Negotiation)
+    makingOffer: false,          // Создаём offer?
+    ignoreOffer: false,          // Игнорировать входящий offer?
+    isSettingRemoteAnswerPending: false,
+    timer: null,                 // Таймер звонка
+    seconds: 0,                  // Секунды звонка
+    incomingData: null,          // Данные входящего звонка
+    stopCallSound: null,         // Функция остановки звука звонка
+    iceServersCache: null,       // Кэш ICE серверов
+    iceServersCacheExpiry: 0,    // Время истечения кэша
+    pendingCandidates: [],       // Буфер ICE кандидатов
+    connectionTimeout: null,     // Таймаут соединения
+    reconnectAttempts: 0,        // Попытки переподключения
+    maxReconnectAttempts: 3      // Максимум попыток
+};
+
+// Алиасы для обратной совместимости
 let localStream = null;
 let screenStream = null;
 let peerConnection = null;
@@ -3171,561 +3203,652 @@ let isScreenSharing = false;
 let isMuted = false;
 let incomingCallData = null;
 
-// Буфер для ICE кандидатов (приходят до установки remote description)
-let pendingIceCandidates = [];
-let isRemoteDescriptionSet = false;
+// Логирование WebRTC для диагностики
+const rtcLog = (emoji, ...args) => {
+    const timestamp = new Date().toISOString().substr(11, 12);
+    console.log(`[${timestamp}] ${emoji}`, ...args);
+};
 
-// ICE серверы для WebRTC
-// ВАЖНО: Для надёжной работы через мобильный интернет нужны TURN серверы
-// ICE серверы получаем динамически с сервера (Xirsys)
-let cachedIceServers = null;
-let iceServersExpiry = 0;
-
+// Получение ICE серверов с кэшированием
 async function getIceServers() {
     const now = Date.now();
-    // Кэшируем на 5 минут (credentials обычно живут дольше)
-    if (cachedIceServers && now < iceServersExpiry) {
-        console.log('🔄 Используем кэшированные ICE servers');
-        return cachedIceServers;
+    
+    // Используем кэш если не истёк
+    if (callState.iceServersCache && now < callState.iceServersCacheExpiry) {
+        rtcLog('🔄', 'Используем кэшированные ICE серверы');
+        return callState.iceServersCache;
     }
     
     try {
-        console.log('🔄 Запрашиваем свежие TURN credentials...');
+        rtcLog('🔄', 'Запрашиваем TURN credentials...');
         const res = await api.get('/api/turn-credentials');
+        
         if (res.ok) {
             const data = await res.json();
             
-            // Логируем полученные серверы для диагностики
-            console.log('📡 Полученные ICE серверы:');
+            // Логируем серверы
+            rtcLog('📡', 'Получены ICE серверы:');
             data.iceServers.forEach((server, i) => {
-                console.log(`  ${i + 1}. ${server.urls || server.url} ${server.username ? '(с credentials)' : ''}`);
+                const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+                urls.forEach(url => {
+                    rtcLog('  ', `${i + 1}. ${url} ${server.username ? '(auth)' : ''}`);
+                });
             });
             
-            cachedIceServers = { 
+            const config = {
                 iceServers: data.iceServers,
-                // Убираем relay-only — пусть WebRTC пробует все варианты
-                iceCandidatePoolSize: 10
+                iceCandidatePoolSize: 10,
+                bundlePolicy: 'max-bundle',
+                rtcpMuxPolicy: 'require'
             };
-            iceServersExpiry = now + 5 * 60 * 1000; // 5 минут
-            console.log('✅ TURN credentials получены:', data.iceServers.length, 'серверов (relay-only mode)');
-            return cachedIceServers;
+            
+            callState.iceServersCache = config;
+            callState.iceServersCacheExpiry = now + 5 * 60 * 1000; // 5 минут
+            
+            rtcLog('✅', `TURN credentials получены: ${data.iceServers.length} серверов`);
+            return config;
         } else {
-            console.error('❌ Ошибка получения TURN credentials:', res.status, res.statusText);
+            rtcLog('❌', 'Ошибка получения TURN:', res.status);
         }
     } catch (e) {
-        console.error('❌ Ошибка получения TURN credentials:', e);
+        rtcLog('❌', 'Ошибка получения TURN:', e.message);
     }
     
-    // Fallback на Google STUN (только для локальных сетей!)
-    console.warn('⚠️ ВНИМАНИЕ: Используем fallback STUN серверы - звонки будут работать ТОЛЬКО в локальной сети!');
+    // Fallback - только STUN (работает только в локальной сети)
+    rtcLog('⚠️', 'FALLBACK: Только STUN серверы - звонки работают только в локальной сети!');
     return {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' }
         ]
     };
 }
 
-// Ждём завершения сбора ICE кандидатов (с таймаутом)
-function waitForIceGathering(timeout = 10000) {
-    return new Promise((resolve) => {
-        if (!peerConnection) {
-            resolve();
-            return;
-        }
+// Создание RTCPeerConnection с обработчиками
+async function createPeerConnection() {
+    const config = await getIceServers();
+    
+    rtcLog('🔗', 'Создаём RTCPeerConnection...');
+    const pc = new RTCPeerConnection(config);
+    
+    // Сохраняем в состояние
+    callState.pc = pc;
+    peerConnection = pc; // Для обратной совместимости
+    
+    // Обработка входящих треков
+    pc.ontrack = (event) => {
+        rtcLog('📥', `Получен трек: ${event.track.kind}`);
         
-        // Если уже завершено
-        if (peerConnection.iceGatheringState === 'complete') {
-            console.log('✅ ICE gathering уже завершён');
-            resolve();
-            return;
-        }
+        const remoteVideo = document.getElementById('remote-video');
         
-        const timeoutId = setTimeout(() => {
-            console.log('⏱️ ICE gathering таймаут, продолжаем с тем что есть');
-            resolve();
-        }, timeout);
-        
-        peerConnection.addEventListener('icegatheringstatechange', function onStateChange() {
-            if (peerConnection.iceGatheringState === 'complete') {
-                clearTimeout(timeoutId);
-                peerConnection.removeEventListener('icegatheringstatechange', onStateChange);
-                console.log('✅ ICE gathering завершён');
-                resolve();
+        if (event.streams && event.streams[0]) {
+            callState.remoteStream = event.streams[0];
+            remoteVideo.srcObject = event.streams[0];
+        } else {
+            if (!callState.remoteStream) {
+                callState.remoteStream = new MediaStream();
+                remoteVideo.srcObject = callState.remoteStream;
             }
-        });
-    });
+            callState.remoteStream.addTrack(event.track);
+        }
+        
+        if (event.track.kind === 'video') {
+            document.getElementById('call-videos').classList.remove('hidden');
+        }
+        
+        // Обработка состояния трека
+        event.track.onended = () => {
+            rtcLog('📥', `Трек завершён: ${event.track.kind}`);
+            checkHideVideos();
+        };
+        
+        event.track.onmute = () => {
+            rtcLog('📥', `Трек muted: ${event.track.kind}`);
+            if (event.track.kind === 'video') checkHideVideos();
+        };
+        
+        event.track.onunmute = () => {
+            rtcLog('📥', `Трек unmuted: ${event.track.kind}`);
+            if (event.track.kind === 'video') {
+                document.getElementById('call-videos').classList.remove('hidden');
+            }
+        };
+    };
+    
+    // Обработка ICE кандидатов
+    pc.onicecandidate = (event) => {
+        if (event.candidate && callState.remoteUserId) {
+            const type = event.candidate.candidate.includes('relay') ? 'TURN' :
+                        event.candidate.candidate.includes('srflx') ? 'STUN' :
+                        event.candidate.candidate.includes('host') ? 'HOST' : '???';
+            
+            rtcLog('🧊', `ICE candidate [${type}]:`, event.candidate.candidate.substring(0, 60) + '...');
+            
+            state.socket.emit('ice-candidate', {
+                to: callState.remoteUserId,
+                candidate: event.candidate.toJSON()
+            });
+        }
+    };
+    
+    // Состояние ICE gathering
+    pc.onicegatheringstatechange = () => {
+        rtcLog('🧊', `ICE gathering: ${pc.iceGatheringState}`);
+    };
+    
+    // Состояние ICE соединения
+    pc.oniceconnectionstatechange = () => {
+        rtcLog('🧊', `ICE connection: ${pc.iceConnectionState}`);
+        
+        const statusEl = document.getElementById('call-status');
+        
+        switch (pc.iceConnectionState) {
+            case 'checking':
+                statusEl.textContent = 'Подключение...';
+                break;
+            case 'connected':
+            case 'completed':
+                statusEl.textContent = 'Соединено';
+                clearConnectionTimeout();
+                callState.reconnectAttempts = 0;
+                if (!callState.timer) startCallTimer();
+                break;
+            case 'disconnected':
+                statusEl.textContent = 'Переподключение...';
+                // Даём 5 секунд на автоматическое восстановление
+                setTimeout(() => {
+                    if (pc.iceConnectionState === 'disconnected') {
+                        rtcLog('🔄', 'Пробуем ICE restart...');
+                        pc.restartIce();
+                    }
+                }, 5000);
+                break;
+            case 'failed':
+                rtcLog('❌', 'ICE connection failed');
+                handleConnectionFailure();
+                break;
+            case 'closed':
+                rtcLog('🔌', 'ICE connection closed');
+                break;
+        }
+    };
+    
+    // Состояние соединения
+    pc.onconnectionstatechange = () => {
+        rtcLog('🔌', `Connection: ${pc.connectionState}`);
+        
+        if (pc.connectionState === 'failed') {
+            handleConnectionFailure();
+        }
+    };
+    
+    // Состояние сигнализации
+    pc.onsignalingstatechange = () => {
+        rtcLog('📡', `Signaling: ${pc.signalingState}`);
+    };
+    
+    // Perfect Negotiation: обработка negotiationneeded
+    pc.onnegotiationneeded = async () => {
+        rtcLog('🔄', 'Negotiation needed');
+        
+        try {
+            callState.makingOffer = true;
+            await pc.setLocalDescription();
+            
+            rtcLog('📤', 'Отправляем offer (negotiation)');
+            state.socket.emit('call-signal', {
+                to: callState.remoteUserId,
+                description: pc.localDescription
+            });
+        } catch (e) {
+            rtcLog('❌', 'Negotiation error:', e.message);
+        } finally {
+            callState.makingOffer = false;
+        }
+    };
+    
+    return pc;
 }
 
+// Обработка сбоя соединения
+function handleConnectionFailure() {
+    const statusEl = document.getElementById('call-status');
+    
+    if (callState.reconnectAttempts < callState.maxReconnectAttempts) {
+        callState.reconnectAttempts++;
+        statusEl.textContent = `Переподключение (${callState.reconnectAttempts}/${callState.maxReconnectAttempts})...`;
+        
+        rtcLog('🔄', `Попытка переподключения ${callState.reconnectAttempts}/${callState.maxReconnectAttempts}`);
+        
+        if (callState.pc) {
+            callState.pc.restartIce();
+        }
+    } else {
+        statusEl.textContent = 'Ошибка соединения';
+        showToast('Не удалось установить соединение. Проверьте интернет.', 'error');
+        setTimeout(() => endCall(true), 3000);
+    }
+}
+
+// Установка таймаута соединения
+function setConnectionTimeout(timeout = 30000) {
+    clearConnectionTimeout();
+    
+    callState.connectionTimeout = setTimeout(() => {
+        if (callState.pc && callState.pc.iceConnectionState !== 'connected' && 
+            callState.pc.iceConnectionState !== 'completed') {
+            rtcLog('⏱️', 'Connection timeout');
+            handleConnectionFailure();
+        }
+    }, timeout);
+}
+
+function clearConnectionTimeout() {
+    if (callState.connectionTimeout) {
+        clearTimeout(callState.connectionTimeout);
+        callState.connectionTimeout = null;
+    }
+}
+
+// Добавление буферизованных ICE кандидатов
+async function flushPendingCandidates() {
+    if (callState.pendingCandidates.length === 0) return;
+    
+    rtcLog('🧊', `Добавляем ${callState.pendingCandidates.length} буферизованных кандидатов`);
+    
+    const candidates = [...callState.pendingCandidates];
+    callState.pendingCandidates = [];
+    
+    for (const candidateData of candidates) {
+        try {
+            const candidate = new RTCIceCandidate(candidateData);
+            await callState.pc.addIceCandidate(candidate);
+            rtcLog('🧊', 'Буферизованный кандидат добавлен');
+        } catch (e) {
+            rtcLog('❌', 'Ошибка добавления кандидата:', e.message);
+        }
+    }
+}
+
+// Начало звонка (вызывающая сторона)
 function startCall(video = false) {
-    console.log('📞 startCall called:', { video, selectedUser: state.selectedUser?.id, socketConnected: state.socket?.connected });
+    rtcLog('📞', `startCall: video=${video}, user=${state.selectedUser?.id}`);
     
     if (!state.selectedUser) {
-        console.warn('❌ Нет выбранного пользователя для звонка');
+        rtcLog('❌', 'Нет выбранного пользователя');
         return;
     }
-    if (!state.socket || !state.socket.connected) {
-        console.warn('❌ Socket не подключён');
+    
+    if (!state.socket?.connected) {
+        rtcLog('❌', 'Socket не подключён');
         showToast('Нет соединения с сервером', 'error');
         return;
     }
     
+    // Сохраняем данные звонка
+    callState.isVideo = video;
+    callState.remoteUserId = state.selectedUser.id;
+    callState.remoteUserName = state.selectedUser.username;
+    callState.isPolite = false; // Вызывающий - impolite
+    
+    // Для обратной совместимости
     isVideoCall = video;
     currentCallUser = state.selectedUser;
     
+    // Показываем UI звонка
     const callModal = document.getElementById('call-modal');
-    const callAvatar = document.getElementById('call-avatar');
-    const callName = document.getElementById('call-name');
-    const callStatus = document.getElementById('call-status');
-    
-    callAvatar.textContent = state.selectedUser.username[0].toUpperCase();
-    callName.textContent = state.selectedUser.username;
-    callStatus.textContent = 'Вызов...';
+    document.getElementById('call-avatar').textContent = state.selectedUser.username[0].toUpperCase();
+    document.getElementById('call-name').textContent = state.selectedUser.username;
+    document.getElementById('call-status').textContent = 'Вызов...';
     document.getElementById('call-timer').classList.add('hidden');
     document.getElementById('call-videos').classList.add('hidden');
     callModal.classList.remove('hidden');
     hideCallBar();
     
-    initCall(video);
+    // Инициализируем звонок
+    initOutgoingCall(video);
 }
 
-async function initCall(video) {
-    console.log('📞 initCall started:', { video });
+// Инициализация исходящего звонка
+async function initOutgoingCall(video) {
+    rtcLog('📞', 'Инициализация исходящего звонка...');
     
-    // Сбрасываем состояние ICE буфера
-    pendingIceCandidates = [];
-    isRemoteDescriptionSet = false;
+    // Сбрасываем состояние
+    callState.pendingCandidates = [];
+    callState.reconnectAttempts = 0;
     
     try {
-        console.log('🎤 Запрашиваем доступ к медиа...');
-        localStream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-            video: video
+        // Получаем медиа
+        rtcLog('🎤', 'Запрашиваем доступ к медиа...');
+        callState.localStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            },
+            video: video ? {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                facingMode: 'user'
+            } : false
         });
-        console.log('✅ Медиа получено:', localStream.getTracks().map(t => t.kind));
         
+        localStream = callState.localStream; // Для обратной совместимости
+        
+        rtcLog('✅', `Медиа получено: ${callState.localStream.getTracks().map(t => t.kind).join(', ')}`);
+        
+        // Показываем локальное видео
         if (video) {
-            document.getElementById('local-video').srcObject = localStream;
+            document.getElementById('local-video').srcObject = callState.localStream;
             document.getElementById('call-videos').classList.remove('hidden');
         }
         
-        // Получаем свежие TURN credentials
-        const iceConfig = await getIceServers();
+        // Создаём PeerConnection
+        const pc = await createPeerConnection();
         
-        console.log('🔗 Создаём RTCPeerConnection...');
-        peerConnection = new RTCPeerConnection(iceConfig);
-        
-        localStream.getTracks().forEach(track => {
-            peerConnection.addTrack(track, localStream);
+        // Добавляем треки
+        callState.localStream.getTracks().forEach(track => {
+            rtcLog('📤', `Добавляем трек: ${track.kind}`);
+            pc.addTrack(track, callState.localStream);
         });
         
-        peerConnection.ontrack = (event) => {
-            console.log('📥 Получен remote track:', event.track.kind);
-            const remoteVideo = document.getElementById('remote-video');
-            if (event.streams && event.streams[0]) {
-                remoteVideo.srcObject = event.streams[0];
-            } else {
-                if (!remoteVideo.srcObject) {
-                    remoteVideo.srcObject = new MediaStream();
-                }
-                remoteVideo.srcObject.addTrack(event.track);
-            }
-            
-            if (event.track.kind === 'video') {
-                document.getElementById('call-videos').classList.remove('hidden');
-            }
-            
-            // Обработка отключения трека
-            event.track.onended = () => {
-                console.log('📥 Remote track ended:', event.track.kind);
-                if (event.track.kind === 'video') {
-                    remoteVideo.srcObject = null;
-                }
-                checkHideVideos();
-            };
-            
-            // Обработка mute/unmute (когда трек отключается без удаления)
-            event.track.onmute = () => {
-                console.log('📥 Remote track muted:', event.track.kind);
-                if (event.track.kind === 'video') {
-                    checkHideVideos();
-                }
-            };
-            
-            event.track.onunmute = () => {
-                console.log('📥 Remote track unmuted:', event.track.kind);
-                if (event.track.kind === 'video') {
-                    document.getElementById('call-videos').classList.remove('hidden');
-                }
-            };
-        };
+        // Создаём offer
+        rtcLog('📤', 'Создаём offer...');
+        const offer = await pc.createOffer({
+            offerToReceiveAudio: true,
+            offerToReceiveVideo: true
+        });
         
-        peerConnection.onicecandidate = (event) => {
-            if (event.candidate && currentCallUser) {
-                // Логируем тип кандидата для диагностики
-                const candidateType = event.candidate.candidate.includes('relay') ? 'relay (TURN)' :
-                                     event.candidate.candidate.includes('srflx') ? 'srflx (STUN)' :
-                                     event.candidate.candidate.includes('host') ? 'host (local)' : 'unknown';
-                console.log(`🧊 ICE candidate [${candidateType}]:`, event.candidate.candidate.substring(0, 80));
-                state.socket.emit('ice-candidate', {
-                    to: currentCallUser.id,
-                    candidate: event.candidate
-                });
-            } else if (!event.candidate) {
-                console.log('🧊 ICE gathering завершён');
-            }
-        };
+        await pc.setLocalDescription(offer);
+        rtcLog('✅', 'Local description установлен');
         
-        // Отслеживаем процесс сбора ICE кандидатов
-        peerConnection.onicegatheringstatechange = () => {
-            console.log('🧊 ICE gathering state:', peerConnection.iceGatheringState);
-            if (peerConnection.iceGatheringState === 'complete') {
-                console.log('✅ Все ICE кандидаты собраны');
-            }
-        };
-        
-        peerConnection.oniceconnectionstatechange = () => {
-            console.log('🧊 ICE connection state:', peerConnection.iceConnectionState);
-            const statusEl = document.getElementById('call-status');
-            
-            if (peerConnection.iceConnectionState === 'connected' || peerConnection.iceConnectionState === 'completed') {
-                statusEl.textContent = 'Соединено';
-                if (!callTimer) startCallTimer();
-            } else if (peerConnection.iceConnectionState === 'failed') {
-                console.error('❌ ICE connection failed! Пробуем ICE restart...');
-                statusEl.textContent = 'Переподключение...';
-                // Пробуем ICE restart
-                try {
-                    peerConnection.restartIce();
-                    console.log('🔄 ICE restart initiated');
-                } catch (e) {
-                    console.error('ICE restart failed:', e);
-                    statusEl.textContent = 'Ошибка соединения';
-                    showToast('Не удалось установить соединение. Проверьте интернет.', 'error');
-                }
-            } else if (peerConnection.iceConnectionState === 'disconnected') {
-                statusEl.textContent = 'Переподключение...';
-            } else if (peerConnection.iceConnectionState === 'checking') {
-                statusEl.textContent = 'Подключение...';
-            }
-        };
-        
-        // Добавляем обработчик состояния сигнализации
-        peerConnection.onsignalingstatechange = () => {
-            console.log('📡 Signaling state:', peerConnection.signalingState);
-        };
-        
-        // Добавляем обработчик состояния соединения
-        peerConnection.onconnectionstatechange = () => {
-            console.log('🔌 Connection state:', peerConnection.connectionState);
-            if (peerConnection.connectionState === 'failed') {
-                console.error('❌ Connection failed');
-                document.getElementById('call-status').textContent = 'Ошибка соединения';
-            }
-        };
-        
-        console.log('📤 Создаём offer...');
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        
-        // Ждём сбора всех ICE кандидатов перед отправкой offer
-        console.log('⏳ Ждём сбора ICE кандидатов...');
-        await waitForIceGathering();
-        
-        // Отправляем offer с уже собранными кандидатами
-        const completeOffer = peerConnection.localDescription;
-        console.log('✅ Offer готов с ICE кандидатами, отправляем call-user');
-        
+        // Отправляем звонок
+        rtcLog('📤', 'Отправляем call-user...');
         state.socket.emit('call-user', {
-            to: state.selectedUser.id,
-            offer: completeOffer,
+            to: callState.remoteUserId,
+            offer: pc.localDescription,
             isVideo: video
         });
         
+        // Устанавливаем таймаут соединения
+        setConnectionTimeout(30000);
+        
         updateVideoButtonState();
+        
     } catch (err) {
-        console.error('❌ Ошибка доступа к медиа:', err);
+        rtcLog('❌', 'Ошибка инициализации звонка:', err.message);
         endCall(false);
-        showToast('Не удалось получить доступ к камере/микрофону', 'error');
+        
+        if (err.name === 'NotAllowedError') {
+            showToast('Доступ к камере/микрофону запрещён', 'error');
+        } else if (err.name === 'NotFoundError') {
+            showToast('Камера или микрофон не найдены', 'error');
+        } else {
+            showToast('Не удалось начать звонок', 'error');
+        }
     }
+}
+
+// Для обратной совместимости
+async function initCall(video) {
+    await initOutgoingCall(video);
 }
 
 let stopCallSound = null;
 
+// Обработка входящего звонка
 function handleIncomingCall(data) {
-    console.log('📞 Входящий звонок:', data);
-    incomingCallData = data;
+    rtcLog('📞', `Входящий звонок от ${data.fromName} (${data.from}), video=${data.isVideo}`);
+    
+    // Сохраняем данные
+    callState.incomingData = data;
+    incomingCallData = data; // Для обратной совместимости
+    
+    // Показываем UI входящего звонка
     document.getElementById('incoming-call-avatar').textContent = data.fromName[0].toUpperCase();
     document.getElementById('incoming-call-name').textContent = data.fromName;
     document.getElementById('incoming-call-type').textContent = data.isVideo ? '📹 Видеозвонок' : '📞 Аудиозвонок';
     document.getElementById('incoming-call-modal').classList.remove('hidden');
     
-    // Воспроизводим звук звонка
+    // Воспроизводим звук
     ensureSoundsInitialized();
-    stopCallSound = sounds.playCall?.();
+    callState.stopCallSound = sounds.playCall?.();
+    stopCallSound = callState.stopCallSound;
 }
 
+// Принятие звонка
 async function acceptCall() {
-    console.log('📞 acceptCall called:', incomingCallData);
-    if (!incomingCallData) {
-        console.warn('❌ Нет данных входящего звонка');
+    const data = callState.incomingData || incomingCallData;
+    
+    if (!data) {
+        rtcLog('❌', 'Нет данных входящего звонка');
         return;
     }
     
-    // Останавливаем звук звонка
+    rtcLog('📞', `Принимаем звонок от ${data.fromName}`);
+    
+    // Останавливаем звук
+    if (callState.stopCallSound) {
+        callState.stopCallSound();
+        callState.stopCallSound = null;
+    }
     if (stopCallSound) {
         stopCallSound();
         stopCallSound = null;
     }
     
+    // Скрываем модалку входящего звонка
     document.getElementById('incoming-call-modal').classList.add('hidden');
-    isVideoCall = incomingCallData.isVideo;
-    currentCallUser = { id: incomingCallData.from, username: incomingCallData.fromName };
-    currentCallId = incomingCallData.callId;
     
-    // Сбрасываем состояние ICE буфера
-    pendingIceCandidates = [];
-    isRemoteDescriptionSet = false;
+    // Сохраняем данные звонка
+    callState.isVideo = data.isVideo;
+    callState.remoteUserId = data.from;
+    callState.remoteUserName = data.fromName;
+    callState.callId = data.callId;
+    callState.isPolite = true; // Принимающий - polite
+    callState.pendingCandidates = [];
+    callState.reconnectAttempts = 0;
     
+    // Для обратной совместимости
+    isVideoCall = data.isVideo;
+    currentCallUser = { id: data.from, username: data.fromName };
+    currentCallId = data.callId;
+    
+    // Показываем UI звонка
     const callModal = document.getElementById('call-modal');
-    document.getElementById('call-avatar').textContent = incomingCallData.fromName[0].toUpperCase();
-    document.getElementById('call-name').textContent = incomingCallData.fromName;
+    document.getElementById('call-avatar').textContent = data.fromName[0].toUpperCase();
+    document.getElementById('call-name').textContent = data.fromName;
     document.getElementById('call-status').textContent = 'Подключение...';
     document.getElementById('call-videos').classList.add('hidden');
     callModal.classList.remove('hidden');
     
     try {
-        console.log('🎤 Запрашиваем доступ к медиа (acceptCall)...');
-        localStream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-            video: isVideoCall
+        // Получаем медиа
+        rtcLog('🎤', 'Запрашиваем доступ к медиа...');
+        callState.localStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            },
+            video: data.isVideo ? {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                facingMode: 'user'
+            } : false
         });
-        console.log('✅ Медиа получено');
         
-        if (isVideoCall) {
-            document.getElementById('local-video').srcObject = localStream;
+        localStream = callState.localStream;
+        
+        rtcLog('✅', `Медиа получено: ${callState.localStream.getTracks().map(t => t.kind).join(', ')}`);
+        
+        // Показываем локальное видео
+        if (data.isVideo) {
+            document.getElementById('local-video').srcObject = callState.localStream;
             document.getElementById('call-videos').classList.remove('hidden');
         }
         
-        // Получаем свежие TURN credentials
-        const iceConfig = await getIceServers();
+        // Создаём PeerConnection
+        const pc = await createPeerConnection();
         
-        console.log('🔗 Создаём RTCPeerConnection (acceptCall)...');
-        peerConnection = new RTCPeerConnection(iceConfig);
-        
-        localStream.getTracks().forEach(track => {
-            peerConnection.addTrack(track, localStream);
+        // Добавляем треки
+        callState.localStream.getTracks().forEach(track => {
+            rtcLog('📤', `Добавляем трек: ${track.kind}`);
+            pc.addTrack(track, callState.localStream);
         });
         
-        peerConnection.ontrack = (event) => {
-            console.log('📥 Получен remote track (acceptCall):', event.track.kind);
-            const remoteVideo = document.getElementById('remote-video');
-            if (event.streams && event.streams[0]) {
-                remoteVideo.srcObject = event.streams[0];
-            } else {
-                if (!remoteVideo.srcObject) {
-                    remoteVideo.srcObject = new MediaStream();
-                }
-                remoteVideo.srcObject.addTrack(event.track);
-            }
-            
-            if (event.track.kind === 'video') {
-                document.getElementById('call-videos').classList.remove('hidden');
-            }
-            
-            // Обработка отключения трека
-            event.track.onended = () => {
-                console.log('📥 Remote track ended (acceptCall):', event.track.kind);
-                if (event.track.kind === 'video') {
-                    remoteVideo.srcObject = null;
-                }
-                checkHideVideos();
-            };
-            
-            // Обработка mute/unmute
-            event.track.onmute = () => {
-                console.log('📥 Remote track muted (acceptCall):', event.track.kind);
-                if (event.track.kind === 'video') {
-                    checkHideVideos();
-                }
-            };
-            
-            event.track.onunmute = () => {
-                console.log('📥 Remote track unmuted (acceptCall):', event.track.kind);
-                if (event.track.kind === 'video') {
-                    document.getElementById('call-videos').classList.remove('hidden');
-                }
-            };
-        };
+        // Устанавливаем remote description (offer)
+        rtcLog('📥', 'Устанавливаем remote description (offer)...');
+        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        rtcLog('✅', 'Remote description установлен');
         
-        peerConnection.onicecandidate = (event) => {
-            if (event.candidate && currentCallUser) {
-                console.log('🧊 Отправляем ICE candidate (acceptCall)');
-                state.socket.emit('ice-candidate', {
-                    to: currentCallUser.id,
-                    candidate: event.candidate
-                });
-            }
-        };
+        // Добавляем буферизованные кандидаты
+        await flushPendingCandidates();
         
-        peerConnection.oniceconnectionstatechange = () => {
-            console.log('🧊 ICE state (acceptCall):', peerConnection.iceConnectionState);
-            const statusEl = document.getElementById('call-status');
-            
-            if (peerConnection.iceConnectionState === 'connected' || peerConnection.iceConnectionState === 'completed') {
-                statusEl.textContent = 'Соединено';
-                if (!callTimer) startCallTimer();
-            } else if (peerConnection.iceConnectionState === 'failed') {
-                statusEl.textContent = 'Ошибка соединения';
-                console.warn('❌ ICE connection failed (acceptCall), restarting...');
-                peerConnection.restartIce();
-            } else if (peerConnection.iceConnectionState === 'disconnected') {
-                statusEl.textContent = 'Переподключение...';
-            }
-        };
+        // Создаём answer
+        rtcLog('📤', 'Создаём answer...');
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        rtcLog('✅', 'Local description установлен');
         
-        peerConnection.onsignalingstatechange = () => {
-            console.log('📡 Signaling state (acceptCall):', peerConnection.signalingState);
-        };
-        
-        peerConnection.onconnectionstatechange = () => {
-            console.log('🔌 Connection state (acceptCall):', peerConnection.connectionState);
-        };
-        
-        console.log('📥 Устанавливаем remote description (offer)...');
-        await peerConnection.setRemoteDescription(incomingCallData.offer);
-        isRemoteDescriptionSet = true;
-        
-        // Добавляем буферизованные ICE кандидаты
-        await flushPendingIceCandidates();
-        
-        console.log('📤 Создаём answer...');
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        
-        // Ждём сбора всех ICE кандидатов перед отправкой answer
-        console.log('⏳ Ждём сбора ICE кандидатов (acceptCall)...');
-        await waitForIceGathering();
-        
-        // Отправляем answer с уже собранными кандидатами
-        const completeAnswer = peerConnection.localDescription;
-        console.log('✅ Answer готов с ICE кандидатами, отправляем call-answer');
+        // Отправляем answer
+        rtcLog('📤', 'Отправляем call-answer...');
         state.socket.emit('call-answer', {
-            to: incomingCallData.from,
-            answer: completeAnswer,
-            callId: currentCallId
+            to: data.from,
+            answer: pc.localDescription,
+            callId: data.callId
         });
+        
+        // Устанавливаем таймаут соединения
+        setConnectionTimeout(30000);
         
         updateVideoButtonState();
+        
+        // Очищаем данные входящего звонка
+        callState.incomingData = null;
+        incomingCallData = null;
+        
     } catch (err) {
-        console.error('❌ Ошибка acceptCall:', err);
+        rtcLog('❌', 'Ошибка принятия звонка:', err.message);
         endCall(false);
-        showToast('Не удалось принять звонок', 'error');
+        
+        if (err.name === 'NotAllowedError') {
+            showToast('Доступ к камере/микрофону запрещён', 'error');
+        } else {
+            showToast('Не удалось принять звонок', 'error');
+        }
     }
 }
 
+// Отклонение звонка
 function declineCall() {
-    // Останавливаем звук звонка
+    rtcLog('📞', 'Отклоняем звонок');
+    
+    // Останавливаем звук
+    if (callState.stopCallSound) {
+        callState.stopCallSound();
+        callState.stopCallSound = null;
+    }
     if (stopCallSound) {
         stopCallSound();
         stopCallSound = null;
     }
     
-    if (incomingCallData) {
-        state.socket.emit('call-decline', { to: incomingCallData.from, callId: incomingCallData.callId });
+    const data = callState.incomingData || incomingCallData;
+    if (data) {
+        state.socket.emit('call-decline', { to: data.from, callId: data.callId });
     }
+    
     document.getElementById('incoming-call-modal').classList.add('hidden');
+    callState.incomingData = null;
     incomingCallData = null;
 }
 
+// Обработка ответа на звонок
 async function handleCallAnswered(data) {
-    console.log('📞 handleCallAnswered:', data);
+    rtcLog('📞', `Звонок принят, callId=${data.callId}`);
+    
+    callState.callId = data.callId;
     currentCallId = data.callId;
-    if (peerConnection) {
-        try {
-            console.log('📥 Устанавливаем remote description (answer)...');
-            const answer = new RTCSessionDescription(data.answer);
-            await peerConnection.setRemoteDescription(answer);
-            isRemoteDescriptionSet = true;
-            console.log('✅ Remote description установлен');
-            
-            // Добавляем буферизованные ICE кандидаты
-            await flushPendingIceCandidates();
-            
-            document.getElementById('call-status').textContent = 'Подключение...';
-        } catch (e) {
-            console.error('❌ Error setting remote description:', e);
-        }
-    } else {
-        console.warn('❌ peerConnection не существует в handleCallAnswered');
+    
+    if (!callState.pc) {
+        rtcLog('❌', 'PeerConnection не существует');
+        return;
+    }
+    
+    try {
+        rtcLog('📥', 'Устанавливаем remote description (answer)...');
+        await callState.pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        rtcLog('✅', 'Remote description установлен');
+        
+        // Добавляем буферизованные кандидаты
+        await flushPendingCandidates();
+        
+        document.getElementById('call-status').textContent = 'Подключение...';
+        
+    } catch (e) {
+        rtcLog('❌', 'Ошибка установки remote description:', e.message);
     }
 }
 
+// Звонок отклонён
 function handleCallDeclined() {
-    console.log('📞 handleCallDeclined');
+    rtcLog('📞', 'Звонок отклонён');
     document.getElementById('call-status').textContent = 'Звонок отклонён';
     setTimeout(() => endCall(false), 2000);
 }
 
+// Звонок завершён
 function handleCallEnded() {
+    rtcLog('📞', 'Звонок завершён');
     cleanupCall();
     document.getElementById('call-modal').classList.add('hidden');
     hideCallBar();
 }
 
+// Ошибка звонка
 function handleCallFailed(data) {
-    console.log('📞 handleCallFailed:', data);
+    rtcLog('📞', `Ошибка звонка: ${data.reason}`);
     document.getElementById('call-status').textContent = data.reason;
     setTimeout(() => endCall(false), 2000);
 }
 
+// Обработка ICE кандидата
 async function handleIceCandidate(data) {
-    console.log('🧊 Получен ICE candidate от собеседника:', data.candidate?.candidate?.substring(0, 60));
-    
     if (!data.candidate) {
-        console.log('🧊 Пустой кандидат (end of candidates)');
+        rtcLog('🧊', 'Пустой кандидат (end of candidates)');
         return;
     }
     
-    // Если peerConnection ещё не создан или remote description не установлен — буферизуем
-    if (!peerConnection || !isRemoteDescriptionSet) {
-        console.log('🧊 ICE candidate буферизован (peerConnection:', !!peerConnection, ', remoteDesc:', isRemoteDescriptionSet, '), всего:', pendingIceCandidates.length + 1);
-        pendingIceCandidates.push(data.candidate); // Сохраняем сырые данные, не RTCIceCandidate
+    const type = data.candidate.candidate?.includes('relay') ? 'TURN' :
+                data.candidate.candidate?.includes('srflx') ? 'STUN' :
+                data.candidate.candidate?.includes('host') ? 'HOST' : '???';
+    
+    rtcLog('🧊', `Получен ICE [${type}]:`, data.candidate.candidate?.substring(0, 50) + '...');
+    
+    // Если PeerConnection не готов - буферизуем
+    if (!callState.pc || callState.pc.remoteDescription === null) {
+        rtcLog('🧊', 'Буферизуем кандидат (PC не готов)');
+        callState.pendingCandidates.push(data.candidate);
         return;
     }
     
     try {
-        const candidate = new RTCIceCandidate(data.candidate);
-        await peerConnection.addIceCandidate(candidate);
-        console.log('🧊 ICE candidate добавлен успешно');
+        await callState.pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        rtcLog('🧊', 'ICE кандидат добавлен');
     } catch (e) {
-        console.error('❌ ICE candidate error:', e.name, e.message);
+        rtcLog('❌', 'Ошибка добавления ICE:', e.message);
     }
 }
 
-// Добавить все буферизованные ICE кандидаты
+// Для обратной совместимости
 async function flushPendingIceCandidates() {
-    if (pendingIceCandidates.length === 0) {
-        console.log('🧊 Нет буферизованных ICE кандидатов');
-        return;
-    }
-    
-    console.log(`🧊 Добавляем ${pendingIceCandidates.length} буферизованных ICE кандидатов`);
-    
-    const candidates = [...pendingIceCandidates];
-    pendingIceCandidates = [];
-    
-    for (const candidateData of candidates) {
-        try {
-            const candidate = new RTCIceCandidate(candidateData);
-            await peerConnection.addIceCandidate(candidate);
-            console.log('🧊 Буферизованный ICE candidate добавлен');
-        } catch (e) {
-            console.error('❌ Buffered ICE candidate error:', e.name, e.message);
-        }
-    }
+    await flushPendingCandidates();
 }
 
+// Сообщение о звонке в чате
 function handleCallMessage(message) {
     if (state.selectedUser && (message.sender_id === state.selectedUser.id || message.receiver_id === state.selectedUser.id)) {
         appendCallMessage(message);
@@ -3733,49 +3856,52 @@ function handleCallMessage(message) {
     updateContactsList();
 }
 
+// Обработка renegotiation (когда добавляется/удаляется видео)
 async function handleVideoRenegotiate(data) {
-    if (!peerConnection || !currentCallUser) return;
+    if (!callState.pc || !callState.remoteUserId) return;
+    
+    rtcLog('🔄', 'Получен renegotiate offer');
     
     try {
-        // Создаём RTCSessionDescription из полученных данных
-        const offer = new RTCSessionDescription(data.offer);
-        await peerConnection.setRemoteDescription(offer);
+        await callState.pc.setRemoteDescription(new RTCSessionDescription(data.offer));
         
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
+        const answer = await callState.pc.createAnswer();
+        await callState.pc.setLocalDescription(answer);
         
         state.socket.emit('video-renegotiate-answer', {
-            to: currentCallUser.id,
-            answer: answer
+            to: callState.remoteUserId,
+            answer: callState.pc.localDescription
         });
+        
+        rtcLog('✅', 'Renegotiate answer отправлен');
     } catch (e) {
-        console.error('Renegotiate error:', e);
+        rtcLog('❌', 'Renegotiate error:', e.message);
     }
 }
 
 async function handleVideoRenegotiateAnswer(data) {
-    if (!peerConnection) return;
+    if (!callState.pc) return;
+    
+    rtcLog('🔄', 'Получен renegotiate answer');
     
     try {
-        const answer = new RTCSessionDescription(data.answer);
-        await peerConnection.setRemoteDescription(answer);
+        await callState.pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        rtcLog('✅', 'Renegotiate answer применён');
     } catch (e) {
-        console.error('Renegotiate answer error:', e);
+        rtcLog('❌', 'Renegotiate answer error:', e.message);
     }
 }
 
+// Демонстрация экрана началась
 function handleScreenShareStarted(data) {
-    // Собеседник начал демонстрацию экрана
-    console.log('Screen share started by:', data.from);
-    // Показываем видео контейнер
+    rtcLog('🖥️', `Демонстрация экрана от ${data.from}`);
     document.getElementById('call-videos').classList.remove('hidden');
 }
 
+// Демонстрация экрана закончилась
 function handleScreenShareStopped(data) {
-    // Собеседник закончил демонстрацию экрана
-    console.log('Screen share stopped by:', data.from);
+    rtcLog('🖥️', `Демонстрация экрана завершена от ${data.from}`);
     
-    // Скрываем remote video если это была демонстрация экрана
     const remoteVideo = document.getElementById('remote-video');
     if (remoteVideo) {
         remoteVideo.srcObject = null;
@@ -3784,40 +3910,109 @@ function handleScreenShareStopped(data) {
     checkHideVideos();
 }
 
+// Состояние видео изменилось
 function handleVideoStateChanged(data) {
-    // Собеседник включил/выключил камеру
-    console.log('Video state changed by:', data.from, 'enabled:', data.videoEnabled);
+    rtcLog('📹', `Видео ${data.videoEnabled ? 'включено' : 'выключено'} у ${data.from}`);
     
     const remoteVideo = document.getElementById('remote-video');
     if (!remoteVideo) return;
     
     if (!data.videoEnabled) {
-        // Собеседник выключил камеру - скрываем его видео
         remoteVideo.srcObject = null;
         checkHideVideos();
     }
 }
 
+// Perfect Negotiation: обработка сигналов (offer/answer)
+async function handleCallSignal(data) {
+    const pc = callState.pc || peerConnection;
+    
+    if (!pc) {
+        rtcLog('⚠️', 'Получен call-signal, но PeerConnection не существует');
+        return;
+    }
+    
+    const { description, from } = data;
+    rtcLog('📡', `Получен signal: ${description.type} от ${from}`);
+    
+    try {
+        // Perfect Negotiation logic
+        const offerCollision = description.type === 'offer' && 
+            (callState.makingOffer || pc.signalingState !== 'stable');
+        
+        callState.ignoreOffer = !callState.isPolite && offerCollision;
+        
+        if (callState.ignoreOffer) {
+            rtcLog('⚠️', 'Игнорируем offer (collision, мы impolite)');
+            return;
+        }
+        
+        await pc.setRemoteDescription(description);
+        
+        if (description.type === 'offer') {
+            await pc.setLocalDescription();
+            
+            rtcLog('📤', 'Отправляем answer (signal)');
+            state.socket.emit('call-signal', {
+                to: from,
+                description: pc.localDescription
+            });
+        }
+        
+        // Добавляем буферизованные кандидаты
+        await flushPendingCandidates();
+        
+    } catch (e) {
+        rtcLog('❌', 'Ошибка обработки signal:', e.message);
+    }
+}
+
+// Таймер звонка
 function startCallTimer() {
+    callState.seconds = 0;
     callSeconds = 0;
+    
     const timerEl = document.getElementById('call-timer');
     timerEl.classList.remove('hidden');
     
-    callTimer = setInterval(() => {
-        callSeconds++;
-        const mins = Math.floor(callSeconds / 60).toString().padStart(2, '0');
-        const secs = (callSeconds % 60).toString().padStart(2, '0');
+    callState.timer = setInterval(() => {
+        callState.seconds++;
+        callSeconds = callState.seconds;
+        
+        const mins = Math.floor(callState.seconds / 60).toString().padStart(2, '0');
+        const secs = (callState.seconds % 60).toString().padStart(2, '0');
         timerEl.textContent = `${mins}:${secs}`;
         updateCallBarTimer();
     }, 1000);
+    
+    callTimer = callState.timer;
 }
 
+// Очистка ресурсов звонка
 function cleanupCall() {
+    rtcLog('🧹', 'Очистка ресурсов звонка...');
+    
+    // Останавливаем таймер
+    if (callState.timer) {
+        clearInterval(callState.timer);
+        callState.timer = null;
+    }
     if (callTimer) {
         clearInterval(callTimer);
         callTimer = null;
     }
     
+    // Очищаем таймаут соединения
+    clearConnectionTimeout();
+    
+    // Останавливаем локальный поток
+    if (callState.localStream) {
+        callState.localStream.getTracks().forEach(track => {
+            track.stop();
+            track.enabled = false;
+        });
+        callState.localStream = null;
+    }
     if (localStream) {
         localStream.getTracks().forEach(track => {
             track.stop();
@@ -3826,6 +4021,14 @@ function cleanupCall() {
         localStream = null;
     }
     
+    // Останавливаем поток демонстрации экрана
+    if (callState.screenStream) {
+        callState.screenStream.getTracks().forEach(track => {
+            track.stop();
+            track.enabled = false;
+        });
+        callState.screenStream = null;
+    }
     if (screenStream) {
         screenStream.getTracks().forEach(track => {
             track.stop();
@@ -3834,8 +4037,18 @@ function cleanupCall() {
         screenStream = null;
     }
     
+    // Закрываем PeerConnection
+    if (callState.pc) {
+        callState.pc.ontrack = null;
+        callState.pc.onicecandidate = null;
+        callState.pc.oniceconnectionstatechange = null;
+        callState.pc.onconnectionstatechange = null;
+        callState.pc.onsignalingstatechange = null;
+        callState.pc.onnegotiationneeded = null;
+        callState.pc.close();
+        callState.pc = null;
+    }
     if (peerConnection) {
-        // Удаляем все обработчики
         peerConnection.ontrack = null;
         peerConnection.onicecandidate = null;
         peerConnection.oniceconnectionstatechange = null;
@@ -3849,18 +4062,44 @@ function cleanupCall() {
     if (localVideo) localVideo.srcObject = null;
     if (remoteVideo) remoteVideo.srcObject = null;
     
+    // Сбрасываем состояние
+    callState.remoteStream = null;
+    callState.isScreenSharing = false;
+    callState.isMuted = false;
+    callState.isCameraOff = false;
+    callState.remoteUserId = null;
+    callState.remoteUserName = null;
+    callState.callId = null;
+    callState.pendingCandidates = [];
+    callState.reconnectAttempts = 0;
+    
+    // Для обратной совместимости
     isScreenSharing = false;
     isMuted = false;
     isVideoCall = false;
     currentCallUser = null;
     currentCallId = null;
     incomingCallData = null;
+    
     hideCallBar();
+    
+    rtcLog('✅', 'Ресурсы очищены');
 }
 
+// Завершение звонка
 function endCall(sendEnd = true) {
-    if (sendEnd && currentCallUser && currentCallId && state.socket) {
-        state.socket.emit('call-end', { to: currentCallUser.id, callId: currentCallId });
+    rtcLog('📞', `Завершаем звонок, sendEnd=${sendEnd}`);
+    
+    if (sendEnd && callState.remoteUserId && callState.callId && state.socket) {
+        state.socket.emit('call-end', { 
+            to: callState.remoteUserId, 
+            callId: callState.callId 
+        });
+    } else if (sendEnd && currentCallUser && currentCallId && state.socket) {
+        state.socket.emit('call-end', { 
+            to: currentCallUser.id, 
+            callId: currentCallId 
+        });
     }
     
     cleanupCall();
@@ -3868,99 +4107,114 @@ function endCall(sendEnd = true) {
     hideCallBar();
 }
 
+// Переключение микрофона
 async function toggleMute() {
-    if (localStream) {
-        isMuted = !isMuted;
-        
-        const audioTrack = localStream.getAudioTracks()[0];
-        
-        // Если трек сломан (ended) и мы пытаемся включить микрофон - восстанавливаем
-        if (!isMuted && (!audioTrack || audioTrack.readyState === 'ended')) {
-            console.log('🎤 Audio track broken, restoring...');
-            await restoreAudioAfterScreenShare();
-        } else if (audioTrack) {
-            audioTrack.enabled = !isMuted;
-        }
-        
-        const muteBtn = document.getElementById('mute-btn');
-        const muteBtnIcon = document.getElementById('mute-btn-icon');
-        muteBtn.classList.toggle('active', !isMuted);
-        if (muteBtnIcon) {
-            muteBtnIcon.src = isMuted ? '/assets/Block-microphone.svg' : '/assets/microphone.svg';
-        }
+    const stream = callState.localStream || localStream;
+    if (!stream) return;
+    
+    callState.isMuted = !callState.isMuted;
+    isMuted = callState.isMuted;
+    
+    const audioTrack = stream.getAudioTracks()[0];
+    
+    // Если трек сломан и мы включаем микрофон - восстанавливаем
+    if (!callState.isMuted && (!audioTrack || audioTrack.readyState === 'ended')) {
+        rtcLog('🎤', 'Аудио трек сломан, восстанавливаем...');
+        await restoreAudioAfterScreenShare();
+    } else if (audioTrack) {
+        audioTrack.enabled = !callState.isMuted;
+        rtcLog('🎤', `Микрофон ${callState.isMuted ? 'выключен' : 'включён'}`);
+    }
+    
+    // Обновляем UI
+    const muteBtn = document.getElementById('mute-btn');
+    const muteBtnIcon = document.getElementById('mute-btn-icon');
+    muteBtn?.classList.toggle('active', !callState.isMuted);
+    if (muteBtnIcon) {
+        muteBtnIcon.src = callState.isMuted ? '/assets/Block-microphone.svg' : '/assets/microphone.svg';
     }
 }
 
+// Переключение камеры
 async function toggleVideo() {
-    if (!localStream || !peerConnection || !currentCallUser) return;
+    const stream = callState.localStream || localStream;
+    const pc = callState.pc || peerConnection;
+    const remoteId = callState.remoteUserId || currentCallUser?.id;
     
-    let videoTrack = localStream.getVideoTracks()[0];
-    const videoSender = peerConnection.getSenders().find(s => s.track?.kind === 'video' || s.track === null);
+    if (!stream || !pc || !remoteId) return;
     
-    // Проверяем текущее состояние видео
+    let videoTrack = stream.getVideoTracks()[0];
+    const videoSender = pc.getSenders().find(s => s.track?.kind === 'video' || s.track === null);
+    
     const isVideoEnabled = videoTrack?.enabled && videoTrack?.readyState === 'live';
     
     if (isVideoEnabled) {
         // Выключаем видео
+        rtcLog('📹', 'Выключаем видео');
         videoTrack.enabled = false;
         
-        // Уведомляем собеседника
         state.socket.emit('video-state-changed', {
-            to: currentCallUser.id,
+            to: remoteId,
             videoEnabled: false
         });
         
-        // Заменяем трек на null в sender
         if (videoSender) {
             await videoSender.replaceTrack(null);
         }
         
+        callState.isCameraOff = true;
         checkHideVideos();
     } else {
-        // Включаем видео - всегда пересоздаём трек для надёжности
+        // Включаем видео
+        rtcLog('📹', 'Включаем видео...');
+        
         try {
-            console.log('📹 Включаем видео, создаём новый трек...');
-            
-            // Останавливаем старый трек если есть
+            // Останавливаем старый трек
             if (videoTrack) {
                 videoTrack.stop();
-                localStream.removeTrack(videoTrack);
+                stream.removeTrack(videoTrack);
             }
             
             // Создаём новый видео трек
-            const newStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const newStream = await navigator.mediaDevices.getUserMedia({ 
+                video: {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: 'user'
+                }
+            });
             const newVideoTrack = newStream.getVideoTracks()[0];
             
-            localStream.addTrack(newVideoTrack);
-            document.getElementById('local-video').srcObject = localStream;
+            stream.addTrack(newVideoTrack);
+            document.getElementById('local-video').srcObject = stream;
             document.getElementById('call-videos').classList.remove('hidden');
             
-            // Заменяем или добавляем трек в sender
             if (videoSender) {
                 await videoSender.replaceTrack(newVideoTrack);
-                console.log('📹 Видео трек заменён в sender');
+                rtcLog('📹', 'Видео трек заменён');
             } else {
-                peerConnection.addTrack(newVideoTrack, localStream);
-                console.log('📹 Видео трек добавлен, нужен renegotiation');
+                pc.addTrack(newVideoTrack, stream);
+                rtcLog('📹', 'Видео трек добавлен, нужен renegotiation');
                 
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
                 
                 state.socket.emit('video-renegotiate', {
-                    to: currentCallUser.id,
-                    offer: offer
+                    to: remoteId,
+                    offer: pc.localDescription
                 });
             }
             
-            // Уведомляем собеседника
             state.socket.emit('video-state-changed', {
-                to: currentCallUser.id,
+                to: remoteId,
                 videoEnabled: true
             });
             
+            callState.isCameraOff = false;
+            
         } catch (e) {
-            console.error('📹 Не удалось включить видео:', e);
-            alert('Не удалось получить доступ к камере');
+            rtcLog('❌', 'Не удалось включить видео:', e.message);
+            showToast('Не удалось получить доступ к камере', 'error');
             return;
         }
     }
@@ -3969,12 +4223,15 @@ async function toggleVideo() {
 }
 
 
+// Обновление состояния кнопки видео
 function updateVideoButtonState() {
-    const videoTrack = localStream?.getVideoTracks()[0];
+    const stream = callState.localStream || localStream;
+    const videoTrack = stream?.getVideoTracks()[0];
     const toggleVideoBtn = document.getElementById('toggle-video-btn');
     const videoBtnIcon = document.getElementById('video-btn-icon');
+    
     if (toggleVideoBtn) {
-        const hasVideo = videoTrack?.enabled;
+        const hasVideo = videoTrack?.enabled && videoTrack?.readyState === 'live';
         toggleVideoBtn.classList.toggle('active', hasVideo);
         if (videoBtnIcon) {
             videoBtnIcon.src = hasVideo ? '/assets/video.svg' : '/assets/video-off.svg';
@@ -3982,88 +4239,106 @@ function updateVideoButtonState() {
     }
 }
 
+// Проверка нужно ли скрыть видео контейнер
 function checkHideVideos() {
     const localVideo = document.getElementById('local-video');
     const remoteVideo = document.getElementById('remote-video');
     const callVideos = document.getElementById('call-videos');
     
-    // Проверяем есть ли активное видео
-    const localHasVideo = isScreenSharing || (localStream?.getVideoTracks().some(t => t.enabled && !t.muted));
+    const stream = callState.localStream || localStream;
+    const isSharing = callState.isScreenSharing || isScreenSharing;
+    
+    const localHasVideo = isSharing || stream?.getVideoTracks().some(t => t.enabled && !t.muted);
     const localSrcValid = localVideo?.srcObject?.getVideoTracks().some(t => t.readyState === 'live');
     const remoteHasVideo = remoteVideo?.srcObject?.getVideoTracks().some(t => t.enabled && !t.muted && t.readyState === 'live');
     
-    console.log('checkHideVideos:', { localHasVideo, localSrcValid, remoteHasVideo, isScreenSharing });
+    rtcLog('📹', `checkHideVideos: local=${localHasVideo}, localSrc=${localSrcValid}, remote=${remoteHasVideo}, sharing=${isSharing}`);
     
-    // Скрываем local video если нет видео и не демонстрация экрана
     if (localVideo && !localHasVideo && !localSrcValid) {
         localVideo.srcObject = null;
     }
     
-    // Скрываем remote video если нет видео
     if (remoteVideo && !remoteHasVideo) {
         remoteVideo.srcObject = null;
     }
     
-    // Скрываем весь контейнер если нет ни одного видео
     const shouldHide = !localHasVideo && !localSrcValid && !remoteHasVideo;
     if (shouldHide) {
         callVideos?.classList.add('hidden');
     }
 }
 
+// Демонстрация экрана
 async function toggleScreenShare() {
-    if (!peerConnection || !currentCallUser) return;
+    const pc = callState.pc || peerConnection;
+    const remoteId = callState.remoteUserId || currentCallUser?.id;
+    
+    if (!pc || !remoteId) return;
     
     const screenShareBtn = document.getElementById('screen-share-btn');
+    const isSharing = callState.isScreenSharing || isScreenSharing;
     
-    if (isScreenSharing) {
+    if (isSharing) {
         await stopScreenShare();
     } else {
         try {
-            // Запрашиваем только видео, аудио оставляем от микрофона
-            screenStream = await navigator.mediaDevices.getDisplayMedia({
+            rtcLog('🖥️', 'Запрашиваем демонстрацию экрана...');
+            
+            const stream = await navigator.mediaDevices.getDisplayMedia({
                 video: {
                     cursor: 'always',
                     displaySurface: 'monitor'
                 },
-                audio: false // НЕ берём аудио от экрана, чтобы не ломать микрофон
+                audio: false // Не берём аудио от экрана
             });
             
-            const screenTrack = screenStream.getVideoTracks()[0];
+            callState.screenStream = stream;
+            screenStream = stream;
+            
+            const screenTrack = stream.getVideoTracks()[0];
             
             // Находим видео sender и заменяем трек
-            const videoSender = peerConnection.getSenders().find(s => s.track?.kind === 'video');
+            const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
+            
             if (videoSender) {
                 await videoSender.replaceTrack(screenTrack);
+                rtcLog('🖥️', 'Трек экрана заменён');
             } else {
-                // Если нет видео трека, добавляем новый и делаем renegotiation
-                peerConnection.addTrack(screenTrack, screenStream);
+                pc.addTrack(screenTrack, stream);
+                rtcLog('🖥️', 'Трек экрана добавлен, нужен renegotiation');
                 
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
                 
                 state.socket.emit('video-renegotiate', {
-                    to: currentCallUser.id,
-                    offer: offer
+                    to: remoteId,
+                    offer: pc.localDescription
                 });
             }
             
-            // Уведомляем собеседника о начале демонстрации
-            state.socket.emit('screen-share-started', { to: currentCallUser.id });
+            // Уведомляем собеседника
+            state.socket.emit('screen-share-started', { to: remoteId });
             
-            document.getElementById('local-video').srcObject = screenStream;
+            // Показываем экран локально
+            document.getElementById('local-video').srcObject = stream;
             document.getElementById('call-videos').classList.remove('hidden');
+            
+            callState.isScreenSharing = true;
             isScreenSharing = true;
+            
             screenShareBtn?.classList.add('active');
             const screenBtnIcon = document.getElementById('screen-btn-icon');
             if (screenBtnIcon) screenBtnIcon.src = '/assets/screen-share-off.svg';
             
-            // Когда пользователь останавливает демонстрацию через браузер
+            // Когда пользователь останавливает через браузер
             screenTrack.onended = () => stopScreenShare();
+            
+            rtcLog('✅', 'Демонстрация экрана запущена');
+            
         } catch (e) {
-            console.error('Ошибка демонстрации экрана:', e);
+            rtcLog('❌', 'Ошибка демонстрации экрана:', e.message);
             if (e.name !== 'NotAllowedError') {
-                alert('Не удалось начать демонстрацию экрана');
+                showToast('Не удалось начать демонстрацию экрана', 'error');
             }
         }
     }
@@ -4071,116 +4346,121 @@ async function toggleScreenShare() {
 
 // Восстановление аудио после демонстрации экрана
 async function restoreAudioAfterScreenShare() {
-    if (!peerConnection || !localStream) return;
+    const pc = callState.pc || peerConnection;
+    const stream = callState.localStream || localStream;
     
-    console.log('🎤 Restoring audio after screen share...');
+    if (!pc || !stream) return;
     
-    // Получаем текущий аудио трек и sender
-    const currentAudioTrack = localStream.getAudioTracks()[0];
-    let audioSender = peerConnection.getSenders().find(s => s.track?.kind === 'audio' || (s.track === null && !s._isVideo));
+    rtcLog('🎤', 'Восстанавливаем аудио...');
     
-    console.log('🎤 Current audio track:', currentAudioTrack?.readyState, 'enabled:', currentAudioTrack?.enabled);
-    console.log('🎤 Audio sender track:', audioSender?.track?.kind, audioSender?.track?.readyState);
+    const currentAudioTrack = stream.getAudioTracks()[0];
     
-    // Проверяем все senders
-    const allSenders = peerConnection.getSenders();
-    console.log('🎤 All senders:', allSenders.map(s => ({ kind: s.track?.kind, state: s.track?.readyState })));
-    
-    // Всегда пересоздаём аудио трек для надёжности
     try {
-        console.log('🎤 Recreating audio track...');
-        const newAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Создаём новый аудио трек
+        const newAudioStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            }
+        });
         const newAudioTrack = newAudioStream.getAudioTracks()[0];
         
-        // Останавливаем старый трек если есть
+        // Останавливаем старый трек
         if (currentAudioTrack) {
             currentAudioTrack.stop();
-            localStream.removeTrack(currentAudioTrack);
+            stream.removeTrack(currentAudioTrack);
         }
         
-        // Добавляем новый трек в localStream
-        localStream.addTrack(newAudioTrack);
+        // Добавляем новый трек в stream
+        stream.addTrack(newAudioTrack);
         
-        // Находим audio sender (может быть с null треком)
-        audioSender = peerConnection.getSenders().find(s => 
+        // Находим audio sender
+        const audioSender = pc.getSenders().find(s => 
             s.track?.kind === 'audio' || 
-            (s.track === null && allSenders.indexOf(s) === allSenders.findIndex(x => x.track?.kind !== 'video' && x.track !== null ? x.track.kind === 'audio' : true))
+            (s.track === null && !pc.getSenders().find(x => x.track?.kind === 'video' && x === s))
         );
-        
-        // Если нет audio sender, ищем любой sender без video трека
-        if (!audioSender) {
-            audioSender = peerConnection.getSenders().find(s => s.track?.kind !== 'video');
-        }
         
         if (audioSender) {
             await audioSender.replaceTrack(newAudioTrack);
-            console.log('🎤 Audio track replaced in sender');
+            rtcLog('🎤', 'Аудио трек заменён в sender');
         } else {
-            // Если sender не найден, добавляем трек напрямую
-            console.log('🎤 No audio sender found, adding track directly');
-            peerConnection.addTrack(newAudioTrack, localStream);
+            pc.addTrack(newAudioTrack, stream);
+            rtcLog('🎤', 'Аудио трек добавлен напрямую');
         }
         
-        // Применяем текущее состояние mute
-        newAudioTrack.enabled = !isMuted;
-        console.log('🎤 Audio restored successfully, enabled:', newAudioTrack.enabled, 'muted:', isMuted);
+        // Применяем состояние mute
+        const muted = callState.isMuted || isMuted;
+        newAudioTrack.enabled = !muted;
+        
+        rtcLog('✅', `Аудио восстановлено, enabled=${newAudioTrack.enabled}`);
         
     } catch (e) {
-        console.error('🎤 Failed to restore audio:', e);
+        rtcLog('❌', 'Ошибка восстановления аудио:', e.message);
     }
 }
 
+// Остановка демонстрации экрана
 async function stopScreenShare() {
-    if (!isScreenSharing || !peerConnection) return;
+    const pc = callState.pc || peerConnection;
+    const stream = callState.localStream || localStream;
+    const remoteId = callState.remoteUserId || currentCallUser?.id;
+    const isSharing = callState.isScreenSharing || isScreenSharing;
     
-    console.log('🖥️ Stopping screen share...');
+    if (!isSharing || !pc) return;
     
-    // Останавливаем треки демонстрации экрана
-    if (screenStream) {
-        screenStream.getTracks().forEach(track => {
-            console.log('🖥️ Stopping screen track:', track.kind, track.label);
+    rtcLog('🖥️', 'Останавливаем демонстрацию экрана...');
+    
+    // Останавливаем треки экрана
+    const scrStream = callState.screenStream || screenStream;
+    if (scrStream) {
+        scrStream.getTracks().forEach(track => {
+            rtcLog('🖥️', `Останавливаем трек: ${track.kind}`);
             track.stop();
         });
+        callState.screenStream = null;
         screenStream = null;
     }
     
     const localVideo = document.getElementById('local-video');
-    const videoTrack = localStream?.getVideoTracks()[0];
-    const videoSender = peerConnection.getSenders().find(s => s.track?.kind === 'video' || s.track === null);
+    const videoTrack = stream?.getVideoTracks()[0];
+    const videoSender = pc.getSenders().find(s => s.track?.kind === 'video' || s.track === null);
     
     if (videoTrack && videoTrack.enabled && videoSender) {
         // Возвращаем камеру
         await videoSender.replaceTrack(videoTrack);
-        localVideo.srcObject = localStream;
+        localVideo.srcObject = stream;
+        rtcLog('📹', 'Камера восстановлена');
     } else {
-        // Если камеры нет, очищаем local video и отправляем null трек
+        // Камеры нет - очищаем
         localVideo.srcObject = null;
         if (videoSender) {
             await videoSender.replaceTrack(null);
         }
     }
     
-    // ВАЖНО: Восстанавливаем аудио трек после демонстрации экрана
-    // Всегда пересоздаём аудио, т.к. демонстрация экрана может сломать его
+    // Восстанавливаем аудио
     await restoreAudioAfterScreenShare();
     
-    // Уведомляем собеседника об окончании демонстрации
-    if (currentCallUser && state.socket) {
-        state.socket.emit('screen-share-stopped', { to: currentCallUser.id });
-        // Также отправляем что видео выключено
+    // Уведомляем собеседника
+    if (remoteId && state.socket) {
+        state.socket.emit('screen-share-stopped', { to: remoteId });
         state.socket.emit('video-state-changed', {
-            to: currentCallUser.id,
+            to: remoteId,
             videoEnabled: !!(videoTrack && videoTrack.enabled)
         });
     }
     
+    callState.isScreenSharing = false;
     isScreenSharing = false;
+    
     document.getElementById('screen-share-btn')?.classList.remove('active');
     const screenBtnIcon = document.getElementById('screen-btn-icon');
     if (screenBtnIcon) screenBtnIcon.src = '/assets/screen-share.svg';
     
-    // Проверяем нужно ли скрыть видео контейнер
     checkHideVideos();
+    
+    rtcLog('✅', 'Демонстрация экрана остановлена');
 }
 
 // Drag для local-video (перетаскивание по углам)
@@ -4328,6 +4608,82 @@ function expandCall() {
     document.getElementById('call-modal').classList.remove('hidden');
     hideCallBar();
 }
+
+// Диагностика WebRTC соединения (для отладки)
+async function diagnoseWebRTC() {
+    const pc = callState.pc || peerConnection;
+    
+    console.log('=== WebRTC Diagnostics ===');
+    console.log('PeerConnection exists:', !!pc);
+    
+    if (!pc) {
+        console.log('No active PeerConnection');
+        return;
+    }
+    
+    console.log('Signaling state:', pc.signalingState);
+    console.log('ICE connection state:', pc.iceConnectionState);
+    console.log('ICE gathering state:', pc.iceGatheringState);
+    console.log('Connection state:', pc.connectionState);
+    
+    // Получаем статистику
+    try {
+        const stats = await pc.getStats();
+        let candidatePairs = [];
+        let localCandidates = [];
+        let remoteCandidates = [];
+        
+        stats.forEach(report => {
+            if (report.type === 'candidate-pair') {
+                candidatePairs.push({
+                    state: report.state,
+                    nominated: report.nominated,
+                    bytesSent: report.bytesSent,
+                    bytesReceived: report.bytesReceived
+                });
+            }
+            if (report.type === 'local-candidate') {
+                localCandidates.push({
+                    type: report.candidateType,
+                    protocol: report.protocol,
+                    address: report.address,
+                    port: report.port
+                });
+            }
+            if (report.type === 'remote-candidate') {
+                remoteCandidates.push({
+                    type: report.candidateType,
+                    protocol: report.protocol,
+                    address: report.address,
+                    port: report.port
+                });
+            }
+        });
+        
+        console.log('Candidate pairs:', candidatePairs);
+        console.log('Local candidates:', localCandidates);
+        console.log('Remote candidates:', remoteCandidates);
+        
+        // Проверяем есть ли relay кандидаты
+        const hasLocalRelay = localCandidates.some(c => c.type === 'relay');
+        const hasRemoteRelay = remoteCandidates.some(c => c.type === 'relay');
+        console.log('Has local TURN relay:', hasLocalRelay);
+        console.log('Has remote TURN relay:', hasRemoteRelay);
+        
+        if (!hasLocalRelay) {
+            console.warn('⚠️ Нет локальных TURN relay кандидатов! TURN сервер может быть недоступен.');
+        }
+        
+    } catch (e) {
+        console.error('Error getting stats:', e);
+    }
+    
+    console.log('=== End Diagnostics ===');
+}
+
+// Экспортируем для консоли
+window.diagnoseWebRTC = diagnoseWebRTC;
+window.callState = callState;
 
 
 // === ИНИЦИАЛИЗАЦИЯ DOM ===
