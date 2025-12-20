@@ -531,9 +531,14 @@ button {
   background: var(--bg-dark);
   border: 1px solid var(--glass-border);
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible;
   z-index: 1000;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Баннер с закруглёнными углами сверху */
+.user-card-popup .user-card-banner {
+  border-radius: 12px 12px 0 0;
 }
 
 @keyframes slideUp {
@@ -552,6 +557,7 @@ button {
   background: linear-gradient(135deg, #4fc3f7, #1976d2);
   background-size: cover;
   background-position: center;
+  border-radius: 12px 12px 0 0;
 }
 
 .user-card-avatar {
@@ -3998,6 +4004,7 @@ body,
   background: linear-gradient(135deg, #4fc3f7, #1976d2);
   background-size: cover;
   background-position: center;
+  border-radius: 12px 12px 0 0;
 }
 
 .user-card-avatar {
@@ -8830,6 +8837,7 @@ input[type="range"]:focus::-moz-range-thumb {
 .user-card-banner {
   height: 60px;
   background: linear-gradient(135deg, var(--accent), var(--blue));
+  border-radius: 16px 16px 0 0;
 }
 
 .user-card-avatar {
