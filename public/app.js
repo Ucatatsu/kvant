@@ -3461,10 +3461,8 @@ async function getIceServers() {
                 iceServers: data.iceServers,
                 iceCandidatePoolSize: 10,
                 bundlePolicy: 'max-bundle',
-                rtcpMuxPolicy: 'require',
-                // Принудительно использовать только TURN (relay) для надёжности
-                // Убрать эту строку если хотите разрешить прямые соединения
-                iceTransportPolicy: 'relay'
+                rtcpMuxPolicy: 'require'
+                // iceTransportPolicy: 'relay' - убрано для поддержки прямых соединений
             };
             
             callState.iceServersCache = config;
