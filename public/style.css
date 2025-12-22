@@ -1522,6 +1522,11 @@ emoji-picker {
     opacity: 1;
     pointer-events: auto;
   }
+
+  /* По умолчанию на мобильных показываем сайдбар */
+  .sidebar {
+    transform: translateX(0);
+  }
   
   /* Улучшенные тапы на мобильных */
   .user-item,

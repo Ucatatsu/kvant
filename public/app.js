@@ -883,6 +883,11 @@ async function showChat() {
     chatScreen.classList.remove('hidden');
     chatScreen.classList.add('animate-in');
     
+    // На мобильных сразу показываем чат, если нет выбранного пользователя
+    if (isMobile() && !state.selectedUser) {
+        chatScreen.classList.add('chat-open');
+    }
+    
     // Убираем класс анимации после завершения всех анимаций
     setTimeout(() => {
         chatScreen.classList.remove('animate-in');
