@@ -883,9 +883,12 @@ async function showChat() {
     chatScreen.classList.remove('hidden');
     chatScreen.classList.add('animate-in');
     
-    // На мобильных сразу показываем чат, если нет выбранного пользователя
-    if (isMobile() && !state.selectedUser) {
-        chatScreen.classList.add('chat-open');
+    // На мобильных по умолчанию показываем сайдбар
+    if (isMobile()) {
+        // Убираем chat-open класс, чтобы показать сайдбар
+        chatScreen.classList.remove('chat-open');
+        // Убираем hidden-mobile с сайдбара
+        document.querySelector('.sidebar')?.classList.remove('hidden-mobile');
     }
     
     // Убираем класс анимации после завершения всех анимаций
@@ -3206,15 +3209,18 @@ function isMobile() {
 }
 
 function handleMobileAfterSelect() {
-    if (isMobile()) {
-        document.querySelector('.sidebar')?.classList.add('hidden-mobile');
-        document.getElementById('chat-screen')?.classList.add('chat-open');
-        
-        // Лёгкая вибрация
-        if (navigator.vibrate) {
-            navigator.vibrate(10);
+    // Добавляем небольшую задержку, чтобы избежать конфликтов при инициализации
+    setTimeout(() => {
+        if (isMobile() && state.selectedUser) {
+            document.querySelector('.sidebar')?.classList.add('hidden-mobile');
+            document.getElementById('chat-screen')?.classList.add('chat-open');
+            
+            // Лёгкая вибрация
+            if (navigator.vibrate) {
+                navigator.vibrate(10);
+            }
         }
-    }
+    }, 100);
 }
 
 // === НАСТРОЙКИ ===
