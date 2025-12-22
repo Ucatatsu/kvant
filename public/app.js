@@ -5672,6 +5672,9 @@ document.addEventListener('DOMContentLoaded', () => {
         saveSettings();
     });
     
+    // Кастомный select для звуков уведомлений
+    initCustomSelect('notification-sound-custom', 'notification-sound-select');
+    
     document.getElementById('play-sound-btn')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.btn-play-sound');
         const icon = btn.querySelector('.play-icon');
@@ -6783,7 +6786,16 @@ function showSettings() {
     
     // Звук уведомлений
     const soundSelect = document.getElementById('notification-sound-select');
-    if (soundSelect) soundSelect.value = state.settings.notificationSound || 'default';
+    if (soundSelect) {
+        soundSelect.value = state.settings.notificationSound || 'default';
+        // Обновляем кастомный select если он существует
+        const customSelect = document.getElementById('notification-sound-custom');
+        if (customSelect) {
+            // Триггерим обновление кастомного select
+            const event = new Event('change');
+            soundSelect.dispatchEvent(event);
+        }
+    }
     
     // Приватность
     const onlineVisibility = document.getElementById('online-visibility-select');
@@ -11128,3 +11140,116 @@ class Dock {
 
 // Make globally available
 window.Dock = Dock;
+
+// === CUSTOM SELECT FUNCTIONALITY ===
+function initCustomSelect(customSelectId, hiddenSelectId) {
+    const customSelect = document.getElementById(customSelectId);
+    const hiddenSelect = document.getElementById(hiddenSelectId);
+    
+    if (!customSelect || !hiddenSelect) return;
+    
+    const trigger = customSelect.querySelector('.select-trigger');
+    const valueElement = customSelect.querySelector('.select-value');
+    const options = customSelect.querySelectorAll('.select-option');
+    
+    // Маппинг значений к иконкам и текстам
+    const optionMap = {
+        'default': { icon: '🔔', text: 'По умолчанию' },
+        'gentle': { icon: '🌸', text: 'Мягкий' },
+        'modern': { icon: '⚡', text: 'Современный' },
+        'bubble': { icon: '💧', text: 'Пузырёк' },
+        'chime': { icon: '🎵', text: 'Перезвон' },
+        'digital': { icon: '🤖', text: 'Цифровой' },
+        'subtle': { icon: '🍃', text: 'Деликатный' },
+        'none': { icon: '🔇', text: 'Без звука' }
+    };
+    
+    // Установить начальное значение
+    function setInitialValue() {
+        const currentValue = hiddenSelect.value || 'default';
+        const option = optionMap[currentValue];
+        if (option) {
+            valueElement.innerHTML = `<span class="option-icon">${option.icon}</span><span class="option-text">${option.text}</span>`;
+        }
+        updateSelectedOption(currentValue);
+    }
+    
+    // Обновить выбранную опцию
+    function updateSelectedOption(value) {
+        options.forEach(option => {
+            option.classList.toggle('selected', option.dataset.value === value);
+        });
+    }
+    
+    // Открыть/закрыть dropdown
+    function toggleDropdown() {
+        customSelect.classList.toggle('open');
+        
+        if (customSelect.classList.contains('open')) {
+            // Добавить обработчик клика вне элемента
+            setTimeout(() => {
+                document.addEventListener('click', closeOnClickOutside);
+            }, 0);
+        } else {
+            document.removeEventListener('click', closeOnClickOutside);
+        }
+    }
+    
+    // Закрыть при клике вне элемента
+    function closeOnClickOutside(e) {
+        if (!customSelect.contains(e.target)) {
+            customSelect.classList.remove('open');
+            document.removeEventListener('click', closeOnClickOutside);
+        }
+    }
+    
+    // Выбрать опцию
+    function selectOption(value) {
+        const option = optionMap[value];
+        if (option) {
+            valueElement.innerHTML = `<span class="option-icon">${option.icon}</span><span class="option-text">${option.text}</span>`;
+            hiddenSelect.value = value;
+            
+            // Триггерить событие change для скрытого select
+            const changeEvent = new Event('change', { bubbles: true });
+            hiddenSelect.dispatchEvent(changeEvent);
+            
+            updateSelectedOption(value);
+            customSelect.classList.remove('open');
+            document.removeEventListener('click', closeOnClickOutside);
+        }
+    }
+    
+    // Обработчики событий
+    trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleDropdown();
+    });
+    
+    options.forEach(option => {
+        option.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectOption(option.dataset.value);
+        });
+    });
+    
+    // Поддержка клавиатуры
+    trigger.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleDropdown();
+        } else if (e.key === 'Escape') {
+            customSelect.classList.remove('open');
+            document.removeEventListener('click', closeOnClickOutside);
+        }
+    });
+    
+    // Установить начальное значение
+    setInitialValue();
+    
+    // Синхронизировать при изменении скрытого select извне
+    const observer = new MutationObserver(() => {
+        setInitialValue();
+    });
+    observer.observe(hiddenSelect, { attributes: true, attributeFilter: ['value'] });
+}
