@@ -3168,85 +3168,80 @@ const notificationSounds = {
     gentle: {
         name: 'Мягкий',
         generate: (audioCtx, volume) => {
-            // Мягкий восходящий звук
-            const osc = audioCtx.createOscillator();
+            // Простой двухтональный звук с мягкой атакой
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             
-            osc.connect(gain);
+            osc1.connect(gain);
+            osc2.connect(gain);
             gain.connect(audioCtx.destination);
             
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
-            osc.frequency.linearRampToValueAtTime(600, audioCtx.currentTime + 0.3);
+            osc1.frequency.value = 440; // A4
+            osc2.frequency.value = 554; // C#5
+            osc1.type = 'sine';
+            osc2.type = 'sine';
             
             gain.gain.setValueAtTime(0, audioCtx.currentTime);
             gain.gain.linearRampToValueAtTime(volume * 0.25, audioCtx.currentTime + 0.05);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
             
-            osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.3);
+            osc1.start(audioCtx.currentTime);
+            osc2.start(audioCtx.currentTime + 0.03);
+            osc1.stop(audioCtx.currentTime + 0.35);
+            osc2.stop(audioCtx.currentTime + 0.35);
         }
     },
     
     modern: {
         name: 'Современный',
         generate: (audioCtx, volume) => {
-            // Современный звук как в мессенджерах
-            const osc1 = audioCtx.createOscillator();
-            const osc2 = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            const filter = audioCtx.createBiquadFilter();
+            // Четкий тройной звук как в современных мессенджерах
+            const frequencies = [698, 880, 1047]; // F5-A5-C6
             
-            osc1.connect(filter);
-            osc2.connect(filter);
-            filter.connect(gain);
-            gain.connect(audioCtx.destination);
-            
-            filter.type = 'lowpass';
-            filter.frequency.value = 2000;
-            
-            osc1.frequency.value = 800;
-            osc2.frequency.value = 1200;
-            osc1.type = 'triangle';
-            osc2.type = 'sine';
-            
-            gain.gain.setValueAtTime(0, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(volume * 0.4, audioCtx.currentTime + 0.01);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
-            
-            osc1.start(audioCtx.currentTime);
-            osc2.start(audioCtx.currentTime + 0.02);
-            osc1.stop(audioCtx.currentTime + 0.15);
-            osc2.stop(audioCtx.currentTime + 0.15);
+            frequencies.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.frequency.value = freq;
+                osc.type = 'sine';
+                
+                const startTime = audioCtx.currentTime + i * 0.04;
+                const duration = 0.12;
+                
+                gain.gain.setValueAtTime(0, startTime);
+                gain.gain.linearRampToValueAtTime(volume * 0.3, startTime + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+            });
         }
     },
     
     bubble: {
         name: 'Пузырёк',
         generate: (audioCtx, volume) => {
-            // Звук пузырька
+            // Короткий восходящий звук
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            const filter = audioCtx.createBiquadFilter();
             
-            osc.connect(filter);
-            filter.connect(gain);
+            osc.connect(gain);
             gain.connect(audioCtx.destination);
             
-            filter.type = 'bandpass';
-            filter.frequency.value = 1000;
-            filter.Q.value = 10;
-            
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.1);
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(523, audioCtx.currentTime); // C5
+            osc.frequency.linearRampToValueAtTime(784, audioCtx.currentTime + 0.08); // G5
             
             gain.gain.setValueAtTime(0, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(volume * 0.3, audioCtx.currentTime + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            gain.gain.linearRampToValueAtTime(volume * 0.35, audioCtx.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
             
             osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.2);
+            osc.stop(audioCtx.currentTime + 0.15);
         }
     },
     
