@@ -13168,11 +13168,22 @@ select option {
   cursor: pointer;
   transition: all 0.2s;
   margin-left: 8px;
+  font-size: 14px;
+  min-width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-play-sound:hover {
   background: var(--accent);
   border-color: var(--accent);
+  color: var(--bg-darkest);
+  transform: scale(1.05);
+}
+
+.btn-play-sound:active {
+  transform: scale(0.95);
 }
 
 /* Settings item with select */

@@ -86,25 +86,8 @@ function initSounds() {
     
     // Функция для создания звука уведомления
     function createNotificationSound() {
-        const now = audioContext.currentTime;
-        const volume = getVolume();
-        
-        [800, 1000].forEach((freq, i) => {
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(freq, now + i * 0.15);
-            
-            gainNode.gain.setValueAtTime(0.8 * volume, now + i * 0.15);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, now + i * 0.15 + 0.2);
-            
-            oscillator.start(now + i * 0.15);
-            oscillator.stop(now + i * 0.15 + 0.2);
-        });
+        // Используем новую систему звуков
+        playNotificationSound(false);
     }
     
     // Функция для создания звука звонка
@@ -3146,13 +3129,206 @@ function saveSettings() {
 }
 
 // Звуки уведомлений (Web Audio API для генерации)
+// Улучшенная система звуков уведомлений
 const notificationSounds = {
-    default: [440, 0.1, 'sine'],
-    pop: [600, 0.08, 'sine'],
-    ding: [880, 0.15, 'triangle'],
-    chime: [523, 0.2, 'sine'],
-    bubble: [350, 0.12, 'sine'],
-    none: null
+    // Современные звуки через Web Audio API с улучшенным качеством
+    default: {
+        name: 'По умолчанию',
+        generate: (audioCtx, volume) => {
+            // Мягкий двухтональный звук
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc1.connect(gain);
+            osc2.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc1.frequency.value = 523; // C5
+            osc2.frequency.value = 659; // E5
+            osc1.type = 'sine';
+            osc2.type = 'sine';
+            
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(volume * 0.3, audioCtx.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            
+            osc1.start(audioCtx.currentTime);
+            osc2.start(audioCtx.currentTime + 0.05);
+            osc1.stop(audioCtx.currentTime + 0.4);
+            osc2.stop(audioCtx.currentTime + 0.4);
+        }
+    },
+    
+    gentle: {
+        name: 'Мягкий',
+        generate: (audioCtx, volume) => {
+            // Мягкий восходящий звук
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(600, audioCtx.currentTime + 0.3);
+            
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(volume * 0.25, audioCtx.currentTime + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+    },
+    
+    modern: {
+        name: 'Современный',
+        generate: (audioCtx, volume) => {
+            // Современный звук как в мессенджерах
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            
+            osc1.connect(filter);
+            osc2.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            filter.type = 'lowpass';
+            filter.frequency.value = 2000;
+            
+            osc1.frequency.value = 800;
+            osc2.frequency.value = 1200;
+            osc1.type = 'triangle';
+            osc2.type = 'sine';
+            
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(volume * 0.4, audioCtx.currentTime + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            
+            osc1.start(audioCtx.currentTime);
+            osc2.start(audioCtx.currentTime + 0.02);
+            osc1.stop(audioCtx.currentTime + 0.15);
+            osc2.stop(audioCtx.currentTime + 0.15);
+        }
+    },
+    
+    bubble: {
+        name: 'Пузырёк',
+        generate: (audioCtx, volume) => {
+            // Звук пузырька
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            filter.type = 'bandpass';
+            filter.frequency.value = 1000;
+            filter.Q.value = 10;
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.1);
+            
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(volume * 0.3, audioCtx.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+    },
+    
+    chime: {
+        name: 'Перезвон',
+        generate: (audioCtx, volume) => {
+            // Звук колокольчика
+            const frequencies = [523, 659, 784]; // C-E-G мажорное трезвучие
+            
+            frequencies.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.frequency.value = freq;
+                osc.type = 'triangle';
+                
+                const startTime = audioCtx.currentTime + i * 0.1;
+                const duration = 0.5;
+                
+                gain.gain.setValueAtTime(0, startTime);
+                gain.gain.linearRampToValueAtTime(volume * 0.2, startTime + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+            });
+        }
+    },
+    
+    digital: {
+        name: 'Цифровой',
+        generate: (audioCtx, volume) => {
+            // Цифровой звук
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(1760, audioCtx.currentTime + 0.05);
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
+            
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(volume * 0.2, audioCtx.currentTime + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+    },
+    
+    subtle: {
+        name: 'Деликатный',
+        generate: (audioCtx, volume) => {
+            // Очень мягкий звук
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            filter.type = 'lowpass';
+            filter.frequency.value = 800;
+            
+            osc.type = 'sine';
+            osc.frequency.value = 440;
+            
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(volume * 0.15, audioCtx.currentTime + 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+            
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.6);
+        }
+    },
+    
+    none: {
+        name: 'Без звука',
+        generate: () => {} // Пустая функция
+    }
 };
 
 function playNotificationSound(preview = false) {
@@ -3161,25 +3337,18 @@ function playNotificationSound(preview = false) {
     const soundType = state.settings.notificationSound || 'default';
     const soundConfig = notificationSounds[soundType];
     
-    if (!soundConfig) return;
+    if (!soundConfig || !soundConfig.generate) return;
     
     try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        
-        oscillator.frequency.value = soundConfig[0];
-        oscillator.type = soundConfig[2];
-        
         const volume = (state.settings.volume || 50) / 100;
-        gainNode.gain.setValueAtTime(volume * 0.3, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + soundConfig[1]);
         
-        oscillator.start(audioCtx.currentTime);
-        oscillator.stop(audioCtx.currentTime + soundConfig[1]);
+        // Возобновляем контекст если он приостановлен
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        
+        soundConfig.generate(audioCtx, volume);
     } catch (e) {
         console.log('Sound play error:', e);
     }
@@ -5503,7 +5672,18 @@ document.addEventListener('DOMContentLoaded', () => {
         saveSettings();
     });
     
-    document.getElementById('play-sound-btn')?.addEventListener('click', () => {
+    document.getElementById('play-sound-btn')?.addEventListener('click', (e) => {
+        const btn = e.target;
+        
+        // Визуальная обратная связь
+        btn.style.transform = 'scale(0.9)';
+        btn.textContent = '⏸';
+        
+        setTimeout(() => {
+            btn.style.transform = '';
+            btn.textContent = '▶';
+        }, 300);
+        
         playNotificationSound(true);
     });
     
