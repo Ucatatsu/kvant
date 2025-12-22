@@ -8431,28 +8431,114 @@ input[type="range"]:focus::-moz-range-thumb {
   height: 6px;
 }
 
-/* Volume control layout */
+/* === BEAUTIFUL VOLUME CONTROL === */
 .volume-control {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-width: 180px;
+  gap: 12px;
+  min-width: 200px;
 }
 
 .volume-control .volume-icon {
-  font-size: 16px;
-  opacity: 0.7;
+  font-size: 18px;
+  opacity: 0.8;
+  transition: all 0.2s ease;
 }
 
-.volume-control .styled-slider {
-  flex: 1;
+.volume-control .volume-icon:first-child {
+  color: var(--text-muted);
+}
+
+.volume-control .volume-icon:last-of-type {
+  color: var(--accent);
 }
 
 .volume-control .volume-value {
-  min-width: 28px;
+  min-width: 35px;
   text-align: right;
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* === BEAUTIFUL VOLUME SLIDER === */
+.volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-light);
+  outline: none;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  flex: 1;
+}
+
+.volume-slider:hover {
+  transform: scaleY(1.2);
+}
+
+.volume-slider::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-light);
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-light));
+  cursor: grab;
+  box-shadow: 0 2px 8px rgba(79, 195, 247, 0.4);
+  transition: all 0.2s ease;
+  border: 2px solid white;
+}
+
+.volume-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 4px 16px rgba(79, 195, 247, 0.6);
+}
+
+.volume-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.1);
+  box-shadow: 0 2px 12px rgba(79, 195, 247, 0.8);
+}
+
+/* Firefox styles */
+.volume-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-light));
+  cursor: grab;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(79, 195, 247, 0.4);
+}
+
+.volume-slider::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-light);
+  border: none;
+}
+
+.volume-slider::-moz-range-progress {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-light));
+}
+
+/* Progress bar effect for WebKit browsers */
+.volume-slider {
+  background: linear-gradient(to right, 
+    var(--accent) 0%, 
+    var(--accent) var(--progress, 50%), 
+    var(--bg-light) var(--progress, 50%), 
+    var(--bg-light) 100%);
 }
 
 

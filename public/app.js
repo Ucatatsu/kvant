@@ -9039,6 +9039,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const max = parseFloat(slider.max) || 100;
         const value = parseFloat(slider.value);
         const percent = ((value - min) / (max - min)) * 100;
+        
+        // Обновляем CSS переменную для прогресс-бара
+        slider.style.setProperty('--progress', `${percent}%`);
         slider.style.setProperty('--value-percent', `${percent}%`);
     }
     
@@ -9047,13 +9050,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const volumeValue = document.getElementById('volume-value');
     if (volumeSlider) {
         volumeSlider.value = state.settings.volume ?? 50;
-        if (volumeValue) volumeValue.textContent = volumeSlider.value;
+        if (volumeValue) volumeValue.textContent = `${volumeSlider.value}%`;
         updateSliderProgress(volumeSlider);
         
         volumeSlider.addEventListener('input', (e) => {
             const vol = parseInt(e.target.value);
             state.settings.volume = vol;
-            if (volumeValue) volumeValue.textContent = vol;
+            if (volumeValue) volumeValue.textContent = `${vol}%`;
             updateSliderProgress(e.target);
             saveSettings();
         });
