@@ -8093,20 +8093,64 @@ function hideAllContextMenus() {
 // Позиционирование контекстного меню
 function positionContextMenu(menu, x, y) {
     menu.style.position = 'fixed';
-    menu.style.left = x + 'px';
-    menu.style.top = y + 'px';
     menu.style.zIndex = '10001';
     
-    // Корректируем если выходит за границы экрана
-    requestAnimationFrame(() => {
-        const rect = menu.getBoundingClientRect();
-        if (rect.right > window.innerWidth) {
-            menu.style.left = (window.innerWidth - rect.width - 10) + 'px';
-        }
-        if (rect.bottom > window.innerHeight) {
-            menu.style.top = (window.innerHeight - rect.height - 10) + 'px';
-        }
-    });
+    // Для мобильных устройств используем специальное позиционирование
+    const isMobile = window.innerWidth <= 768;
+    
+    if (isMobile) {
+        // На мобильных центрируем меню по горизонтали и позиционируем снизу
+        const menuWidth = 280;
+        const menuHeight = 200; // примерная высота
+        
+        menu.style.left = '50%';
+        menu.style.transform = 'translateX(-50%)';
+        menu.style.bottom = '20px';
+        menu.style.top = 'auto';
+        menu.style.maxWidth = 'calc(100vw - 40px)';
+        
+        // Если меню слишком высокое, позиционируем от верха
+        requestAnimationFrame(() => {
+            const rect = menu.getBoundingClientRect();
+            if (rect.height > window.innerHeight - 100) {
+                menu.style.bottom = 'auto';
+                menu.style.top = '20px';
+                menu.style.maxHeight = 'calc(100vh - 40px)';
+                menu.style.overflowY = 'auto';
+            }
+        });
+    } else {
+        // Десктопное позиционирование
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        menu.style.transform = 'none';
+        
+        // Корректируем если выходит за границы экрана
+        requestAnimationFrame(() => {
+            const rect = menu.getBoundingClientRect();
+            const padding = 10;
+            
+            // Проверяем правую границу
+            if (rect.right > window.innerWidth - padding) {
+                menu.style.left = (window.innerWidth - rect.width - padding) + 'px';
+            }
+            
+            // Проверяем левую границу
+            if (rect.left < padding) {
+                menu.style.left = padding + 'px';
+            }
+            
+            // Проверяем нижнюю границу
+            if (rect.bottom > window.innerHeight - padding) {
+                menu.style.top = (window.innerHeight - rect.height - padding) + 'px';
+            }
+            
+            // Проверяем верхнюю границу
+            if (rect.top < padding) {
+                menu.style.top = padding + 'px';
+            }
+        });
+    }
 }
 
 async function openServerRolesModal() {

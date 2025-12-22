@@ -407,66 +407,32 @@ app.get('/api/vapid-public-key', (_req, res) => {
 
 // TURN credentials - настраиваются через переменные окружения
 app.get('/api/turn-credentials', authMiddleware, async (_req, res) => {
-    // Если есть кастомные TURN credentials в env - используем их
-    if (process.env.TURN_SERVER_URL && process.env.TURN_USERNAME && process.env.TURN_CREDENTIAL) {
-        const iceServers = [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            {
-                urls: process.env.TURN_SERVER_URL,
-                username: process.env.TURN_USERNAME,
-                credential: process.env.TURN_CREDENTIAL
-            }
-        ];
+    try {
+        // Используем Metered.ca REST API для получения актуальных credentials
+        const meteredApiKey = process.env.METERED_API_KEY || 'dfbac5aa6a7e10c7667b19eb29f56bd6ff50';
+        const meteredDomain = process.env.METERED_DOMAIN || 'kvantmsg.metered.live';
         
-        // Добавляем дополнительные TURN URLs если есть
-        if (process.env.TURN_SERVER_URL_2) {
-            iceServers.push({
-                urls: process.env.TURN_SERVER_URL_2,
-                username: process.env.TURN_USERNAME,
-                credential: process.env.TURN_CREDENTIAL
-            });
-        }
-        if (process.env.TURN_SERVER_URL_3) {
-            iceServers.push({
-                urls: process.env.TURN_SERVER_URL_3,
-                username: process.env.TURN_USERNAME,
-                credential: process.env.TURN_CREDENTIAL
-            });
+        const response = await fetch(`https://${meteredDomain}/api/v1/turn/credentials?apiKey=${meteredApiKey}`);
+        
+        if (response.ok) {
+            const iceServers = await response.json();
+            console.log('✅ Metered TURN credentials получены:', iceServers.length, 'серверов');
+            return res.json({ iceServers });
         }
         
-        console.log('✅ Custom TURN credentials отправлены');
-        return res.json({ iceServers });
+        console.error('❌ Metered API error:', response.status);
+    } catch (error) {
+        console.error('❌ Metered API fetch error:', error.message);
     }
     
-    // Metered.ca TURN серверы (зарегистрированный аккаунт)
-    const iceServers = [
-        { urls: 'stun:stun.relay.metered.ca:80' },
-        { urls: 'stun:stun.l.google.com:19302' },
-        {
-            urls: 'turn:global.relay.metered.ca:80',
-            username: '894ecb4008cd5569803a8c9c',
-            credential: 'wEIYw8qOcKxnAzxE'
-        },
-        {
-            urls: 'turn:global.relay.metered.ca:80?transport=tcp',
-            username: '894ecb4008cd5569803a8c9c',
-            credential: 'wEIYw8qOcKxnAzxE'
-        },
-        {
-            urls: 'turn:global.relay.metered.ca:443',
-            username: '894ecb4008cd5569803a8c9c',
-            credential: 'wEIYw8qOcKxnAzxE'
-        },
-        {
-            urls: 'turns:global.relay.metered.ca:443?transport=tcp',
-            username: '894ecb4008cd5569803a8c9c',
-            credential: 'wEIYw8qOcKxnAzxE'
-        }
-    ];
-    
-    console.log('✅ Metered TURN credentials отправлены');
-    res.json({ iceServers });
+    // Fallback - только STUN
+    console.log('⚠️ FALLBACK: Только STUN серверы');
+    res.json({
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+    });
 });
 
 // === ЗАЩИЩЁННЫЕ РОУТЫ ===
