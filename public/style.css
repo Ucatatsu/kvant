@@ -2639,8 +2639,9 @@ emoji-picker {
 
 .settings-nav-item.active {
   background: var(--accent-glow);
-  border: 1px solid var(--accent);
-  box-shadow: 0 2px 8px rgba(79, 195, 247, 0.2);
+  border: 2px solid var(--accent);
+  box-shadow: 0 4px 16px rgba(79, 195, 247, 0.3);
+  border-radius: 12px;
 }
 
 .nav-icon {
@@ -4972,8 +4973,9 @@ body,
   .settings-nav-item.active {
     border-left: none;
     background: var(--accent-glow);
-    border: 1px solid var(--accent);
-    box-shadow: 0 2px 8px rgba(79, 195, 247, 0.2);
+    border: 2px solid var(--accent);
+    box-shadow: 0 4px 16px rgba(79, 195, 247, 0.3);
+    border-radius: 12px;
   }
   
   .settings-sidebar-footer {
