@@ -1431,6 +1431,15 @@ emoji-picker {
     --safe-area-right: env(safe-area-inset-right, 0px);
   }
 
+  /* Убираем все отступы у body на мобильных */
+  body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100vh;
+    height: 100dvh;
+  }
+
   #chat-screen {
     display: flex;
     flex-direction: column;
@@ -1438,11 +1447,9 @@ emoji-picker {
     gap: 0;
     height: 100vh;
     height: 100dvh;
-    padding-top: var(--safe-area-top);
-    padding-bottom: var(--safe-area-bottom);
-    padding-left: var(--safe-area-left);
-    padding-right: var(--safe-area-right);
     overflow: hidden;
+    /* Убираем safe-area отступы с основного контейнера */
+    margin: 0;
   }
 
   .sidebar {
@@ -1458,11 +1465,30 @@ emoji-picker {
     z-index: 1000;
     transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
     background: var(--bg-darkest);
-    padding-top: var(--safe-area-top);
-    padding-bottom: var(--safe-area-bottom);
     will-change: transform;
     border: none;
     backdrop-filter: none;
+    /* Убираем padding, используем margin для safe-area */
+    margin: 0;
+    padding: 0;
+    /* Обеспечиваем полное заполнение экрана */
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  /* Добавляем safe-area отступы к внутренним элементам */
+  .sidebar .sidebar-header {
+    padding-top: var(--safe-area-top);
+  }
+
+  .sidebar .sidebar-footer {
+    padding-bottom: var(--safe-area-bottom);
+  }
+
+  /* Убираем лишние отступы у списков */
+  .sidebar .users-list {
+    padding-left: var(--safe-area-left);
+    padding-right: var(--safe-area-right);
   }
 
   .sidebar.hidden-mobile {
