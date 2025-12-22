@@ -1428,33 +1428,34 @@ button {
 
 .sticker-grid {
   flex: 1;
-  padding: 16px;
+  padding: 12px;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 4px;
 }
 
 .sticker-item {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   background: transparent;
+  position: relative;
 }
 
 .sticker-item:hover {
   background: var(--accent-glow);
-  transform: scale(1.1);
+  transform: scale(1.15);
 }
 
 .sticker-animation {
-  width: 40px;
-  height: 40px;
+  width: 28px;
+  height: 28px;
   pointer-events: none;
 }
 
@@ -1496,17 +1497,19 @@ button {
   }
   
   .sticker-grid {
-    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+    grid-template-columns: repeat(8, 1fr);
+    gap: 3px;
+    padding: 8px;
   }
   
   .sticker-item {
-    width: 44px;
-    height: 44px;
+    width: 28px;
+    height: 28px;
   }
   
   .sticker-animation {
-    width: 36px;
-    height: 36px;
+    width: 24px;
+    height: 24px;
   }
 }
 

@@ -11368,7 +11368,21 @@ class StickerManager {
         try {
             const response = await api.get('/api/stickers');
             if (response.ok) {
-                return await response.json();
+                const stickers = await response.json();
+                // Сортируем стикеры по типу эмоций, как в стандартных эмодзи-пикерах
+                return stickers.sort((a, b) => {
+                    const categoryA = this.getStickerCategory(a.name || a.filename || '');
+                    const categoryB = this.getStickerCategory(b.name || b.filename || '');
+                    
+                    // Сначала по категории, потом по имени внутри категории
+                    if (categoryA !== categoryB) {
+                        return categoryA - categoryB;
+                    }
+                    
+                    const nameA = (a.name || a.filename || '').toLowerCase();
+                    const nameB = (b.name || b.filename || '').toLowerCase();
+                    return nameA.localeCompare(nameB, 'ru');
+                });
             } else {
                 console.error('Ошибка загрузки стикеров:', response.status);
                 return [];
@@ -11377,6 +11391,51 @@ class StickerManager {
             console.error('Ошибка API стикеров:', error);
             return [];
         }
+    }
+    
+    // Определяем категорию стикера по имени для правильной сортировки
+    getStickerCategory(name) {
+        const lowerName = name.toLowerCase();
+        
+        // Радостные эмоции (приоритет 1)
+        if (lowerName.includes('happy') || lowerName.includes('smile') || lowerName.includes('joy') || 
+            lowerName.includes('laugh') || lowerName.includes('grin') || lowerName.includes('радост') ||
+            lowerName.includes('смех') || lowerName.includes('улыб')) {
+            return 1;
+        }
+        
+        // Любовь и сердечки (приоритет 2)
+        if (lowerName.includes('love') || lowerName.includes('heart') || lowerName.includes('kiss') ||
+            lowerName.includes('любов') || lowerName.includes('сердц') || lowerName.includes('поцел')) {
+            return 2;
+        }
+        
+        // Удивление (приоритет 3)
+        if (lowerName.includes('surprise') || lowerName.includes('wow') || lowerName.includes('shock') ||
+            lowerName.includes('удивл') || lowerName.includes('шок')) {
+            return 3;
+        }
+        
+        // Грустные эмоции (приоритет 4)
+        if (lowerName.includes('sad') || lowerName.includes('cry') || lowerName.includes('tear') ||
+            lowerName.includes('грус') || lowerName.includes('плач') || lowerName.includes('слез')) {
+            return 4;
+        }
+        
+        // Злость (приоритет 5)
+        if (lowerName.includes('angry') || lowerName.includes('mad') || lowerName.includes('rage') ||
+            lowerName.includes('злос') || lowerName.includes('сердит') || lowerName.includes('ярос')) {
+            return 5;
+        }
+        
+        // Страх (приоритет 6)
+        if (lowerName.includes('fear') || lowerName.includes('scared') || lowerName.includes('afraid') ||
+            lowerName.includes('страх') || lowerName.includes('испуг') || lowerName.includes('боя')) {
+            return 6;
+        }
+        
+        // Нейтральные и остальные (приоритет 7)
+        return 7;
     }
     
     renderStickers() {
