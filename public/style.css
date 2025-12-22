@@ -13380,6 +13380,16 @@ select option {
   min-width: 200px;
 }
 
+/* Принудительно скрываем оригинальный select */
+#notification-sound-select {
+  display: none !important;
+  visibility: hidden !important;
+  position: absolute !important;
+  left: -9999px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 .select-trigger {
   display: flex;
   align-items: center;
