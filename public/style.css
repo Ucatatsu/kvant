@@ -1922,23 +1922,35 @@ button {
   #chat-screen:not(.chat-open) .chat-header,
   #chat-screen:not(.chat-open) .messages,
   #chat-screen:not(.chat-open) .message-form {
-    transform: translateX(100%);
-    opacity: 0;
-    pointer-events: none;
+    display: none; /* Используем display вместо transform для надёжности */
   }
   
-  /* Когда чат открыт - элементы на месте */
+  /* Когда чат открыт - элементы видны */
   #chat-screen.chat-open .chat-header,
   #chat-screen.chat-open .messages,
   #chat-screen.chat-open .message-form {
+    display: flex;
     transform: translateX(0);
     opacity: 1;
     pointer-events: auto;
   }
+  
+  #chat-screen.chat-open .messages {
+    display: flex;
+    flex-direction: column;
+  }
 
-  /* По умолчанию на мобильных показываем сайдбар */
-  .sidebar {
-    transform: translateX(0);
+  /* Когда чат открыт - скрываем сайдбар и показываем чат */
+  #chat-screen.chat-open .sidebar {
+    transform: translateX(-100%);
+    pointer-events: none;
+  }
+  
+  #chat-screen.chat-open {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
   }
   
   /* Улучшенные тапы на мобильных */
@@ -1982,6 +1994,31 @@ button {
     display: flex;
     align-items: center;
     gap: 8px;
+    width: 100%;
+    position: relative;
+    z-index: 10;
+  }
+  
+  .messages {
+    flex: 1;
+    padding: 12px;
+    overflow-y: auto;
+    background: transparent;
+    width: 100%;
+    position: relative;
+    z-index: 10;
+  }
+  
+  .message-form {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    background: var(--bg-darkest);
+    border-top: 1px solid var(--glass-border);
+    border-radius: 0;
+    backdrop-filter: none;
+    width: 100%;
+    position: relative;
+    z-index: 10;
   }
 
   /* Фикс кнопки назад */
