@@ -8468,21 +8468,27 @@ input[type="range"].volume-slider,
   appearance: none !important;
   height: 10px !important;
   border-radius: 5px !important;
-  background: linear-gradient(to right, 
-    var(--accent) 0%, 
-    var(--accent) var(--progress, 50%), 
-    var(--bg-light) var(--progress, 50%), 
-    var(--bg-light) 100%) !important;
+  background: var(--bg-light) !important;
   outline: none !important;
   cursor: pointer !important;
   position: relative !important;
   transition: all 0.2s ease !important;
   flex: 1 !important;
+  overflow: hidden !important;
 }
 
 input[type="range"].volume-slider:hover,
 #volume-slider:hover {
-  transform: scaleY(1.3) !important;
+  box-shadow: 0 0 12px rgba(79, 195, 247, 0.4) !important;
+  transform: none !important; /* Убираем любые трансформации */
+}
+
+input[type="range"].volume-slider::-webkit-slider-runnable-track,
+#volume-slider::-webkit-slider-runnable-track {
+  height: 10px !important;
+  border-radius: 5px !important;
+  background: var(--bg-light) !important;
+  border: none !important;
 }
 
 input[type="range"].volume-slider::-webkit-slider-thumb,
@@ -8493,22 +8499,52 @@ input[type="range"].volume-slider::-webkit-slider-thumb,
   border-radius: 50% !important;
   background: linear-gradient(135deg, var(--accent), var(--accent-light)) !important;
   cursor: grab !important;
-  box-shadow: 0 3px 12px rgba(79, 195, 247, 0.5) !important;
+  box-shadow: 0 3px 10px rgba(79, 195, 247, 0.5) !important;
   transition: all 0.2s ease !important;
   border: 3px solid white !important;
+  margin-top: -7px !important;
+  position: relative !important;
 }
 
 input[type="range"].volume-slider::-webkit-slider-thumb:hover,
 #volume-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.3) !important;
-  box-shadow: 0 5px 20px rgba(79, 195, 247, 0.7) !important;
+  transform: scale(1.1) !important;
+  box-shadow: 0 4px 15px rgba(79, 195, 247, 0.7) !important;
 }
 
 input[type="range"].volume-slider::-webkit-slider-thumb:active,
 #volume-slider::-webkit-slider-thumb:active {
   cursor: grabbing !important;
-  transform: scale(1.2) !important;
-  box-shadow: 0 3px 15px rgba(79, 195, 247, 0.9) !important;
+  transform: scale(1.05) !important;
+  box-shadow: 0 3px 12px rgba(79, 195, 247, 0.8) !important;
+}
+
+/* Firefox styles */
+input[type="range"].volume-slider::-moz-range-thumb,
+#volume-slider::-moz-range-thumb {
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, var(--accent), var(--accent-light)) !important;
+  cursor: grab !important;
+  border: 3px solid white !important;
+  box-shadow: 0 3px 10px rgba(79, 195, 247, 0.5) !important;
+  transition: all 0.2s ease !important;
+}
+
+input[type="range"].volume-slider::-moz-range-track,
+#volume-slider::-moz-range-track {
+  height: 10px !important;
+  border-radius: 5px !important;
+  background: var(--bg-light) !important;
+  border: none !important;
+}
+
+input[type="range"].volume-slider::-moz-range-progress,
+#volume-slider::-moz-range-progress {
+  height: 10px !important;
+  border-radius: 5px !important;
+  background: linear-gradient(90deg, var(--accent), var(--accent-light)) !important;
 }
 
 /* Force volume control layout */
@@ -8516,12 +8552,12 @@ input[type="range"].volume-slider::-webkit-slider-thumb:active,
   display: flex !important;
   align-items: center !important;
   gap: 15px !important;
-  min-width: 220px !important;
+  min-width: 250px !important;
 }
 
 .volume-control .volume-icon {
   font-size: 20px !important;
-  opacity: 0.9 !important;
+  opacity: 0.8 !important;
   transition: all 0.2s ease !important;
 }
 
@@ -8534,11 +8570,66 @@ input[type="range"].volume-slider::-webkit-slider-thumb:active,
 }
 
 .volume-control .volume-value {
-  min-width: 40px !important;
+  min-width: 45px !important;
   text-align: right !important;
   font-size: 14px !important;
   color: var(--accent) !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
+}
+
+/* Progress bar effect for volume slider */
+input[type="range"].volume-slider::before,
+#volume-slider::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  height: 100% !important;
+  width: var(--progress, 50%) !important;
+  background: linear-gradient(90deg, var(--accent), var(--accent-light)) !important;
+  border-radius: 5px !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+
+/* === FORCE ROUNDED CORNERS FOR ALL SETTINGS ITEMS === */
+.settings-item:hover,
+#section-privacy .settings-item:hover,
+.settings-section .settings-item:hover,
+.settings-modal .settings-item:hover,
+.settings-content .settings-item:hover,
+.settings-nav-item:hover,
+.settings-nav-item.active {
+  background: var(--accent-glow) !important;
+  border-radius: 12px !important;
+  margin: 2px 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Ensure all settings items have rounded corners */
+.settings-item,
+.settings-nav-item {
+  border-radius: 12px !important;
+  margin: 2px 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Force rounded corners on specific settings elements */
+.settings-modal .settings-item,
+.settings-content .settings-item,
+#section-privacy .settings-item,
+.settings-section .settings-item {
+  border-radius: 12px !important;
+  margin: 2px 8px !important;
+}
+
+.settings-modal .settings-item:hover,
+.settings-content .settings-item:hover,
+#section-privacy .settings-item:hover,
+.settings-section .settings-item:hover {
+  background: var(--accent-glow) !important;
+  border-radius: 12px !important;
+  margin: 2px 8px !important;
 }
 
 

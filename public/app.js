@@ -9043,6 +9043,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Обновляем CSS переменную для прогресс-бара
         slider.style.setProperty('--progress', `${percent}%`);
         slider.style.setProperty('--value-percent', `${percent}%`);
+        
+        // Дополнительно обновляем background для лучшей совместимости
+        if (slider.id === 'volume-slider' || slider.classList.contains('volume-slider')) {
+            slider.style.background = `linear-gradient(to right, var(--accent) 0%, var(--accent) ${percent}%, var(--bg-light) ${percent}%, var(--bg-light) 100%)`;
+        }
     }
     
     // Громкость
@@ -9053,10 +9058,12 @@ document.addEventListener('DOMContentLoaded', () => {
         volumeSlider.setAttribute('step', '10');
         volumeSlider.setAttribute('min', '0');
         volumeSlider.setAttribute('max', '100');
+        volumeSlider.setAttribute('class', 'styled-slider volume-slider');
         
         let vol = state.settings.volume ?? 50;
         // Округляем до ближайшего числа, кратного 10
         vol = Math.round(vol / 10) * 10;
+        vol = Math.max(0, Math.min(100, vol)); // Ограничиваем диапазон
         volumeSlider.value = vol;
         
         if (volumeValue) volumeValue.textContent = `${vol}%`;
@@ -9066,6 +9073,20 @@ document.addEventListener('DOMContentLoaded', () => {
             let vol = parseInt(e.target.value);
             // Принудительно округляем до ближайшего числа, кратного 10
             vol = Math.round(vol / 10) * 10;
+            vol = Math.max(0, Math.min(100, vol)); // Ограничиваем диапазон
+            e.target.value = vol;
+            
+            state.settings.volume = vol;
+            if (volumeValue) volumeValue.textContent = `${vol}%`;
+            updateSliderProgress(e.target);
+            saveSettings();
+        });
+        
+        // Дополнительный обработчик для принудительного округления
+        volumeSlider.addEventListener('change', (e) => {
+            let vol = parseInt(e.target.value);
+            vol = Math.round(vol / 10) * 10;
+            vol = Math.max(0, Math.min(100, vol));
             e.target.value = vol;
             
             state.settings.volume = vol;
