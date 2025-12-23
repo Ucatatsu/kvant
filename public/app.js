@@ -5228,6 +5228,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Инициализация делегирования событий
     initUserListEvents();
     
+    // Инициализация эмодзи-пикера
+    initEmojiPicker();
+    
     // Инициализация звуков при первом взаимодействии
     document.addEventListener('click', ensureSoundsInitialized, { once: true });
     document.addEventListener('keydown', ensureSoundsInitialized, { once: true });
@@ -5917,8 +5920,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // === STICKERS ===
-    
+    // === СТАРЫЕ СТИКЕРЫ (ОТКЛЮЧЕНО) ===
+    /*
     const emojiBtn = document.querySelector('.emoji-btn');
     const stickerPicker = document.getElementById('sticker-picker');
     
@@ -5938,6 +5941,7 @@ document.addEventListener('DOMContentLoaded', () => {
             stickerPicker.classList.add('hidden');
         }
     });
+    */
     
     // === МОБИЛЬНАЯ НАВИГАЦИЯ ===
     
@@ -11999,4 +12003,254 @@ async function loadInlineStickerAnimation(stickerId, stickerData) {
             container.innerHTML = '🎭';
         }
     }
+}
+// === EMOJI PICKER ===
+const emojiData = {
+    // Смайлики и эмоции (по популярности)
+    smileys: [
+        '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂',
+        '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩',
+        '😘', '😗', '☺️', '😚', '😙', '🥲', '😋', '😛',
+        '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔',
+        '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄',
+        '😬', '🤥', '😔', '😪', '🤤', '😴', '😷', '🤒',
+        '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '😵',
+        '🤯', '🤠', '🥳', '🥸', '😎', '🤓', '🧐', '😕',
+        '😟', '🙁', '☹️', '😮', '😯', '😲', '😳', '🥺',
+        '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱',
+        '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤',
+        '😡', '😠', '🤬', '😈', '👿', '💀', '☠️', '💩'
+    ],
+    
+    // Люди и части тела
+    people: [
+        '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏',
+        '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆',
+        '🖕', '👇', '☝️', '👍', '👎', '👊', '✊', '🤛',
+        '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️',
+        '💅', '🤳', '💪', '🦾', '🦿', '🦵', '🦶', '👂',
+        '🦻', '👃', '🧠', '🫀', '🫁', '🦷', '🦴', '👀',
+        '👁️', '👅', '👄', '💋', '🩸', '👶', '🧒', '👦',
+        '👧', '🧑', '👱', '👨', '🧔', '👩', '🧓', '👴',
+        '👵', '🙍', '🙎', '🙅', '🙆', '💁', '🙋', '🧏',
+        '🙇', '🤦', '🤷', '👮', '🕵️', '💂', '🥷', '👷'
+    ],
+    
+    // Животные и природа
+    animals: [
+        '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼',
+        '🐨', '🐯', '🦁', '🐮', '🐷', '🐽', '🐸', '🐵',
+        '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤',
+        '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗',
+        '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜',
+        '🦟', '🦗', '🕷️', '🕸️', '🦂', '🐢', '🐍', '🦎',
+        '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡',
+        '🐠', '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐅',
+        '🐆', '🦓', '🦍', '🦧', '🐘', '🦛', '🦏', '🐪',
+        '🐫', '🦒', '🦘', '🐃', '🐂', '🐄', '🐎', '🐖'
+    ],
+    
+    // Еда и напитки
+    food: [
+        '🍎', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐',
+        '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅',
+        '🍆', '🥑', '🥦', '🥬', '🥒', '🌶️', '🫑', '🌽',
+        '🥕', '🫒', '🧄', '🧅', '🥔', '🍠', '🥐', '🥖',
+        '🍞', '🥨', '🥯', '🧀', '🥚', '🍳', '🧈', '🥞',
+        '🧇', '🥓', '🥩', '🍗', '🍖', '🦴', '🌭', '🍔',
+        '🍟', '🍕', '🥪', '🥙', '🧆', '🌮', '🌯', '🫔',
+        '🥗', '🥘', '🫕', '🍝', '🍜', '🍲', '🍛', '🍣',
+        '🍱', '🥟', '🦪', '🍤', '🍙', '🍚', '🍘', '🍥',
+        '🥠', '🥮', '🍢', '🍡', '🍧', '🍨', '🍦', '🥧'
+    ],
+    
+    // Путешествия и места
+    travel: [
+        '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑',
+        '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🏍️', '🛵',
+        '🚲', '🛴', '🛹', '🛼', '🚁', '🛸', '✈️', '🛩️',
+        '🛫', '🛬', '🪂', '💺', '🚀', '🛰️', '🚢', '⛵',
+        '🚤', '🛥️', '🛳️', '⛴️', '🚂', '🚃', '🚄', '🚅',
+        '🚆', '🚇', '🚈', '🚉', '🚊', '🚝', '🚞', '🚋',
+        '🚌', '🚍', '🎡', '🎢', '🎠', '🏗️', '🌁', '🗼',
+        '🏭', '⛲', '🎑', '⛰️', '🏔️', '🗻', '🌋', '🏕️',
+        '🏖️', '🏜️', '🏝️', '🏞️', '🏟️', '🏛️', '🏗️', '🧱',
+        '🪨', '🪵', '🛖', '🏘️', '🏚️', '🏠', '🏡', '🏢'
+    ],
+    
+    // Предметы
+    objects: [
+        '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉',
+        '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍',
+        '🏏', '🪃', '🥅', '⛳', '🪁', '🏹', '🎣', '🤿',
+        '🥊', '🥋', '🎽', '🛹', '🛷', '⛸️', '🥌', '🎿',
+        '⛷️', '🏂', '🪂', '🏋️', '🤸', '🤼', '🤽', '🤾',
+        '🧗', '🚵', '🚴', '🏇', '🧘', '🏄', '🏊', '🤽',
+        '📱', '💻', '🖥️', '🖨️', '⌨️', '🖱️', '🖲️', '💽',
+        '💾', '💿', '📀', '📼', '📷', '📸', '📹', '🎥',
+        '📽️', '🎞️', '📞', '☎️', '📟', '📠', '📺', '📻',
+        '🎙️', '🎚️', '🎛️', '🧭', '⏱️', '⏲️', '⏰', '🕰️'
+    ],
+    
+    // Символы
+    symbols: [
+        '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍',
+        '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖',
+        '💘', '💝', '💟', '☮️', '✝️', '☪️', '🕉️', '☸️',
+        '✡️', '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈',
+        '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐',
+        '♑', '♒', '♓', '🆔', '⚛️', '🉑', '☢️', '☣️',
+        '📴', '📳', '🈶', '🈚', '🈸', '🈺', '🈷️', '✴️',
+        '🆚', '💮', '🉐', '㊙️', '㊗️', '🈴', '🈵', '🈹',
+        '🈲', '🅰️', '🅱️', '🆎', '🆑', '🅾️', '🆘', '❌',
+        '⭕', '🛑', '⛔', '📛', '🚫', '💯', '💢', '♨️'
+    ],
+    
+    // Флаги
+    flags: [
+        '🏳️', '🏴', '🏁', '🚩', '🏳️‍🌈', '🏳️‍⚧️', '🇺🇳', '🇦🇫',
+        '🇦🇱', '🇩🇿', '🇦🇸', '🇦🇩', '🇦🇴', '🇦🇮', '🇦🇶', '🇦🇬',
+        '🇦🇷', '🇦🇲', '🇦🇼', '🇦🇺', '🇦🇹', '🇦🇿', '🇧🇸', '🇧🇭',
+        '🇧🇩', '🇧🇧', '🇧🇾', '🇧🇪', '🇧🇿', '🇧🇯', '🇧🇲', '🇧🇹',
+        '🇧🇴', '🇧🇦', '🇧🇼', '🇧🇷', '🇮🇴', '🇻🇬', '🇧🇳', '🇧🇬',
+        '🇧🇫', '🇧🇮', '🇰🇭', '🇨🇲', '🇨🇦', '🇮🇨', '🇨🇻', '🇧🇶',
+        '🇰🇾', '🇨🇫', '🇹🇩', '🇨🇱', '🇨🇳', '🇨🇽', '🇨🇨', '🇨🇴',
+        '🇰🇲', '🇨🇬', '🇨🇩', '🇨🇰', '🇨🇷', '🇨🇮', '🇭🇷', '🇨🇺',
+        '🇨🇼', '🇨🇾', '🇨🇿', '🇩🇰', '🇩🇯', '🇩🇲', '🇩🇴', '🇪🇨',
+        '🇪🇬', '🇸🇻', '🇬🇶', '🇪🇷', '🇪🇪', '🇪🇹', '🇪🇺', '🇫🇰'
+    ]
+};
+
+let currentEmojiCategory = 'smileys';
+let recentEmojis = JSON.parse(localStorage.getItem('kvant_recent_emojis') || '[]');
+
+function initEmojiPicker() {
+    const emojiBtn = document.querySelector('.emoji-btn');
+    const emojiPicker = document.getElementById('emoji-picker');
+    const emojiClose = document.querySelector('.emoji-close');
+    const emojiTabs = document.querySelectorAll('.emoji-tab');
+    const emojiCategories = document.querySelectorAll('.emoji-category');
+    const emojiGrid = document.getElementById('emoji-grid');
+    
+    // Переключение между стикерами и эмодзи
+    emojiTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabType = tab.dataset.tab;
+            
+            // Обновляем активную вкладку
+            emojiTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            // Показываем соответствующий контент
+            document.querySelectorAll('.emoji-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`${tabType}-content`).classList.add('active');
+            
+            if (tabType === 'emojis') {
+                loadEmojiCategory(currentEmojiCategory);
+            }
+        });
+    });
+    
+    // Переключение категорий эмодзи
+    emojiCategories.forEach(category => {
+        category.addEventListener('click', () => {
+            const categoryName = category.dataset.category;
+            
+            emojiCategories.forEach(c => c.classList.remove('active'));
+            category.classList.add('active');
+            
+            currentEmojiCategory = categoryName;
+            loadEmojiCategory(categoryName);
+        });
+    });
+    
+    // Открытие/закрытие пикера
+    emojiBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!state.selectedUser && !state.selectedGroup && !state.selectedChannel && !state.selectedServerChannel) {
+            return;
+        }
+        
+        emojiPicker.classList.toggle('hidden');
+        if (!emojiPicker.classList.contains('hidden')) {
+            // Загружаем стикеры при первом открытии
+            if (document.querySelector('.emoji-tab.active').dataset.tab === 'stickers') {
+                loadStickers();
+            } else {
+                loadEmojiCategory(currentEmojiCategory);
+            }
+        }
+    });
+    
+    emojiClose?.addEventListener('click', () => {
+        emojiPicker.classList.add('hidden');
+    });
+    
+    // Закрытие при клике вне пикера
+    document.addEventListener('click', (e) => {
+        if (emojiPicker && !emojiPicker.contains(e.target) && e.target !== emojiBtn) {
+            emojiPicker.classList.add('hidden');
+        }
+    });
+    
+    // Загружаем эмодзи по умолчанию
+    loadEmojiCategory('smileys');
+}
+
+function loadEmojiCategory(category) {
+    const emojiGrid = document.getElementById('emoji-grid');
+    const emojis = emojiData[category] || [];
+    
+    emojiGrid.innerHTML = emojis.map(emoji => 
+        `<button class="emoji-item" data-emoji="${emoji}">${emoji}</button>`
+    ).join('');
+    
+    // Добавляем обработчики клика
+    emojiGrid.querySelectorAll('.emoji-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const emoji = item.dataset.emoji;
+            insertEmojiIntoMessage(emoji);
+            addToRecentEmojis(emoji);
+        });
+    });
+}
+
+function insertEmojiIntoMessage(emoji) {
+    const messageInput = document.getElementById('message-input');
+    if (messageInput) {
+        const cursorPos = messageInput.selectionStart;
+        const textBefore = messageInput.value.substring(0, cursorPos);
+        const textAfter = messageInput.value.substring(messageInput.selectionEnd);
+        
+        messageInput.value = textBefore + emoji + textAfter;
+        messageInput.focus();
+        messageInput.setSelectionRange(cursorPos + emoji.length, cursorPos + emoji.length);
+        
+        // Закрываем пикер
+        document.getElementById('emoji-picker').classList.add('hidden');
+    }
+}
+
+function addToRecentEmojis(emoji) {
+    // Удаляем если уже есть
+    recentEmojis = recentEmojis.filter(e => e !== emoji);
+    // Добавляем в начало
+    recentEmojis.unshift(emoji);
+    // Ограничиваем до 32 эмодзи
+    recentEmojis = recentEmojis.slice(0, 32);
+    
+    localStorage.setItem('kvant_recent_emojis', JSON.stringify(recentEmojis));
+}
+
+// Интеграция со стикерами (используем существующий код)
+function loadStickers() {
+    const stickerGrid = document.getElementById('sticker-grid-main');
+    if (!stickerGrid || !window.stickerManager) return;
+    
+    // Используем существующую логику загрузки стикеров
+    window.stickerManager.loadStickers().then(() => {
+        window.stickerManager.renderStickers(stickerGrid);
+    });
 }
