@@ -885,10 +885,28 @@ async function showChat() {
     
     // На мобильных по умолчанию показываем сайдбар
     if (isMobile()) {
-        // Убираем chat-open класс, чтобы показать сайдбар
+        console.log('Mobile: Initializing mobile interface');
+        // Принудительно убираем chat-open класс, чтобы показать сайдбар
         chatScreen.classList.remove('chat-open');
         // Убираем hidden-mobile с сайдбара
-        document.querySelector('.sidebar')?.classList.remove('hidden-mobile');
+        const sidebar = document.querySelector('.sidebar');
+        sidebar?.classList.remove('hidden-mobile');
+        
+        // Принудительно скрываем элементы чата при инициализации
+        const chatHeader = document.querySelector('.chat-header');
+        const messages = document.querySelector('.messages');
+        const messageForm = document.querySelector('.message-form');
+        
+        if (chatHeader) chatHeader.style.display = 'none';
+        if (messages) messages.style.display = 'none';
+        if (messageForm) messageForm.style.display = 'none';
+        
+        // Принудительно показываем сайдбар
+        if (sidebar) {
+            sidebar.style.display = 'flex';
+            sidebar.style.transform = 'translateX(0)';
+            sidebar.style.pointerEvents = 'auto';
+        }
     }
     
     // Убираем класс анимации после завершения всех анимаций
@@ -1975,6 +1993,7 @@ function initUserListEvents() {
     getEl('users-list')?.addEventListener('click', (e) => {
         const item = e.target.closest('.user-item');
         if (item) {
+            console.log('Mobile: User item clicked:', item.dataset.name);
             selectUser(item.dataset.id, item.dataset.name);
         }
     });
@@ -1982,6 +2001,7 @@ function initUserListEvents() {
 
 // === ЧАТ ===
 async function selectUser(userId, username) {
+    console.log('Mobile: Selecting user:', username, 'isMobile:', isMobile());
     state.selectedUser = { id: userId, username };
     
     // Очищаем reply при смене чата
@@ -1989,6 +2009,7 @@ async function selectUser(userId, username) {
     
     // На мобильных сначала запускаем анимацию перехода
     if (isMobile()) {
+        console.log('Mobile: Calling handleMobileAfterSelect for user:', username);
         handleMobileAfterSelect();
     }
     
@@ -3211,13 +3232,34 @@ function isMobile() {
 function handleMobileAfterSelect() {
     // Добавляем небольшую задержку, чтобы избежать конфликтов при инициализации
     setTimeout(() => {
-        if (isMobile() && state.selectedUser) {
-            document.querySelector('.sidebar')?.classList.add('hidden-mobile');
-            document.getElementById('chat-screen')?.classList.add('chat-open');
+        if (isMobile()) {
+            const sidebar = document.querySelector('.sidebar');
+            const chatScreen = document.getElementById('chat-screen');
             
-            // Лёгкая вибрация
-            if (navigator.vibrate) {
-                navigator.vibrate(10);
+            // Если есть выбранный пользователь - показываем чат
+            if (state.selectedUser) {
+                console.log('Mobile: Opening chat for user', state.selectedUser.username);
+                sidebar?.classList.add('hidden-mobile');
+                chatScreen?.classList.add('chat-open');
+                
+                // Принудительно показываем элементы чата
+                const chatHeader = document.querySelector('.chat-header');
+                const messages = document.querySelector('.messages');
+                const messageForm = document.querySelector('.message-form');
+                
+                if (chatHeader) chatHeader.style.display = 'flex';
+                if (messages) messages.style.display = 'flex';
+                if (messageForm) messageForm.style.display = 'flex';
+                
+                // Лёгкая вибрация
+                if (navigator.vibrate) {
+                    navigator.vibrate(10);
+                }
+            } else {
+                // Если нет выбранного пользователя - показываем сайдбар
+                console.log('Mobile: Showing sidebar (no user selected)');
+                sidebar?.classList.remove('hidden-mobile');
+                chatScreen?.classList.remove('chat-open');
             }
         }
     }, 100);
@@ -5900,8 +5942,32 @@ document.addEventListener('DOMContentLoaded', () => {
     // === МОБИЛЬНАЯ НАВИГАЦИЯ ===
     
     document.getElementById('back-btn')?.addEventListener('click', () => {
-        document.querySelector('.sidebar')?.classList.remove('hidden-mobile');
-        document.getElementById('chat-screen')?.classList.remove('chat-open');
+        console.log('Mobile: Back button clicked');
+        const sidebar = document.querySelector('.sidebar');
+        const chatScreen = document.getElementById('chat-screen');
+        
+        // Показываем сайдбар
+        sidebar?.classList.remove('hidden-mobile');
+        chatScreen?.classList.remove('chat-open');
+        
+        // Принудительно показываем сайдбар и скрываем чат
+        if (sidebar) {
+            sidebar.style.display = 'flex';
+            sidebar.style.transform = 'translateX(0)';
+            sidebar.style.pointerEvents = 'auto';
+        }
+        
+        // Скрываем элементы чата
+        const chatHeader = document.querySelector('.chat-header');
+        const messages = document.querySelector('.messages');
+        const messageForm = document.querySelector('.message-form');
+        
+        if (chatHeader) chatHeader.style.display = 'none';
+        if (messages) messages.style.display = 'none';
+        if (messageForm) messageForm.style.display = 'none';
+        
+        // Сбрасываем выбранного пользователя
+        state.selectedUser = null;
     });
     
     window.addEventListener('resize', () => {
