@@ -12149,6 +12149,8 @@ function initEmojiPicker() {
             
             if (tabType === 'emojis') {
                 loadEmojiCategory(currentEmojiCategory);
+            } else if (tabType === 'stickers') {
+                loadStickers();
             }
         });
     });
@@ -12166,6 +12168,30 @@ function initEmojiPicker() {
         });
     });
     
+    // Обработчики для стикеров
+    document.addEventListener('click', (e) => {
+        const stickerItem = e.target.closest('.sticker-item');
+        if (stickerItem && stickerItem.closest('#stickers-content')) {
+            const stickerId = stickerItem.dataset.stickerId;
+            if (window.stickerManager) {
+                window.stickerManager.selectSticker(stickerId);
+                emojiPicker.classList.add('hidden');
+            }
+        }
+    });
+    
+    // Обработчики для категорий стикеров
+    document.addEventListener('click', (e) => {
+        const stickerCategory = e.target.closest('.sticker-category');
+        if (stickerCategory && stickerCategory.closest('#stickers-content')) {
+            document.querySelectorAll('#stickers-content .sticker-category').forEach(c => c.classList.remove('active'));
+            stickerCategory.classList.add('active');
+            if (window.stickerManager) {
+                window.stickerManager.renderStickers();
+            }
+        }
+    });
+    
     // Открытие/закрытие пикера
     emojiBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -12175,8 +12201,9 @@ function initEmojiPicker() {
         
         emojiPicker.classList.toggle('hidden');
         if (!emojiPicker.classList.contains('hidden')) {
-            // Загружаем стикеры при первом открытии
-            if (document.querySelector('.emoji-tab.active').dataset.tab === 'stickers') {
+            // Загружаем контент при первом открытии
+            const activeTab = document.querySelector('.emoji-tab.active').dataset.tab;
+            if (activeTab === 'stickers') {
                 loadStickers();
             } else {
                 loadEmojiCategory(currentEmojiCategory);
@@ -12249,8 +12276,23 @@ function loadStickers() {
     const stickerGrid = document.getElementById('sticker-grid-main');
     if (!stickerGrid || !window.stickerManager) return;
     
+    // Временно меняем id для совместимости с StickerManager
+    const originalGrid = document.getElementById('sticker-grid');
+    if (originalGrid) originalGrid.id = 'sticker-grid-temp';
+    stickerGrid.id = 'sticker-grid';
+    
     // Используем существующую логику загрузки стикеров
-    window.stickerManager.loadStickers().then(() => {
-        window.stickerManager.renderStickers(stickerGrid);
-    });
+    if (window.stickerManager.stickers.length === 0) {
+        window.stickerManager.loadStickers().then(() => {
+            window.stickerManager.renderStickers();
+            // Возвращаем id обратно
+            stickerGrid.id = 'sticker-grid-main';
+            if (originalGrid) originalGrid.id = 'sticker-grid';
+        });
+    } else {
+        window.stickerManager.renderStickers();
+        // Возвращаем id обратно
+        stickerGrid.id = 'sticker-grid-main';
+        if (originalGrid) originalGrid.id = 'sticker-grid';
+    }
 }

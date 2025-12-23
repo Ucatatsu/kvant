@@ -14845,8 +14845,3 @@ select option {
     font-size: 16px;
   }
 }
-
-/* Скрытие старого стикер-пикера */
-.sticker-picker {
-  display: none !important;
-}
