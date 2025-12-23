@@ -7234,11 +7234,15 @@ input:focus {
 
 /* Message media */
 .message-media {
-  max-width: 300px;
-  max-height: 300px;
+  max-width: 250px;
+  max-height: 200px;
+  width: auto;
+  height: auto;
   border-radius: 12px;
   cursor: pointer;
   transition: transform 0.2s;
+  object-fit: cover;
+  display: block;
 }
 
 .message-media:hover {
@@ -7248,6 +7252,7 @@ input:focus {
 .message-bubble:has(.message-media) {
   padding: 4px;
   background: transparent;
+  max-width: 260px;
 }
 
 .message.sent .message-bubble:has(.message-media) {
@@ -7262,16 +7267,20 @@ input:focus {
 }
 
 .messages.size-small .message-media {
-  max-width: 200px;
-  max-height: 200px;
+  max-width: 180px;
+  max-height: 150px;
+}
+
+.messages.size-small .message-bubble:has(.message-media) {
+  max-width: 190px;
 }
 
 .messages.size-small .video-message {
-  max-width: 180px;
+  max-width: 160px;
 }
 
 .messages.size-small .video-preview {
-  max-height: 240px;
+  max-height: 200px;
 }
 
 /* Large size */
@@ -7281,12 +7290,16 @@ input:focus {
 }
 
 .messages.size-large .message-media {
-  max-width: 400px;
-  max-height: 400px;
+  max-width: 320px;
+  max-height: 250px;
+}
+
+.messages.size-large .message-bubble:has(.message-media) {
+  max-width: 330px;
 }
 
 .messages.size-large .video-message {
-  max-width: 360px;
+  max-width: 300px;
 }
 
 .messages.size-large .video-preview {
@@ -10932,6 +10945,8 @@ input[type="range"].volume-slider::before,
 
 .message.channel-post .message-media {
   max-width: 100%;
+  max-height: 300px;
+  object-fit: cover;
   border-radius: 12px;
   margin-bottom: 8px;
 }
@@ -14541,6 +14556,35 @@ select option {
     pointer-events: none !important;
   }
   
+  /* Изображения в сообщениях на мобильных */
+  .message-media {
+    max-width: 200px !important;
+    max-height: 150px !important;
+    object-fit: cover !important;
+  }
+  
+  .message-bubble:has(.message-media) {
+    max-width: 210px !important;
+  }
+  
+  .messages.size-small .message-media {
+    max-width: 160px !important;
+    max-height: 120px !important;
+  }
+  
+  .messages.size-small .message-bubble:has(.message-media) {
+    max-width: 170px !important;
+  }
+  
+  .messages.size-large .message-media {
+    max-width: 240px !important;
+    max-height: 180px !important;
+  }
+  
+  .messages.size-large .message-bubble:has(.message-media) {
+    max-width: 250px !important;
+  }
+
   /* Кнопка назад всегда видна в чате */
   .back-btn {
     display: flex !important;
@@ -14558,4 +14602,60 @@ select option {
     font-size: 18px !important;
     cursor: pointer !important;
   }
+}
+/* === УЛУЧШЕННЫЕ СТИЛИ ДЛЯ ИЗОБРАЖЕНИЙ === */
+
+/* Адаптивные изображения в зависимости от соотношения сторон */
+.message-media {
+  /* Для широких изображений (пейзажи) */
+  aspect-ratio: auto;
+}
+
+/* Квадратные и портретные изображения */
+.message-media[style*="aspect-ratio"] {
+  max-height: 250px;
+}
+
+/* Предотвращение растягивания маленьких изображений */
+.message-media {
+  min-width: 100px;
+  min-height: 80px;
+}
+
+/* Улучшенное отображение на мобильных */
+@media (max-width: 768px) {
+  .message-media {
+    min-width: 80px !important;
+    min-height: 60px !important;
+  }
+  
+  /* Для очень узких экранов */
+  @media (max-width: 480px) {
+    .message-media {
+      max-width: 180px !important;
+      max-height: 135px !important;
+    }
+    
+    .message-bubble:has(.message-media) {
+      max-width: 190px !important;
+    }
+  }
+}
+
+/* Плавная загрузка изображений */
+.message-media {
+  background: var(--bg-medium);
+  background-image: linear-gradient(45deg, transparent 25%, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.1) 50%, transparent 50%, transparent 75%, rgba(255,255,255,0.1) 75%);
+  background-size: 20px 20px;
+  animation: loading-shimmer 1.5s infinite linear;
+}
+
+.message-media[src] {
+  background: none;
+  animation: none;
+}
+
+@keyframes loading-shimmer {
+  0% { background-position: 0 0; }
+  100% { background-position: 20px 20px; }
 }
