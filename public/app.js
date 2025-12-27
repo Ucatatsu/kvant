@@ -3678,7 +3678,8 @@ function playCallSound(soundType = 'classic') {
 }
 
 function playNotificationSound(preview = false) {
-    if (!preview && state.settings.sounds === false) return;
+    // Звуки уведомлений всегда включены, проверяем только громкость
+    if (!preview && (state.settings.notificationVolume || state.settings.volume || 50) === 0) return;
     
     const soundType = state.settings.notificationSound || 'default';
     const soundConfig = notificationSounds[soundType];
@@ -6014,11 +6015,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    document.getElementById('sounds-checkbox')?.addEventListener('change', (e) => {
-        state.settings.sounds = e.target.checked;
-        saveSettings();
-    });
-    
     // Звук уведомлений
     document.getElementById('notification-sound-select')?.addEventListener('change', (e) => {
         state.settings.notificationSound = e.target.value;
@@ -7153,7 +7149,6 @@ function showSettings() {
     const avatarsCheckbox = document.getElementById('setting-avatars');
     
     if (notifCheckbox) notifCheckbox.checked = state.notificationsEnabled;
-    if (soundsCheckbox) soundsCheckbox.checked = state.settings.sounds !== false;
     if (avatarsCheckbox) avatarsCheckbox.checked = !state.settings.hideAvatars;
     
     // Звук уведомлений
@@ -9421,13 +9416,6 @@ document.addEventListener('DOMContentLoaded', () => {
             requestNotificationPermission();
         }
         showToast(e.target.checked ? 'Уведомления включены' : 'Уведомления выключены');
-    });
-    
-    // Звуки
-    document.getElementById('sounds-checkbox')?.addEventListener('change', (e) => {
-        state.settings.sounds = e.target.checked;
-        saveSettings();
-        showToast(e.target.checked ? 'Звуки включены' : 'Звуки выключены');
     });
     
     // Функция для обновления визуального прогресса ползунка
