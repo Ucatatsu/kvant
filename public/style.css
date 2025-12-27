@@ -9011,9 +9011,15 @@ input[type="range"]:focus::-moz-range-thumb {
   font-weight: 600;
 }
 
-/* === FORCE BEAUTIFUL VOLUME SLIDER === */
+/* === BEAUTIFUL SLIDERS FOR ALL === */
 input[type="range"].volume-slider,
-#volume-slider {
+input[type="range"].styled-slider,
+.styled-slider,
+#volume-slider,
+#bg-blur-slider,
+#bg-dim-slider,
+#opacity-slider,
+#bubble-radius-slider {
   -webkit-appearance: none !important;
   appearance: none !important;
   height: 6px !important;
@@ -9028,13 +9034,25 @@ input[type="range"].volume-slider,
 }
 
 input[type="range"].volume-slider:hover,
-#volume-slider:hover {
+input[type="range"].styled-slider:hover,
+.styled-slider:hover,
+#volume-slider:hover,
+#bg-blur-slider:hover,
+#bg-dim-slider:hover,
+#opacity-slider:hover,
+#bubble-radius-slider:hover {
   box-shadow: 0 0 12px rgba(79, 195, 247, 0.4) !important;
   transform: none !important; /* Убираем любые трансформации */
 }
 
 input[type="range"].volume-slider::-webkit-slider-runnable-track,
-#volume-slider::-webkit-slider-runnable-track {
+input[type="range"].styled-slider::-webkit-slider-runnable-track,
+.styled-slider::-webkit-slider-runnable-track,
+#volume-slider::-webkit-slider-runnable-track,
+#bg-blur-slider::-webkit-slider-runnable-track,
+#bg-dim-slider::-webkit-slider-runnable-track,
+#opacity-slider::-webkit-slider-runnable-track,
+#bubble-radius-slider::-webkit-slider-runnable-track {
   height: 6px !important;
   border-radius: 3px !important;
   background: var(--bg-light) !important;
@@ -9042,7 +9060,13 @@ input[type="range"].volume-slider::-webkit-slider-runnable-track,
 }
 
 input[type="range"].volume-slider::-webkit-slider-thumb,
-#volume-slider::-webkit-slider-thumb {
+input[type="range"].styled-slider::-webkit-slider-thumb,
+.styled-slider::-webkit-slider-thumb,
+#volume-slider::-webkit-slider-thumb,
+#bg-blur-slider::-webkit-slider-thumb,
+#bg-dim-slider::-webkit-slider-thumb,
+#opacity-slider::-webkit-slider-thumb,
+#bubble-radius-slider::-webkit-slider-thumb {
   -webkit-appearance: none !important;
   width: 20px !important;
   height: 20px !important;
@@ -9057,13 +9081,25 @@ input[type="range"].volume-slider::-webkit-slider-thumb,
 }
 
 input[type="range"].volume-slider::-webkit-slider-thumb:hover,
-#volume-slider::-webkit-slider-thumb:hover {
+input[type="range"].styled-slider::-webkit-slider-thumb:hover,
+.styled-slider::-webkit-slider-thumb:hover,
+#volume-slider::-webkit-slider-thumb:hover,
+#bg-blur-slider::-webkit-slider-thumb:hover,
+#bg-dim-slider::-webkit-slider-thumb:hover,
+#opacity-slider::-webkit-slider-thumb:hover,
+#bubble-radius-slider::-webkit-slider-thumb:hover {
   transform: scale(1.1) !important;
   box-shadow: 0 4px 15px rgba(79, 195, 247, 0.7) !important;
 }
 
 input[type="range"].volume-slider::-webkit-slider-thumb:active,
-#volume-slider::-webkit-slider-thumb:active {
+input[type="range"].styled-slider::-webkit-slider-thumb:active,
+.styled-slider::-webkit-slider-thumb:active,
+#volume-slider::-webkit-slider-thumb:active,
+#bg-blur-slider::-webkit-slider-thumb:active,
+#bg-dim-slider::-webkit-slider-thumb:active,
+#opacity-slider::-webkit-slider-thumb:active,
+#bubble-radius-slider::-webkit-slider-thumb:active {
   cursor: grabbing !important;
   transform: scale(1.05) !important;
   box-shadow: 0 3px 12px rgba(79, 195, 247, 0.8) !important;
@@ -9071,7 +9107,13 @@ input[type="range"].volume-slider::-webkit-slider-thumb:active,
 
 /* Firefox styles */
 input[type="range"].volume-slider::-moz-range-thumb,
-#volume-slider::-moz-range-thumb {
+input[type="range"].styled-slider::-moz-range-thumb,
+.styled-slider::-moz-range-thumb,
+#volume-slider::-moz-range-thumb,
+#bg-blur-slider::-moz-range-thumb,
+#bg-dim-slider::-moz-range-thumb,
+#opacity-slider::-moz-range-thumb,
+#bubble-radius-slider::-moz-range-thumb {
   width: 20px !important;
   height: 20px !important;
   border-radius: 50% !important;
@@ -9083,7 +9125,13 @@ input[type="range"].volume-slider::-moz-range-thumb,
 }
 
 input[type="range"].volume-slider::-moz-range-track,
-#volume-slider::-moz-range-track {
+input[type="range"].styled-slider::-moz-range-track,
+.styled-slider::-moz-range-track,
+#volume-slider::-moz-range-track,
+#bg-blur-slider::-moz-range-track,
+#bg-dim-slider::-moz-range-track,
+#opacity-slider::-moz-range-track,
+#bubble-radius-slider::-moz-range-track {
   height: 6px !important;
   border-radius: 3px !important;
   background: var(--bg-light) !important;
@@ -9091,7 +9139,13 @@ input[type="range"].volume-slider::-moz-range-track,
 }
 
 input[type="range"].volume-slider::-moz-range-progress,
-#volume-slider::-moz-range-progress {
+input[type="range"].styled-slider::-moz-range-progress,
+.styled-slider::-moz-range-progress,
+#volume-slider::-moz-range-progress,
+#bg-blur-slider::-moz-range-progress,
+#bg-dim-slider::-moz-range-progress,
+#opacity-slider::-moz-range-progress,
+#bubble-radius-slider::-moz-range-progress {
   height: 6px !important;
   border-radius: 3px !important;
   background: linear-gradient(90deg, var(--accent), var(--accent-light)) !important;
@@ -12778,9 +12832,8 @@ input[type="range"].volume-slider::before,
   background: rgba(255, 255, 255, 0.05);
 }
 
-/* Custom select styling */
-.custom-select,
-select {
+/* Custom select styling - ТОЛЬКО для обычных select, НЕ для кастомных */
+select:not(.custom-select):not(#notification-sound-select) {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -12798,8 +12851,7 @@ select {
   background-position: right 14px center;
 }
 
-.custom-select:hover,
-select:hover {
+select:not(.custom-select):not(#notification-sound-select):hover {
   border-color: var(--accent);
   background-color: var(--bg-light);
 }
@@ -13930,6 +13982,14 @@ select option {
   position: relative;
   width: 100%;
   min-width: 200px;
+  /* Сбрасываем все стили select */
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: none !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
 }
 
 /* Принудительно скрываем оригинальный select */
@@ -13940,6 +14000,20 @@ select option {
   left: -9999px !important;
   opacity: 0 !important;
   pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  border: none !important;
+  background: none !important;
+  z-index: -1 !important;
+}
+
+/* Убираем стрелки у всех select в sound-controls */
+.sound-controls select,
+.sound-controls .settings-select {
+  display: none !important;
+  visibility: hidden !important;
+  position: absolute !important;
+  left: -9999px !important;
 }
 
 .select-trigger {
