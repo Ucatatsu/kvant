@@ -498,6 +498,10 @@
             <span class="nav-icon" aria-hidden="true"><img src="/assets/bell.svg" alt="" class="icon-sm"></span>
             <span>Уведомления</span>
           </div>
+          <div class="settings-nav-item" data-section="sound" role="tab" tabindex="0">
+            <span class="nav-icon" aria-hidden="true"><img src="/assets/headphones.svg" alt="" class="icon-sm"></span>
+            <span>Звук</span>
+          </div>
           <div class="settings-nav-item" data-section="privacy" role="tab" tabindex="0">
             <span class="nav-icon" aria-hidden="true"><img src="/assets/messenga-lock.svg" alt="" class="icon-sm"></span>
             <span>Приватность</span>
@@ -832,10 +836,18 @@
                 <span class="toggle-slider"></span>
               </label>
             </div>
+          </div>
+        </section>
+        
+        <!-- Звук -->
+        <section class="settings-section" id="section-sound" role="tabpanel">
+          <h2>Звук</h2>
+          <div class="settings-group">
+            <h3>Уведомления</h3>
             <div class="settings-item">
               <div class="settings-item-info">
-                <span class="settings-item-title">Звуки</span>
-                <span class="settings-item-desc">Звуковые уведомления</span>
+                <span class="settings-item-title">Звуки уведомлений</span>
+                <span class="settings-item-desc">Звуковые уведомления о сообщениях</span>
               </div>
               <label class="toggle">
                 <input type="checkbox" id="sounds-checkbox" checked>
@@ -911,14 +923,87 @@
             </div>
             <div class="settings-item volume-setting">
               <div class="settings-item-info">
-                <span class="settings-item-title">Громкость</span>
-                <span class="settings-item-desc">Уровень громкости звуков</span>
+                <span class="settings-item-title">Громкость уведомлений</span>
+                <span class="settings-item-desc">Уровень громкости звуков уведомлений</span>
               </div>
               <div class="volume-control">
                 <span class="volume-icon">🔈</span>
-                <input type="range" id="volume-slider" class="styled-slider volume-slider" min="0" max="100" step="10" value="50">
+                <input type="range" id="notification-volume-slider" class="styled-slider volume-slider" min="0" max="100" step="10" value="50">
                 <span class="volume-icon">🔊</span>
-                <span class="volume-value" id="volume-value">50%</span>
+                <span class="volume-value" id="notification-volume-value">50%</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="settings-group">
+            <h3>Звонки</h3>
+            <div class="settings-item sound-setting">
+              <div class="settings-item-info">
+                <span class="settings-item-title">Звук входящего звонка</span>
+                <span class="settings-item-desc">Выберите мелодию для входящих звонков</span>
+              </div>
+              <div class="sound-controls">
+                <div class="custom-select" id="call-sound-custom">
+                  <div class="select-trigger">
+                    <span class="select-value">Классический</span>
+                    <div class="select-arrow">
+                      <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
+                        <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </div>
+                  </div>
+                  <div class="select-options">
+                    <div class="select-option" data-value="classic">
+                      <span class="option-icon">📞</span>
+                      <span class="option-text">Классический</span>
+                    </div>
+                    <div class="select-option" data-value="modern">
+                      <span class="option-icon">📱</span>
+                      <span class="option-text">Современный</span>
+                    </div>
+                    <div class="select-option" data-value="gentle">
+                      <span class="option-icon">🎵</span>
+                      <span class="option-text">Мягкий</span>
+                    </div>
+                    <div class="select-option" data-value="urgent">
+                      <span class="option-icon">🚨</span>
+                      <span class="option-text">Срочный</span>
+                    </div>
+                    <div class="select-option" data-value="melody">
+                      <span class="option-icon">🎶</span>
+                      <span class="option-text">Мелодия</span>
+                    </div>
+                    <div class="select-option" data-value="none">
+                      <span class="option-icon">🔇</span>
+                      <span class="option-text">Без звука</span>
+                    </div>
+                  </div>
+                </div>
+                <!-- Скрытый select для совместимости -->
+                <select id="call-sound-select" class="settings-select" style="display: none !important; visibility: hidden !important; position: absolute !important; left: -9999px !important;">
+                  <option value="classic">Классический</option>
+                  <option value="modern">Современный</option>
+                  <option value="gentle">Мягкий</option>
+                  <option value="urgent">Срочный</option>
+                  <option value="melody">Мелодия</option>
+                  <option value="none">Без звука</option>
+                </select>
+                <button class="btn-play-sound" id="play-call-sound-btn" title="Прослушать звук">
+                  <span class="play-icon">▶</span>
+                  <span class="play-text">Прослушать</span>
+                </button>
+              </div>
+            </div>
+            <div class="settings-item volume-setting">
+              <div class="settings-item-info">
+                <span class="settings-item-title">Громкость звонков</span>
+                <span class="settings-item-desc">Уровень громкости звуков звонков</span>
+              </div>
+              <div class="volume-control">
+                <span class="volume-icon">🔈</span>
+                <input type="range" id="call-volume-slider" class="styled-slider volume-slider" min="0" max="100" step="10" value="70">
+                <span class="volume-icon">🔊</span>
+                <span class="volume-value" id="call-volume-value">70%</span>
               </div>
             </div>
           </div>

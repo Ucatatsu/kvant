@@ -3479,6 +3479,204 @@ const notificationSounds = {
     }
 };
 
+// Звуки звонков
+const callSounds = {
+    classic: {
+        name: 'Классический',
+        generate: (audioCtx, volume) => {
+            // Классический звук телефона - двойной звонок
+            let ringCount = 0;
+            const maxRings = 3;
+            
+            function playRing() {
+                if (ringCount >= maxRings) return;
+                
+                const now = audioCtx.currentTime + (ringCount * 1.5);
+                
+                // Двойной звонок
+                [0, 0.15].forEach((delay) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, now + delay);
+                    osc.frequency.setValueAtTime(520, now + delay + 0.1);
+                    
+                    gain.gain.setValueAtTime(volume * 0.8, now + delay);
+                    gain.gain.exponentialRampToValueAtTime(volume * 0.3, now + delay + 0.15);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + delay + 0.25);
+                    
+                    osc.start(now + delay);
+                    osc.stop(now + delay + 0.25);
+                });
+                
+                ringCount++;
+                if (ringCount < maxRings) {
+                    setTimeout(playRing, 400);
+                }
+            }
+            
+            playRing();
+        }
+    },
+    
+    modern: {
+        name: 'Современный',
+        generate: (audioCtx, volume) => {
+            // Современный мелодичный звук
+            const frequencies = [523, 659, 784, 659]; // C5, E5, G5, E5
+            let noteIndex = 0;
+            
+            function playNote() {
+                if (noteIndex >= frequencies.length * 2) return;
+                
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.type = 'triangle';
+                osc.frequency.value = frequencies[noteIndex % frequencies.length];
+                
+                gain.gain.setValueAtTime(volume * 0.6, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+                
+                noteIndex++;
+                if (noteIndex < frequencies.length * 2) {
+                    setTimeout(playNote, 300);
+                }
+            }
+            
+            playNote();
+        }
+    },
+    
+    gentle: {
+        name: 'Мягкий',
+        generate: (audioCtx, volume) => {
+            // Мягкий нарастающий звук
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(349, audioCtx.currentTime); // F4
+            osc.frequency.exponentialRampToValueAtTime(523, audioCtx.currentTime + 1); // C5
+            
+            gain.gain.setValueAtTime(0.01, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(volume * 0.5, audioCtx.currentTime + 0.5);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 2);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 2);
+        }
+    },
+    
+    urgent: {
+        name: 'Срочный',
+        generate: (audioCtx, volume) => {
+            // Быстрый повторяющийся сигнал
+            let beepCount = 0;
+            const maxBeeps = 6;
+            
+            function playBeep() {
+                if (beepCount >= maxBeeps) return;
+                
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.type = 'square';
+                osc.frequency.value = 880; // A5
+                
+                gain.gain.setValueAtTime(volume * 0.7, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+                
+                beepCount++;
+                if (beepCount < maxBeeps) {
+                    setTimeout(playBeep, 150);
+                }
+            }
+            
+            playBeep();
+        }
+    },
+    
+    melody: {
+        name: 'Мелодия',
+        generate: (audioCtx, volume) => {
+            // Простая мелодия
+            const melody = [523, 587, 659, 698, 784]; // C5, D5, E5, F5, G5
+            let noteIndex = 0;
+            
+            function playNote() {
+                if (noteIndex >= melody.length) return;
+                
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.type = 'triangle';
+                osc.frequency.value = melody[noteIndex];
+                
+                gain.gain.setValueAtTime(volume * 0.6, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4);
+                
+                noteIndex++;
+                if (noteIndex < melody.length) {
+                    setTimeout(playNote, 400);
+                }
+            }
+            
+            playNote();
+        }
+    },
+    
+    none: {
+        name: 'Без звука',
+        generate: () => {} // Пустая функция
+    }
+};
+
+function playCallSound(soundType = 'classic') {
+    const soundConfig = callSounds[soundType];
+    
+    if (!soundConfig || !soundConfig.generate) return;
+    
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const volume = (state.settings.callVolume || 70) / 100;
+        
+        // Возобновляем контекст если он приостановлен
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        
+        soundConfig.generate(audioCtx, volume);
+    } catch (e) {
+        console.log('Call sound play error:', e);
+    }
+}
+
 function playNotificationSound(preview = false) {
     if (!preview && state.settings.sounds === false) return;
     
@@ -3489,7 +3687,7 @@ function playNotificationSound(preview = false) {
     
     try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const volume = (state.settings.volume || 50) / 100;
+        const volume = (state.settings.notificationVolume || state.settings.volume || 50) / 100;
         
         // Возобновляем контекст если он приостановлен
         if (audioCtx.state === 'suspended') {
@@ -3511,7 +3709,11 @@ function syncSettingsToServer() {
             const settingsToSync = { ...state.settings };
             // Локальные настройки - не синхронизируем
             delete settingsToSync.sounds; // Звук - локальная настройка
-            delete settingsToSync.volume; // Громкость - локальная настройка
+            delete settingsToSync.volume; // Старая громкость - локальная настройка
+            delete settingsToSync.notificationVolume; // Громкость уведомлений - локальная настройка
+            delete settingsToSync.callVolume; // Громкость звонков - локальная настройка
+            delete settingsToSync.notificationSound; // Звук уведомлений - локальная настройка
+            delete settingsToSync.callSound; // Звук звонков - локальная настройка
             // customBg синхронизируем для привязки к аккаунту
             
             await fetch('/api/settings', {
@@ -6967,6 +7169,19 @@ function showSettings() {
         }
     }
     
+    // Звук звонков
+    const callSoundSelect = document.getElementById('call-sound-select');
+    if (callSoundSelect) {
+        callSoundSelect.value = state.settings.callSound || 'classic';
+        // Обновляем кастомный select если он существует
+        const customCallSelect = document.getElementById('call-sound-custom');
+        if (customCallSelect) {
+            // Триггерим обновление кастомного select
+            const event = new Event('change');
+            callSoundSelect.dispatchEvent(event);
+        }
+    }
+    
     // Приватность
     const onlineVisibility = document.getElementById('online-visibility-select');
     const hideTyping = document.getElementById('setting-hide-typing');
@@ -9278,6 +9493,98 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
+    // Громкость уведомлений (новый ползунок)
+    const notificationVolumeSlider = document.getElementById('notification-volume-slider');
+    const notificationVolumeValue = document.getElementById('notification-volume-value');
+    if (notificationVolumeSlider) {
+        notificationVolumeSlider.setAttribute('step', '10');
+        notificationVolumeSlider.setAttribute('min', '0');
+        notificationVolumeSlider.setAttribute('max', '100');
+        notificationVolumeSlider.setAttribute('class', 'styled-slider volume-slider');
+        
+        let vol = state.settings.notificationVolume ?? state.settings.volume ?? 50;
+        vol = Math.round(vol / 10) * 10;
+        vol = Math.max(0, Math.min(100, vol));
+        notificationVolumeSlider.value = vol;
+        
+        if (notificationVolumeValue) notificationVolumeValue.textContent = `${vol}%`;
+        updateSliderProgress(notificationVolumeSlider);
+        
+        notificationVolumeSlider.addEventListener('input', (e) => {
+            let vol = parseInt(e.target.value);
+            vol = Math.round(vol / 10) * 10;
+            vol = Math.max(0, Math.min(100, vol));
+            e.target.value = vol;
+            
+            state.settings.notificationVolume = vol;
+            if (notificationVolumeValue) notificationVolumeValue.textContent = `${vol}%`;
+            updateSliderProgress(e.target);
+            saveSettings();
+        });
+    }
+    
+    // Громкость звонков
+    const callVolumeSlider = document.getElementById('call-volume-slider');
+    const callVolumeValue = document.getElementById('call-volume-value');
+    if (callVolumeSlider) {
+        callVolumeSlider.setAttribute('step', '10');
+        callVolumeSlider.setAttribute('min', '0');
+        callVolumeSlider.setAttribute('max', '100');
+        callVolumeSlider.setAttribute('class', 'styled-slider volume-slider');
+        
+        let vol = state.settings.callVolume ?? 70;
+        vol = Math.round(vol / 10) * 10;
+        vol = Math.max(0, Math.min(100, vol));
+        callVolumeSlider.value = vol;
+        
+        if (callVolumeValue) callVolumeValue.textContent = `${vol}%`;
+        updateSliderProgress(callVolumeSlider);
+        
+        callVolumeSlider.addEventListener('input', (e) => {
+            let vol = parseInt(e.target.value);
+            vol = Math.round(vol / 10) * 10;
+            vol = Math.max(0, Math.min(100, vol));
+            e.target.value = vol;
+            
+            state.settings.callVolume = vol;
+            if (callVolumeValue) callVolumeValue.textContent = `${vol}%`;
+            updateSliderProgress(e.target);
+            saveSettings();
+        });
+    }
+    
+    // Кастомный select для звуков звонков
+    initCustomSelect('call-sound-custom', 'call-sound-select');
+    
+    // Звук звонков
+    document.getElementById('call-sound-select')?.addEventListener('change', (e) => {
+        state.settings.callSound = e.target.value;
+        saveSettings();
+    });
+    
+    // Кнопка прослушивания звука звонка
+    document.getElementById('play-call-sound-btn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        const btn = e.target.closest('.btn-play-sound');
+        const playIcon = btn.querySelector('.play-icon');
+        const playText = btn.querySelector('.play-text');
+        
+        if (btn.classList.contains('playing')) return;
+        
+        btn.classList.add('playing');
+        playIcon.textContent = '⏸';
+        playText.textContent = 'Играет...';
+        
+        // Воспроизводим звук звонка
+        playCallSound(state.settings.callSound || 'classic');
+        
+        setTimeout(() => {
+            btn.classList.remove('playing');
+            playIcon.textContent = '▶';
+            playText.textContent = 'Прослушать';
+        }, 2000);
+    });
+    
     // Прозрачность панелей
     const opacitySlider = document.getElementById('opacity-slider');
     const opacityValue = document.getElementById('opacity-value');
@@ -11324,6 +11631,7 @@ function initCustomSelect(customSelectId, hiddenSelectId) {
     
     // Маппинг значений к иконкам и текстам
     const optionMap = {
+        // Звуки уведомлений
         'default': { icon: '🔔', text: 'По умолчанию' },
         'gentle': { icon: '🌸', text: 'Мягкий' },
         'modern': { icon: '⚡', text: 'Современный' },
@@ -11331,12 +11639,26 @@ function initCustomSelect(customSelectId, hiddenSelectId) {
         'chime': { icon: '🎵', text: 'Перезвон' },
         'digital': { icon: '🤖', text: 'Цифровой' },
         'subtle': { icon: '🍃', text: 'Деликатный' },
-        'none': { icon: '🔇', text: 'Без звука' }
+        'none': { icon: '🔇', text: 'Без звука' },
+        // Звуки звонков
+        'classic': { icon: '📞', text: 'Классический' },
+        'urgent': { icon: '🚨', text: 'Срочный' },
+        'melody': { icon: '🎶', text: 'Мелодия' }
     };
     
     // Установить начальное значение
     function setInitialValue() {
-        const currentValue = hiddenSelect.value || 'default';
+        let currentValue = hiddenSelect.value;
+        
+        // Определяем значение по умолчанию в зависимости от типа select
+        if (!currentValue) {
+            if (hiddenSelectId === 'call-sound-select') {
+                currentValue = 'classic';
+            } else {
+                currentValue = 'default';
+            }
+        }
+        
         const option = optionMap[currentValue];
         if (option) {
             valueElement.innerHTML = `<span class="option-icon">${option.icon}</span><span class="option-text">${option.text}</span>`;
