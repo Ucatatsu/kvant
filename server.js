@@ -408,31 +408,121 @@ app.get('/api/vapid-public-key', (_req, res) => {
 // TURN credentials - настраиваются через переменные окружения
 app.get('/api/turn-credentials', authMiddleware, async (_req, res) => {
     try {
-        // Используем Metered.ca REST API для получения актуальных credentials
-        const meteredApiKey = process.env.METERED_API_KEY || 'dfbac5aa6a7e10c7667b19eb29f56bd6ff50';
-        const meteredDomain = process.env.METERED_DOMAIN || 'kvantmsg.metered.live';
+        const iceServers = [];
         
-        const response = await fetch(`https://${meteredDomain}/api/v1/turn/credentials?apiKey=${meteredApiKey}`);
-        
-        if (response.ok) {
-            const iceServers = await response.json();
-            console.log('✅ Metered TURN credentials получены:', iceServers.length, 'серверов');
-            return res.json({ iceServers });
-        }
-        
-        console.error('❌ Metered API error:', response.status);
-    } catch (error) {
-        console.error('❌ Metered API fetch error:', error.message);
-    }
-    
-    // Fallback - только STUN
-    console.log('⚠️ FALLBACK: Только STUN серверы');
-    res.json({
-        iceServers: [
+        // Добавляем STUN серверы (всегда доступны)
+        iceServers.push(
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' }
-        ]
-    });
+        );
+        
+        // 1. Проверяем переменные окружения для прямых TURN серверов
+        const turnUrl1 = process.env.TURN_SERVER_URL;
+        const turnUrl2 = process.env.TURN_SERVER_URL_2;
+        const turnUrl3 = process.env.TURN_SERVER_URL_3;
+        const turnUsername = process.env.TURN_USERNAME;
+        const turnCredential = process.env.TURN_CREDENTIAL;
+        
+        if (turnUrl1 && turnUsername && turnCredential) {
+            iceServers.push({
+                urls: turnUrl1,
+                username: turnUsername,
+                credential: turnCredential
+            });
+            console.log('✅ TURN сервер 1 добавлен:', turnUrl1);
+        }
+        
+        if (turnUrl2 && turnUsername && turnCredential) {
+            iceServers.push({
+                urls: turnUrl2,
+                username: turnUsername,
+                credential: turnCredential
+            });
+            console.log('✅ TURN сервер 2 добавлен:', turnUrl2);
+        }
+        
+        if (turnUrl3 && turnUsername && turnCredential) {
+            iceServers.push({
+                urls: turnUrl3,
+                username: turnUsername,
+                credential: turnCredential
+            });
+            console.log('✅ TURN сервер 3 добавлен:', turnUrl3);
+        }
+        
+        // 2. Если нет прямых TURN серверов, пробуем Xirsys API
+        if (iceServers.length === 2) { // Только STUN серверы
+            const xirsysIdent = process.env.XIRSYS_IDENT;
+            const xirsysSecret = process.env.XIRSYS_SECRET;
+            const xirsysChannel = process.env.XIRSYS_CHANNEL || 'default';
+            
+            if (xirsysIdent && xirsysSecret) {
+                try {
+                    const xirsysUrl = `https://global.xirsys.com/_turn/${xirsysIdent}/${xirsysChannel}`;
+                    const auth = Buffer.from(`${xirsysIdent}:${xirsysSecret}`).toString('base64');
+                    
+                    const response = await fetch(xirsysUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Basic ${auth}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.s === 'ok' && data.v && data.v.iceServers) {
+                            iceServers.push(...data.v.iceServers);
+                            console.log('✅ Xirsys TURN credentials получены:', data.v.iceServers.length, 'серверов');
+                        }
+                    } else {
+                        console.error('❌ Xirsys API error:', response.status);
+                    }
+                } catch (error) {
+                    console.error('❌ Xirsys API fetch error:', error.message);
+                }
+            }
+        }
+        
+        // 3. Если все еще нет TURN серверов, пробуем Metered.ca как последний fallback
+        if (iceServers.length === 2) { // Только STUN серверы
+            try {
+                const meteredApiKey = process.env.METERED_API_KEY || 'dfbac5aa6a7e10c7667b19eb29f56bd6ff50';
+                const meteredDomain = process.env.METERED_DOMAIN || 'kvantmsg.metered.live';
+                
+                const response = await fetch(`https://${meteredDomain}/api/v1/turn/credentials?apiKey=${meteredApiKey}`);
+                
+                if (response.ok) {
+                    const meteredServers = await response.json();
+                    iceServers.push(...meteredServers);
+                    console.log('✅ Metered TURN credentials получены:', meteredServers.length, 'серверов');
+                } else {
+                    console.error('❌ Metered API error:', response.status);
+                }
+            } catch (error) {
+                console.error('❌ Metered API fetch error:', error.message);
+            }
+        }
+        
+        if (iceServers.length > 2) {
+            console.log('✅ ICE серверы готовы:', iceServers.length, 'серверов (включая TURN)');
+        } else {
+            console.log('⚠️ ТОЛЬКО STUN серверы - звонки работают только в локальной сети!');
+        }
+        
+        res.json({ iceServers });
+        
+    } catch (error) {
+        console.error('❌ TURN credentials error:', error);
+        
+        // Fallback - только STUN
+        res.json({
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        });
+    }
 });
 
 // === ЗАЩИЩЁННЫЕ РОУТЫ ===
