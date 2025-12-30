@@ -410,10 +410,14 @@ app.get('/api/turn-credentials', authMiddleware, async (_req, res) => {
     try {
         const iceServers = [];
         
+        console.log('🔄 Запрос TURN credentials от пользователя:', _req.user.username);
+        
         // Добавляем STUN серверы (всегда доступны)
         iceServers.push(
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' }
         );
         
         // 1. Проверяем переменные окружения для прямых TURN серверов
@@ -451,64 +455,135 @@ app.get('/api/turn-credentials', authMiddleware, async (_req, res) => {
         }
         
         // 2. Если нет прямых TURN серверов, пробуем Xirsys API
-        if (iceServers.length === 2) { // Только STUN серверы
+        if (iceServers.length === 4) { // Только STUN серверы
             const xirsysIdent = process.env.XIRSYS_IDENT;
             const xirsysSecret = process.env.XIRSYS_SECRET;
             const xirsysChannel = process.env.XIRSYS_CHANNEL || 'default';
+            
+            console.log('🔄 Пробуем Xirsys API...', { xirsysIdent, xirsysChannel });
             
             if (xirsysIdent && xirsysSecret) {
                 try {
                     const xirsysUrl = `https://global.xirsys.com/_turn/${xirsysIdent}/${xirsysChannel}`;
                     const auth = Buffer.from(`${xirsysIdent}:${xirsysSecret}`).toString('base64');
                     
+                    console.log('📡 Xirsys URL:', xirsysUrl);
+                    
                     const response = await fetch(xirsysUrl, {
                         method: 'PUT',
                         headers: {
                             'Authorization': `Basic ${auth}`,
                             'Content-Type': 'application/json'
-                        }
+                        },
+                        timeout: 10000 // 10 секунд таймаут
                     });
+                    
+                    console.log('📡 Xirsys response status:', response.status);
                     
                     if (response.ok) {
                         const data = await response.json();
+                        console.log('📡 Xirsys response data:', JSON.stringify(data, null, 2));
+                        
                         if (data.s === 'ok' && data.v && data.v.iceServers) {
                             iceServers.push(...data.v.iceServers);
                             console.log('✅ Xirsys TURN credentials получены:', data.v.iceServers.length, 'серверов');
+                            
+                            // Логируем каждый TURN сервер
+                            data.v.iceServers.forEach((server, i) => {
+                                console.log(`   TURN ${i+1}:`, server.urls, 'username:', server.username?.substring(0, 10) + '...');
+                            });
+                        } else {
+                            console.error('❌ Xirsys API неверный формат ответа:', data);
                         }
                     } else {
-                        console.error('❌ Xirsys API error:', response.status);
+                        const errorText = await response.text();
+                        console.error('❌ Xirsys API error:', response.status, errorText);
                     }
                 } catch (error) {
                     console.error('❌ Xirsys API fetch error:', error.message);
                 }
+            } else {
+                console.log('⚠️ Xirsys credentials не найдены в .env');
             }
         }
         
         // 3. Если все еще нет TURN серверов, пробуем Metered.ca как последний fallback
-        if (iceServers.length === 2) { // Только STUN серверы
+        if (iceServers.length === 4) { // Только STUN серверы
+            console.log('🔄 Xirsys не дал TURN серверы, пробуем Metered.ca...');
+            
             try {
                 const meteredApiKey = process.env.METERED_API_KEY || 'dfbac5aa6a7e10c7667b19eb29f56bd6ff50';
                 const meteredDomain = process.env.METERED_DOMAIN || 'kvantmsg.metered.live';
                 
-                const response = await fetch(`https://${meteredDomain}/api/v1/turn/credentials?apiKey=${meteredApiKey}`);
+                console.log('📡 Metered.ca domain:', meteredDomain);
+                
+                const response = await fetch(`https://${meteredDomain}/api/v1/turn/credentials?apiKey=${meteredApiKey}`, {
+                    timeout: 10000 // 10 секунд таймаут
+                });
+                
+                console.log('📡 Metered response status:', response.status);
                 
                 if (response.ok) {
                     const meteredServers = await response.json();
+                    console.log('📡 Metered response:', JSON.stringify(meteredServers, null, 2));
+                    
                     iceServers.push(...meteredServers);
                     console.log('✅ Metered TURN credentials получены:', meteredServers.length, 'серверов');
+                    
+                    // Логируем каждый TURN сервер
+                    meteredServers.forEach((server, i) => {
+                        console.log(`   TURN ${i+1}:`, server.urls, 'username:', server.username?.substring(0, 10) + '...');
+                    });
                 } else {
-                    console.error('❌ Metered API error:', response.status);
+                    const errorText = await response.text();
+                    console.error('❌ Metered API error:', response.status, errorText);
                 }
             } catch (error) {
                 console.error('❌ Metered API fetch error:', error.message);
             }
         }
         
-        if (iceServers.length > 2) {
+        // 4. Добавляем публичные TURN серверы как дополнительный fallback
+        if (iceServers.length === 4) { // Все еще только STUN
+            console.log('🔄 Добавляем публичные TURN серверы...');
+            
+            // Бесплатные публичные TURN серверы
+            iceServers.push(
+                {
+                    urls: 'turn:openrelay.metered.ca:80',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:443',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                }
+            );
+            
+            console.log('✅ Добавлены публичные TURN серверы: 3 сервера');
+        }
+        
+        if (iceServers.length > 4) {
             console.log('✅ ICE серверы готовы:', iceServers.length, 'серверов (включая TURN)');
+            console.log('📊 Состав серверов:');
+            console.log(`   - STUN серверы: 4`);
+            console.log(`   - TURN серверы: ${iceServers.length - 4}`);
         } else {
             console.log('⚠️ ТОЛЬКО STUN серверы - звонки работают только в локальной сети!');
         }
+        
+        // Логируем финальный список для отладки
+        console.log('📋 Финальный список ICE серверов:');
+        iceServers.forEach((server, i) => {
+            const serverType = server.urls.includes('turn:') || server.urls.includes('turns:') ? 'TURN' : 'STUN';
+            console.log(`   ${i+1}. ${serverType}: ${server.urls}`);
+        });
         
         res.json({ iceServers });
         

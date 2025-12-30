@@ -3929,7 +3929,8 @@ const callState = {
     pendingCandidates: [],       // Буфер ICE кандидатов
     connectionTimeout: null,     // Таймаут соединения
     reconnectAttempts: 0,        // Попытки переподключения
-    maxReconnectAttempts: 3      // Максимум попыток
+    maxReconnectAttempts: 3,     // Максимум попыток
+    candidateStats: null         // Статистика ICE кандидатов
 };
 
 // Алиасы для обратной совместимости
@@ -3968,14 +3969,27 @@ async function getIceServers() {
         if (res.ok) {
             const data = await res.json();
             
-            // Логируем серверы
+            // Детальное логирование серверов
             rtcLog('📡', 'Получены ICE серверы:');
+            let stunCount = 0, turnCount = 0;
+            
             data.iceServers.forEach((server, i) => {
                 const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
                 urls.forEach(url => {
-                    rtcLog('  ', `${i + 1}. ${url} ${server.username ? '(auth)' : ''}`);
+                    const serverType = url.includes('turn:') || url.includes('turns:') ? 'TURN' : 'STUN';
+                    if (serverType === 'TURN') turnCount++;
+                    else stunCount++;
+                    
+                    rtcLog('📡', `  ${i+1}. ${serverType}: ${url}${server.username ? ' (auth: ' + server.username.substring(0, 8) + '...)' : ''}`);
                 });
             });
+            
+            rtcLog('📊', `Итого: ${stunCount} STUN + ${turnCount} TURN серверов`);
+            
+            if (turnCount === 0) {
+                rtcLog('⚠️', 'НЕТ TURN СЕРВЕРОВ! Звонки работают только в локальной сети!');
+                showNotification('⚠️ Нет TURN серверов - звонки могут не работать между разными сетями', 'warning');
+            }
             
             const config = {
                 iceServers: data.iceServers,
@@ -3986,7 +4000,7 @@ async function getIceServers() {
             };
             
             callState.iceServersCache = config;
-            callState.iceServersCacheExpiry = now + 5 * 60 * 1000; // 5 минут
+            callState.iceServersCacheExpiry = now + 3 * 60 * 1000; // 3 минуты (чаще обновляем)
             
             rtcLog('✅', `TURN credentials получены: ${data.iceServers.length} серверов`);
             return config;
@@ -3999,6 +4013,8 @@ async function getIceServers() {
     
     // Fallback - только STUN (работает только в локальной сети)
     rtcLog('⚠️', 'FALLBACK: Только STUN серверы - звонки работают только в локальной сети!');
+    showNotification('⚠️ Проблема с TURN серверами - звонки могут не работать', 'error');
+    
     return {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
@@ -4063,16 +4079,38 @@ async function createPeerConnection() {
     // Обработка ICE кандидатов
     pc.onicecandidate = (event) => {
         if (event.candidate && callState.remoteUserId) {
-            const type = event.candidate.candidate.includes('relay') ? 'TURN' :
-                        event.candidate.candidate.includes('srflx') ? 'STUN' :
-                        event.candidate.candidate.includes('host') ? 'HOST' : '???';
+            const candidate = event.candidate.candidate;
+            const type = candidate.includes('relay') ? 'TURN' :
+                        candidate.includes('srflx') ? 'STUN' :
+                        candidate.includes('host') ? 'HOST' : 'UNKNOWN';
             
-            rtcLog('🧊', `ICE candidate [${type}]:`, event.candidate.candidate.substring(0, 60) + '...');
+            // Извлекаем IP и порт для диагностики
+            const ipMatch = candidate.match(/(\d+\.\d+\.\d+\.\d+|\[?[0-9a-f:]+\]?)/);
+            const portMatch = candidate.match(/(\d+) typ/);
+            const ip = ipMatch ? ipMatch[1] : 'unknown';
+            const port = portMatch ? portMatch[1] : 'unknown';
+            
+            rtcLog('🧊', `ICE candidate [${type}]: ${ip}:${port}`);
+            rtcLog('🔍', `Full candidate: ${candidate}`);
+            
+            // Считаем типы кандидатов
+            if (!callState.candidateStats) callState.candidateStats = { HOST: 0, STUN: 0, TURN: 0 };
+            callState.candidateStats[type]++;
             
             state.socket.emit('ice-candidate', {
                 to: callState.remoteUserId,
                 candidate: event.candidate.toJSON()
             });
+        } else if (!event.candidate) {
+            rtcLog('🧊', 'ICE gathering завершён');
+            if (callState.candidateStats) {
+                rtcLog('📊', `ICE кандидаты: HOST=${callState.candidateStats.HOST}, STUN=${callState.candidateStats.STUN}, TURN=${callState.candidateStats.TURN}`);
+                
+                if (callState.candidateStats.TURN === 0) {
+                    rtcLog('⚠️', 'НЕТ TURN КАНДИДАТОВ! Звонок может не работать между разными сетями!');
+                    showNotification('⚠️ Нет TURN кандидатов - проблемы с соединением возможны', 'warning');
+                }
+            }
         }
     };
     
