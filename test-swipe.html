@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест свайпов для ответов</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #0a1628;
+            color: white;
+        }
+        .test-message {
+            position: relative;
+            max-width: 60%;
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            padding: 12px 16px;
+            border-radius: 18px;
+            transition: transform 0.2s ease-out;
+        }
+        .test-message.sent {
+            background: linear-gradient(135deg, #4fc3f7, #1976d2);
+            align-self: flex-end;
+            margin-left: auto;
+        }
+        .test-message.received {
+            background: #162d50;
+            border: 1px solid rgba(79, 195, 247, 0.15);
+        }
+        .test-message.swiping::before {
+            content: '↩️';
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+            opacity: var(--reply-indicator-opacity, 0);
+            transition: opacity 0.1s ease-out;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .test-message.sent.swiping::before {
+            left: -40px;
+        }
+        .test-message.received.swiping::before {
+            right: -40px;
+        }
+        .test-message.reply-triggered {
+            animation: replyPulse 0.3s ease-out;
+        }
+        @keyframes replyPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        .instructions {
+            margin-bottom: 30px;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions">
+        <h2>Тест быстрых ответов</h2>
+        <p><strong>На мобильных:</strong></p>
+        <ul>
+            <li>Свайп влево по синему сообщению (исходящее)</li>
+            <li>Свайп вправо по серому сообщению (входящее)</li>
+        </ul>
+        <p><strong>На десктопе:</strong> Двойной клик по любому сообщению</p>
+    </div>
+
+    <div class="test-message sent" data-msg-id="1">
+        Это исходящее сообщение - свайп влево
+    </div>
+    
+    <div class="test-message received" data-msg-id="2">
+        Это входящее сообщение - свайп вправо
+    </div>
+    
+    <div class="test-message sent" data-msg-id="3">
+        Еще одно исходящее сообщение
+    </div>
+
+    <div id="result" style="margin-top: 30px; padding: 15px; background: rgba(0,255,0,0.1); border-radius: 10px; display: none;">
+        <h3>Результат:</h3>
+        <p id="result-text"></p>
+    </div>
+
+    <script>
+        // Упрощенная версия функции для тестирования
+        function addReplyHandlers(messageElement, msgId, isSent) {
+            let touchStartX = 0;
+            let touchStartY = 0;
+            let isDragging = false;
+            let lastClickTime = 0;
+            let currentTranslateX = 0;
+            
+            messageElement.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                isDragging = false;
+                messageElement.style.transition = 'none';
+            }, { passive: true });
+            
+            messageElement.addEventListener('touchmove', (e) => {
+                const touchX = e.touches[0].clientX;
+                const touchY = e.touches[0].clientY;
+                const deltaX = touchX - touchStartX;
+                const deltaY = touchY - touchStartY;
+                
+                if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+                    isDragging = true;
+                    const isValidSwipe = isSent ? deltaX < 0 : deltaX > 0;
+                    
+                    if (isValidSwipe) {
+                        const maxTranslate = 80;
+                        currentTranslateX = Math.min(Math.abs(deltaX), maxTranslate) * (deltaX < 0 ? -1 : 1);
+                        messageElement.style.transform = `translateX(${currentTranslateX}px)`;
+                        
+                        const opacity = Math.min(Math.abs(currentTranslateX) / maxTranslate, 1);
+                        messageElement.style.setProperty('--reply-indicator-opacity', opacity);
+                        
+                        if (!messageElement.classList.contains('swiping')) {
+                            messageElement.classList.add('swiping');
+                        }
+                        e.preventDefault();
+                    }
+                }
+            }, { passive: false });
+            
+            messageElement.addEventListener('touchend', (e) => {
+                messageElement.style.transition = '';
+                
+                if (isDragging && Math.abs(currentTranslateX) > 40) {
+                    triggerReply(msgId, messageElement);
+                } else {
+                    resetMessagePosition(messageElement);
+                }
+                
+                isDragging = false;
+                currentTranslateX = 0;
+            }, { passive: true });
+            
+            // Двойной клик для десктопа
+            messageElement.addEventListener('click', (e) => {
+                const currentTime = Date.now();
+                const timeDiff = currentTime - lastClickTime;
+                
+                if (timeDiff < 300 && timeDiff > 0) {
+                    e.preventDefault();
+                    triggerReply(msgId, messageElement);
+                }
+                
+                lastClickTime = currentTime;
+            });
+        }
+
+        function triggerReply(msgId, messageElement) {
+            messageElement.classList.add('reply-triggered');
+            
+            // Показываем результат
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('result-text').textContent = `Ответ на сообщение ${msgId} активирован!`;
+            
+            resetMessagePosition(messageElement);
+            
+            setTimeout(() => {
+                messageElement.classList.remove('reply-triggered');
+            }, 300);
+        }
+
+        function resetMessagePosition(messageElement) {
+            messageElement.style.transform = '';
+            messageElement.style.setProperty('--reply-indicator-opacity', '0');
+            messageElement.classList.remove('swiping');
+        }
+
+        // Инициализация
+        document.querySelectorAll('.test-message').forEach(msg => {
+            const msgId = msg.dataset.msgId;
+            const isSent = msg.classList.contains('sent');
+            addReplyHandlers(msg, msgId, isSent);
+        });
+    </script>
+</body>
+</html>

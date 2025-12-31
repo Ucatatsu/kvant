@@ -2232,6 +2232,9 @@ function createMessageElement(msg, isSent) {
             scrollToMessage(msg.reply_to.id);
         });
     }
+
+    // Добавляем обработчики для ответов на сообщения
+    addReplyHandlers(div, msg, isSent);
     
     // Клик на изображение - открыть просмотр
     if (isMedia) {
@@ -2713,6 +2716,132 @@ async function editMessage(msg) {
 }
 
 // === REPLY TO MESSAGE ===
+function addReplyHandlers(messageElement, msg, isSent) {
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+    let isDragging = false;
+    let lastClickTime = 0;
+    
+    // Переменные для анимации свайпа
+    let currentTranslateX = 0;
+    let isAnimating = false;
+    
+    // Обработчики для мобильных устройств (touch)
+    messageElement.addEventListener('touchstart', (e) => {
+        if (isAnimating) return;
+        
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchStartTime = Date.now();
+        isDragging = false;
+        
+        // Добавляем класс для отключения transition во время свайпа
+        messageElement.style.transition = 'none';
+    }, { passive: true });
+    
+    messageElement.addEventListener('touchmove', (e) => {
+        if (isAnimating) return;
+        
+        const touchX = e.touches[0].clientX;
+        const touchY = e.touches[0].clientY;
+        const deltaX = touchX - touchStartX;
+        const deltaY = touchY - touchStartY;
+        
+        // Проверяем, что это горизонтальный свайп
+        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+            isDragging = true;
+            
+            // Определяем направление свайпа в зависимости от типа сообщения
+            const isValidSwipe = isSent ? deltaX < 0 : deltaX > 0; // Для отправленных - влево, для полученных - вправо
+            
+            if (isValidSwipe) {
+                // Ограничиваем перемещение
+                const maxTranslate = 80;
+                currentTranslateX = Math.min(Math.abs(deltaX), maxTranslate) * (deltaX < 0 ? -1 : 1);
+                
+                // Применяем трансформацию
+                messageElement.style.transform = `translateX(${currentTranslateX}px)`;
+                
+                // Добавляем визуальную обратную связь
+                const opacity = Math.min(Math.abs(currentTranslateX) / maxTranslate, 1);
+                messageElement.style.setProperty('--reply-indicator-opacity', opacity);
+                
+                if (!messageElement.classList.contains('swiping')) {
+                    messageElement.classList.add('swiping');
+                }
+                
+                // Предотвращаем скролл страницы
+                e.preventDefault();
+            }
+        }
+    }, { passive: false });
+    
+    messageElement.addEventListener('touchend', (e) => {
+        if (isAnimating) return;
+        
+        const touchEndTime = Date.now();
+        const touchDuration = touchEndTime - touchStartTime;
+        
+        // Восстанавливаем transition
+        messageElement.style.transition = '';
+        
+        if (isDragging && Math.abs(currentTranslateX) > 40) {
+            // Свайп достаточно длинный - активируем ответ
+            triggerReply(msg, messageElement);
+        } else {
+            // Возвращаем сообщение в исходное положение
+            resetMessagePosition(messageElement);
+        }
+        
+        isDragging = false;
+        currentTranslateX = 0;
+    }, { passive: true });
+    
+    // Обработчик двойного клика для десктопа
+    messageElement.addEventListener('click', (e) => {
+        const currentTime = Date.now();
+        const timeDiff = currentTime - lastClickTime;
+        
+        if (timeDiff < 300 && timeDiff > 0) {
+            // Двойной клик
+            e.preventDefault();
+            triggerReply(msg, messageElement);
+        }
+        
+        lastClickTime = currentTime;
+    });
+    
+    // Предотвращаем контекстное меню во время свайпа
+    messageElement.addEventListener('contextmenu', (e) => {
+        if (isDragging) {
+            e.preventDefault();
+        }
+    });
+}
+
+function triggerReply(msg, messageElement) {
+    // Анимация подтверждения
+    messageElement.classList.add('reply-triggered');
+    
+    // Устанавливаем сообщение для ответа
+    setReplyToMessage(msg);
+    
+    // Анимация возврата в исходное положение
+    resetMessagePosition(messageElement);
+    
+    // Убираем класс анимации через некоторое время
+    setTimeout(() => {
+        messageElement.classList.remove('reply-triggered');
+    }, 300);
+}
+
+function resetMessagePosition(messageElement) {
+    messageElement.style.transform = '';
+    messageElement.style.setProperty('--reply-indicator-opacity', '0');
+    messageElement.classList.remove('swiping');
+}
+
 function setReplyToMessage(msg) {
     state.replyToMessage = msg;
     showReplyPreview(msg);

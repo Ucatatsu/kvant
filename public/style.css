@@ -1039,10 +1039,47 @@ button {
 }
 
 .message {
+  position: relative;
   max-width: 60%;
   display: flex;
   gap: 10px;
   animation: fadeIn 0.2s ease;
+  transition: transform 0.2s ease-out;
+}
+
+/* Стили для свайп-анимации */
+.message.swiping {
+  position: relative;
+}
+
+.message.swiping::before {
+  content: '↩️';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  opacity: var(--reply-indicator-opacity, 0);
+  transition: opacity 0.1s ease-out;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.message.sent.swiping::before {
+  left: -40px;
+}
+
+.message.received.swiping::before {
+  right: -40px;
+}
+
+.message.reply-triggered {
+  animation: replyPulse 0.3s ease-out;
+}
+
+@keyframes replyPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
 }
 
 @keyframes fadeIn {
@@ -11403,6 +11440,24 @@ input[type="range"].volume-slider::before,
     padding: 10px 14px;
     font-size: 15px;
     line-height: 1.4;
+  }
+  
+  /* Улучшенная анимация свайпа на мобильных */
+  .message.swiping::before {
+    font-size: 24px;
+  }
+  
+  .message.sent.swiping::before {
+    left: -50px;
+  }
+  
+  .message.received.swiping::before {
+    right: -50px;
+  }
+  
+  /* Отключаем hover эффекты на мобильных */
+  .message:hover {
+    transform: none;
   }
   
   /* Компактный input */
