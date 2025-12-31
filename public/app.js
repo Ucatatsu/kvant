@@ -2726,9 +2726,11 @@ function addReplyHandlers(messageElement, msg, isSent) {
     // Переменные для анимации свайпа
     let currentTranslateX = 0;
     let isAnimating = false;
+    let hasVibrated = false; // Для тактильной обратной связи
     
-    // Обработчики для мобильных устройств (touch)
-    messageElement.addEventListener('touchstart', (e) => {
+    // Обработчики для мобильных устройств (touch) - только если включены свайпы
+    if (state.settings.swipeReplies !== false) {
+        messageElement.addEventListener('touchstart', (e) => {
         if (isAnimating) return;
         
         touchStartX = e.touches[0].clientX;
@@ -2767,6 +2769,13 @@ function addReplyHandlers(messageElement, msg, isSent) {
                 const opacity = Math.min(Math.abs(currentTranslateX) / maxTranslate, 1);
                 messageElement.style.setProperty('--reply-indicator-opacity', opacity);
                 
+                // Тактильная обратная связь при достижении порога
+                if (Math.abs(currentTranslateX) > 40 && !hasVibrated && 
+                    (state.settings.hapticFeedback !== false) && navigator.vibrate) {
+                    navigator.vibrate(50);
+                    hasVibrated = true;
+                }
+                
                 if (!messageElement.classList.contains('swiping')) {
                     messageElement.classList.add('swiping');
                 }
@@ -2796,7 +2805,9 @@ function addReplyHandlers(messageElement, msg, isSent) {
         
         isDragging = false;
         currentTranslateX = 0;
+        hasVibrated = false; // Сбрасываем флаг вибрации
     }, { passive: true });
+    } // Конец проверки swipeReplies
     
     // Обработчик двойного клика для десктопа
     messageElement.addEventListener('click', (e) => {
@@ -2818,11 +2829,47 @@ function addReplyHandlers(messageElement, msg, isSent) {
             e.preventDefault();
         }
     });
+    
+    // Добавляем поддержку клавиатуры (R для Reply)
+    messageElement.addEventListener('keydown', (e) => {
+        if (e.key === 'r' || e.key === 'R') {
+            e.preventDefault();
+            triggerReply(msg, messageElement);
+        }
+    });
+    
+    // Делаем сообщение фокусируемым для клавиатурной навигации
+    messageElement.setAttribute('tabindex', '0');
+    messageElement.setAttribute('aria-label', `Сообщение от ${msg.display_name || msg.username}. Нажмите R для ответа или дважды кликните`);
 }
 
 function triggerReply(msg, messageElement) {
     // Анимация подтверждения
     messageElement.classList.add('reply-triggered');
+    
+    // Звуковая обратная связь (если доступна и включена)
+    if ((state.settings.soundFeedback !== false) && 
+        (window.AudioContext || window.webkitAudioContext)) {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.1);
+            
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        } catch (e) {
+            // Игнорируем ошибки звука
+        }
+    }
     
     // Устанавливаем сообщение для ответа
     setReplyToMessage(msg);
@@ -6144,6 +6191,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // Настройки быстрых ответов
+    document.getElementById('swipe-replies-checkbox')?.addEventListener('change', (e) => {
+        state.settings.swipeReplies = e.target.checked;
+        saveSettings();
+    });
+    
+    document.getElementById('haptic-feedback-checkbox')?.addEventListener('change', (e) => {
+        state.settings.hapticFeedback = e.target.checked;
+        saveSettings();
+    });
+    
+    document.getElementById('sound-feedback-checkbox')?.addEventListener('change', (e) => {
+        state.settings.soundFeedback = e.target.checked;
+        saveSettings();
+    });
+    
     // Звук уведомлений
     document.getElementById('notification-sound-select')?.addEventListener('change', (e) => {
         state.settings.notificationSound = e.target.value;
@@ -7279,6 +7342,15 @@ function showSettings() {
     
     if (notifCheckbox) notifCheckbox.checked = state.notificationsEnabled;
     if (avatarsCheckbox) avatarsCheckbox.checked = !state.settings.hideAvatars;
+    
+    // Настройки быстрых ответов
+    const swipeRepliesCheckbox = document.getElementById('swipe-replies-checkbox');
+    const hapticFeedbackCheckbox = document.getElementById('haptic-feedback-checkbox');
+    const soundFeedbackCheckbox = document.getElementById('sound-feedback-checkbox');
+    
+    if (swipeRepliesCheckbox) swipeRepliesCheckbox.checked = state.settings.swipeReplies !== false;
+    if (hapticFeedbackCheckbox) hapticFeedbackCheckbox.checked = state.settings.hapticFeedback !== false;
+    if (soundFeedbackCheckbox) soundFeedbackCheckbox.checked = state.settings.soundFeedback !== false;
     
     // Звук уведомлений
     const soundSelect = document.getElementById('notification-sound-select');

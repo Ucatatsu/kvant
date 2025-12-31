@@ -1062,6 +1062,7 @@ button {
   transition: opacity 0.1s ease-out;
   z-index: 1;
   pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
 }
 
 .message.sent.swiping::before {
@@ -1070,6 +1071,24 @@ button {
 
 .message.received.swiping::before {
   right: -40px;
+}
+
+/* Градиентная подсветка при свайпе */
+.message.swiping::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(79, 195, 247, 0.1) 50%, 
+    transparent 100%);
+  opacity: var(--reply-indicator-opacity, 0);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .message.reply-triggered {
