@@ -2241,14 +2241,30 @@ io.on('connection', async (socket) => {
     
     socket.on('group-message', async (data) => {
         try {
-            const { groupId, text, messageType = 'text' } = data;
+            const { groupId, text, messageType = 'text', replyToId = null } = data;
             if (!groupId || !text) return;
             
-            const message = await db.saveGroupMessage(groupId, userId, text.trim().substring(0, 5000), messageType);
+            const message = await db.saveGroupMessage(groupId, userId, text.trim().substring(0, 5000), messageType, replyToId);
             const user = await db.getUser(userId);
             message.username = user?.username;
             message.display_name = user?.display_name;
             message.avatar_url = user?.avatar_url;
+            
+            // Если есть reply_to, загружаем данные о replied сообщении
+            if (replyToId) {
+                const replyMsg = await db.getGroupMessageById(replyToId);
+                if (replyMsg) {
+                    const replyUser = await db.getUser(replyMsg.sender_id);
+                    message.reply_to = {
+                        id: replyMsg.id,
+                        text: replyMsg.text,
+                        sender_id: replyMsg.sender_id,
+                        message_type: replyMsg.message_type,
+                        sender_username: replyUser?.username,
+                        sender_display_name: replyUser?.display_name
+                    };
+                }
+            }
             
             io.to(`group:${groupId}`).emit('group-message', message);
         } catch (error) {

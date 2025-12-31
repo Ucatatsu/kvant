@@ -1749,21 +1749,35 @@ async function removeGroupMember(groupId, userId) {
     }
 }
 
-async function saveGroupMessage(groupId, senderId, text, messageType = 'text') {
+async function saveGroupMessage(groupId, senderId, text, messageType = 'text', replyToId = null) {
     try {
         const id = uuidv4();
         const created_at = new Date().toISOString();
         
         if (USE_SQLITE) {
-            sqlite.prepare('INSERT INTO group_messages (id, group_id, sender_id, text, message_type, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(id, groupId, senderId, text, messageType, created_at);
+            sqlite.prepare('INSERT INTO group_messages (id, group_id, sender_id, text, message_type, created_at, reply_to) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, groupId, senderId, text, messageType, created_at, replyToId);
         } else {
-            await pool.query('INSERT INTO group_messages (id, group_id, sender_id, text, message_type, created_at) VALUES ($1, $2, $3, $4, $5, $6)', [id, groupId, senderId, text, messageType, created_at]);
+            await pool.query('INSERT INTO group_messages (id, group_id, sender_id, text, message_type, created_at, reply_to) VALUES ($1, $2, $3, $4, $5, $6, $7)', [id, groupId, senderId, text, messageType, created_at, replyToId]);
         }
         
-        return { id, group_id: groupId, sender_id: senderId, text, message_type: messageType, created_at };
+        return { id, group_id: groupId, sender_id: senderId, text, message_type: messageType, created_at, reply_to: replyToId };
     } catch (error) {
         console.error('Save group message error:', error);
         throw error;
+    }
+}
+
+async function getGroupMessageById(messageId) {
+    try {
+        if (USE_SQLITE) {
+            return sqlite.prepare('SELECT * FROM group_messages WHERE id = ?').get(messageId);
+        } else {
+            const result = await pool.query('SELECT * FROM group_messages WHERE id = $1', [messageId]);
+            return result.rows[0];
+        }
+    } catch (error) {
+        console.error('Get group message by ID error:', error);
+        return null;
     }
 }
 
@@ -2855,6 +2869,8 @@ module.exports = {
     addGroupMember,
     removeGroupMember,
     saveGroupMessage,
+    getGroupMessage,
+    getGroupMessageById,
     getGroupMessages,
     getGroupMedia,
     updateGroupAvatar,

@@ -1082,15 +1082,52 @@ function renderGroupMessages(messages) {
         div.className = `message ${isSent ? 'sent' : 'received'}`;
         div.dataset.messageId = msg.id;
         
+        // Формируем HTML для replied сообщения
+        let replyHtml = '';
+        if (msg.reply_to) {
+            const replySenderName = msg.reply_to.sender_id === state.currentUser?.id 
+                ? 'Вы' 
+                : (msg.reply_to.sender_display_name || msg.reply_to.sender_username || 'Пользователь');
+            let replyText = msg.reply_to.text || '';
+            if (msg.reply_to.message_type === 'image' || msg.reply_to.message_type === 'gif') {
+                replyText = '📷 Фото';
+            } else if (msg.reply_to.message_type === 'video') {
+                replyText = '🎬 Видео';
+            } else if (replyText.length > 50) {
+                replyText = replyText.substring(0, 50) + '...';
+            }
+            replyHtml = `
+                <div class="message-reply" data-reply-id="${escapeAttr(msg.reply_to.id)}">
+                    <div class="message-reply-line"></div>
+                    <div class="message-reply-content">
+                        <span class="message-reply-name">${escapeHtml(replySenderName)}</span>
+                        <span class="message-reply-text">${escapeHtml(replyText)}</span>
+                    </div>
+                </div>
+            `;
+        }
+        
         div.innerHTML = `
             <div class="message-sender-info">
                 <span class="message-sender-name" style="color: ${getNameColor(msg)}">${escapeHtml(msg.display_name || msg.username)}</span>
             </div>
             <div class="message-content">
+                ${replyHtml}
                 <div class="message-bubble">${escapeHtml(msg.text)}</div>
                 <div class="message-time">${formatTime(msg.created_at)}</div>
             </div>
         `;
+        
+        // Клик на reply - скролл к оригинальному сообщению
+        if (msg.reply_to) {
+            div.querySelector('.message-reply')?.addEventListener('click', () => {
+                scrollToMessage(msg.reply_to.id);
+            });
+        }
+        
+        // Добавляем обработчики для ответов на сообщения
+        addReplyHandlers(div, msg, isSent);
+        
         container.appendChild(div);
     });
     
@@ -3130,7 +3167,8 @@ function sendMessage() {
             groupId: state.selectedGroup.id,
             text,
             messageType: hasStickers && stickerData ? 'sticker' : 'text',
-            sticker: stickerData
+            sticker: stickerData,
+            replyToId
         });
     } else if (state.selectedChannel) {
         state.socket.emit('channel-post', {
@@ -10767,15 +10805,51 @@ function appendGroupMessage(msg) {
     div.className = `message ${isSent ? 'sent' : 'received'}`;
     div.dataset.messageId = msg.id;
     
+    // Формируем HTML для replied сообщения
+    let replyHtml = '';
+    if (msg.reply_to) {
+        const replySenderName = msg.reply_to.sender_id === state.currentUser?.id 
+            ? 'Вы' 
+            : (msg.reply_to.sender_display_name || msg.reply_to.sender_username || 'Пользователь');
+        let replyText = msg.reply_to.text || '';
+        if (msg.reply_to.message_type === 'image' || msg.reply_to.message_type === 'gif') {
+            replyText = '📷 Фото';
+        } else if (msg.reply_to.message_type === 'video') {
+            replyText = '🎬 Видео';
+        } else if (replyText.length > 50) {
+            replyText = replyText.substring(0, 50) + '...';
+        }
+        replyHtml = `
+            <div class="message-reply" data-reply-id="${escapeAttr(msg.reply_to.id)}">
+                <div class="message-reply-line"></div>
+                <div class="message-reply-content">
+                    <span class="message-reply-name">${escapeHtml(replySenderName)}</span>
+                    <span class="message-reply-text">${escapeHtml(replyText)}</span>
+                </div>
+            </div>
+        `;
+    }
+    
     div.innerHTML = `
         <div class="message-sender-info">
             <span class="message-sender-name" style="color: ${getNameColor(msg)}">${escapeHtml(msg.display_name || msg.username)}</span>
         </div>
         <div class="message-content">
+            ${replyHtml}
             <div class="message-bubble">${escapeHtml(msg.text)}</div>
             <div class="message-time">${formatTime(msg.created_at)}</div>
         </div>
     `;
+    
+    // Клик на reply - скролл к оригинальному сообщению
+    if (msg.reply_to) {
+        div.querySelector('.message-reply')?.addEventListener('click', () => {
+            scrollToMessage(msg.reply_to.id);
+        });
+    }
+    
+    // Добавляем обработчики для ответов на сообщения
+    addReplyHandlers(div, msg, isSent);
     
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
