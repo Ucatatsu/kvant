@@ -3161,6 +3161,8 @@ button {
 .settings-nav {
   flex: 1;
   padding: 8px 0;
+  overflow-y: auto; /* Добавляем прокрутку если нужно */
+  max-height: calc(100vh - 200px); /* Ограничиваем высоту */
 }
 
 .settings-nav-item {
@@ -11444,7 +11446,7 @@ input[type="range"].volume-slider::before,
  Кнопка выйти в навигации (только мобильные) */
 .settings-nav-logout {
   display: flex; /* Показываем всегда */
-  margin-top: auto;
+  margin-top: 12px; /* Небольшой отступ вместо auto */
   color: #ef4444 !important;
   border-top: 1px solid var(--glass-border);
   padding-top: 12px;
