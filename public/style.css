@@ -11443,7 +11443,7 @@ input[type="range"].volume-slider::before,
 /*
  Кнопка выйти в навигации (только мобильные) */
 .settings-nav-logout {
-  display: none;
+  display: flex; /* Показываем всегда */
   margin-top: auto;
   color: #ef4444 !important;
   border-top: 1px solid var(--glass-border);
