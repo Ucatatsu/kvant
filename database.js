@@ -19,9 +19,12 @@ if (USE_SQLITE) {
     pool = new Pool({
         connectionString: process.env.DATABASE_URL,
         ssl: process.env.DATABASE_URL?.includes('render.com') ? { rejectUnauthorized: false } : false,
-        max: 20,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
+        max: 5, // Уменьшаем количество подключений для бесплатного плана
+        idleTimeoutMillis: 60000, // 60 секунд простоя
+        connectionTimeoutMillis: 30000, // 30 секунд на подключение
+        acquireTimeoutMillis: 60000, // 60 секунд на получение подключения
+        statement_timeout: 30000, // 30 секунд на выполнение запроса
+        query_timeout: 30000 // 30 секунд на запрос
     });
     
     pool.on('error', (err) => {
@@ -44,7 +47,9 @@ async function generateUniqueTag(clientOrDb) {
     return Math.floor(10000 + Math.random() * 90000).toString();
 }
 
-async function initDB() {
+async function initDB(retryCount = 0) {
+    const maxRetries = 3;
+    
     if (USE_SQLITE) {
         // SQLite инициализация
         sqlite.exec(`
@@ -406,8 +411,29 @@ async function initDB() {
         return;
     }
     
-    // PostgreSQL инициализация
-    const client = await pool.connect();
+    // PostgreSQL инициализация с retry логикой
+    let client;
+    let retries = 3;
+    
+    while (retries > 0) {
+        try {
+            console.log(`🔄 Попытка подключения к PostgreSQL (осталось попыток: ${retries})`);
+            client = await pool.connect();
+            console.log('✅ Подключение к PostgreSQL установлено');
+            break;
+        } catch (error) {
+            retries--;
+            console.error(`❌ Ошибка подключения к PostgreSQL:`, error.message);
+            
+            if (retries === 0) {
+                console.error('💥 Не удалось подключиться к PostgreSQL после 3 попыток');
+                throw error;
+            }
+            
+            console.log(`⏳ Ожидание 5 секунд перед повторной попыткой...`);
+            await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+    }
     try {
         await client.query(`
             CREATE TABLE IF NOT EXISTS users (
