@@ -309,6 +309,18 @@ function sanitizeText(text, maxLength = 5000) {
 
 // === ПУБЛИЧНЫЕ РОУТЫ (без авторизации) ===
 
+// === ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ===
+app.get('/api/init-db', async (req, res) => {
+    try {
+        console.log('🔄 Принудительная инициализация базы данных...');
+        await db.initDB();
+        res.json({ success: true, message: 'База данных инициализирована' });
+    } catch (error) {
+        console.error('❌ Ошибка инициализации БД:', error);
+        res.status(500).json({ error: 'Ошибка инициализации базы данных', details: error.message });
+    }
+});
+
 // Регистрация
 app.post('/api/register', authLimiter, async (req, res) => {
     try {
