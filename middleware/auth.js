@@ -51,13 +51,14 @@ function authMiddleware(req, res, next) {
     if (process.env.NODE_ENV !== 'production') {
         console.log(`🔐 Auth check for ${req.method} ${req.path}`);
         console.log(`   Authorization header: ${authHeader ? 'present' : 'missing'}`);
+        console.log(`   JWT_SECRET available: ${!!EFFECTIVE_JWT_SECRET}`);
     }
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         if (process.env.NODE_ENV !== 'production') {
             console.log(`❌ Auth failed: missing or invalid header`);
         }
-        return res.status(401).json({ success: false, error: 'Требуется авторизация' });
+        return res.status(401).json({ success: false, error: 'Требуется авторизация', code: 'NO_TOKEN' });
     }
     
     const token = authHeader.substring(7);
@@ -71,7 +72,7 @@ function authMiddleware(req, res, next) {
         if (process.env.NODE_ENV !== 'production') {
             console.log(`❌ Auth failed: invalid token`);
         }
-        return res.status(401).json({ success: false, error: 'Недействительный токен' });
+        return res.status(401).json({ success: false, error: 'Недействительный токен', code: 'INVALID_TOKEN' });
     }
     
     if (process.env.NODE_ENV !== 'production') {

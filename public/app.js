@@ -226,8 +226,18 @@ const api = {
             const response = await fetch(endpoint, { ...options, headers });
             
             if (response.status === 401) {
-                // Токен истёк - выходим
-                logout();
+                // Токен истёк или недействителен - очищаем и выходим
+                console.log('🔓 Token expired, logging out...');
+                localStorage.removeItem('kvant_user');
+                localStorage.removeItem('kvant_token');
+                state.currentUser = null;
+                state.token = null;
+                
+                // Перенаправляем на страницу входа
+                if (window.location.pathname !== '/') {
+                    window.location.reload();
+                }
+                
                 throw new Error('Сессия истекла');
             }
             
