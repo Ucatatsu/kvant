@@ -2,10 +2,32 @@
 const { v4: uuidv4 } = require('uuid');
 
 // Определяем какую БД использовать
-const USE_SQLITE = !process.env.DATABASE_URL || process.env.USE_SQLITE === 'true';
+let USE_SQLITE = !process.env.DATABASE_URL || process.env.USE_SQLITE === 'true';
+
+console.log('🔧 Конфигурация базы данных:');
+console.log(`   DATABASE_URL: ${process.env.DATABASE_URL ? 'установлен' : 'НЕ УСТАНОВЛЕН'}`);
+console.log(`   USE_SQLITE: ${USE_SQLITE}`);
+console.log(`   NODE_ENV: ${process.env.NODE_ENV}`);
 
 let pool = null;
 let sqlite = null;
+
+// Функция для переключения на SQLite в случае проблем с PostgreSQL
+function fallbackToSQLite() {
+    console.log('🔄 Переключение на SQLite из-за проблем с PostgreSQL...');
+    USE_SQLITE = true;
+    if (pool) {
+        pool.end().catch(() => {});
+        pool = null;
+    }
+    
+    if (!sqlite) {
+        const Database = require('better-sqlite3');
+        sqlite = new Database('kvant_local.db');
+        sqlite.pragma('journal_mode = WAL');
+        console.log('📦 Переключено на SQLite (fallback)');
+    }
+}
 
 if (USE_SQLITE) {
     // SQLite для локальной разработки
@@ -18,7 +40,7 @@ if (USE_SQLITE) {
     const { Pool } = require('pg');
     pool = new Pool({
         connectionString: process.env.DATABASE_URL,
-        ssl: process.env.DATABASE_URL?.includes('render.com') ? { rejectUnauthorized: false } : false,
+        ssl: process.env.DATABASE_URL?.includes('postgres.render.com') ? { rejectUnauthorized: false } : false,
         max: 5, // Уменьшаем количество подключений для бесплатного плана
         idleTimeoutMillis: 60000, // 60 секунд простоя
         connectionTimeoutMillis: 30000, // 30 секунд на подключение
@@ -50,8 +72,18 @@ async function generateUniqueTag(clientOrDb) {
 async function initDB(retryCount = 0) {
     const maxRetries = 3;
     
+    console.log(`🔄 Инициализация базы данных...`);
+    console.log(`📊 USE_SQLITE: ${USE_SQLITE}`);
+    console.log(`🔗 DATABASE_URL: ${process.env.DATABASE_URL ? 'установлен' : 'не установлен'}`);
+    
     if (USE_SQLITE) {
         // SQLite инициализация
+        if (!sqlite) {
+            const Database = require('better-sqlite3');
+            sqlite = new Database('kvant_local.db');
+            sqlite.pragma('journal_mode = WAL');
+        }
+        
         sqlite.exec(`
             CREATE TABLE IF NOT EXISTS users (
                 id TEXT PRIMARY KEY,
@@ -411,29 +443,35 @@ async function initDB(retryCount = 0) {
         return;
     }
     
-    // PostgreSQL инициализация с retry логикой
+    // PostgreSQL инициализация с retry логикой и fallback
     let client;
     let retries = 3;
     
-    while (retries > 0) {
-        try {
-            console.log(`🔄 Попытка подключения к PostgreSQL (осталось попыток: ${retries})`);
-            client = await pool.connect();
-            console.log('✅ Подключение к PostgreSQL установлено');
-            break;
-        } catch (error) {
-            retries--;
-            console.error(`❌ Ошибка подключения к PostgreSQL:`, error.message);
-            
-            if (retries === 0) {
-                console.error('💥 Не удалось подключиться к PostgreSQL после 3 попыток');
-                throw error;
+    try {
+        while (retries > 0) {
+            try {
+                console.log(`🔄 Попытка подключения к PostgreSQL (осталось попыток: ${retries})`);
+                console.log(`🔗 URL: ${process.env.DATABASE_URL?.substring(0, 50)}...`);
+                client = await pool.connect();
+                console.log('✅ Подключение к PostgreSQL установлено');
+                break;
+            } catch (error) {
+                retries--;
+                console.error(`❌ Ошибка подключения к PostgreSQL:`, error.message);
+                console.error(`❌ Код ошибки:`, error.code);
+                console.error(`❌ Детали:`, error.detail || 'нет деталей');
+                
+                if (retries === 0) {
+                    console.error('💥 Не удалось подключиться к PostgreSQL после 3 попыток');
+                    console.error('🔄 Переключение на SQLite fallback...');
+                    fallbackToSQLite();
+                    return await initDB(); // Рекурсивный вызов с SQLite
+                }
+                
+                console.log(`⏳ Ожидание 5 секунд перед повторной попыткой...`);
+                await new Promise(resolve => setTimeout(resolve, 5000));
             }
-            
-            console.log(`⏳ Ожидание 5 секунд перед повторной попыткой...`);
-            await new Promise(resolve => setTimeout(resolve, 5000));
         }
-    }
     try {
         await client.query(`
             CREATE TABLE IF NOT EXISTS users (
@@ -782,8 +820,19 @@ async function initDB(retryCount = 0) {
         `);
 
         console.log('✅ PostgreSQL база данных инициализирована');
+    } catch (error) {
+        console.error('❌ Ошибка инициализации PostgreSQL таблиц:', error);
+        console.error('🔄 Переключение на SQLite fallback...');
+        fallbackToSQLite();
+        return await initDB(); // Рекурсивный вызов с SQLite
     } finally {
-        client.release();
+        if (client) client.release();
+    }
+    } catch (error) {
+        console.error('❌ Критическая ошибка PostgreSQL:', error);
+        console.error('🔄 Переключение на SQLite fallback...');
+        fallbackToSQLite();
+        return await initDB(); // Рекурсивный вызов с SQLite
     }
 }
 

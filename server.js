@@ -321,6 +321,56 @@ app.get('/api/init-db', async (req, res) => {
     }
 });
 
+// Тест подключения к базе данных
+app.get('/api/test-db', async (req, res) => {
+    try {
+        console.log('🧪 Тестирование подключения к базе данных...');
+        
+        // Простой тест - попробуем выполнить SELECT 1
+        if (process.env.DATABASE_URL && !process.env.USE_SQLITE) {
+            const { Pool } = require('pg');
+            const testPool = new Pool({
+                connectionString: process.env.DATABASE_URL,
+                ssl: process.env.DATABASE_URL?.includes('postgres.render.com') ? { rejectUnauthorized: false } : false,
+                max: 1,
+                connectionTimeoutMillis: 10000
+            });
+            
+            const client = await testPool.connect();
+            const result = await client.query('SELECT 1 as test');
+            client.release();
+            await testPool.end();
+            
+            res.json({ 
+                success: true, 
+                message: 'PostgreSQL подключение работает',
+                database: 'PostgreSQL',
+                result: result.rows[0]
+            });
+        } else {
+            const Database = require('better-sqlite3');
+            const testDb = new Database(':memory:');
+            const result = testDb.prepare('SELECT 1 as test').get();
+            testDb.close();
+            
+            res.json({ 
+                success: true, 
+                message: 'SQLite подключение работает',
+                database: 'SQLite',
+                result: result
+            });
+        }
+    } catch (error) {
+        console.error('❌ Ошибка тестирования БД:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка подключения к базе данных', 
+            details: error.message,
+            code: error.code
+        });
+    }
+});
+
 // Регистрация
 app.post('/api/register', authLimiter, async (req, res) => {
     try {
