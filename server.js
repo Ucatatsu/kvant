@@ -328,6 +328,30 @@ app.get('/api/init-db', async (req, res) => {
 });
 
 // Диагностика переменных окружения (только для отладки)
+app.get('/api/debug/env', (req, res) => {
+    res.json({
+        NODE_ENV: process.env.NODE_ENV,
+        DATABASE_URL: process.env.DATABASE_URL ? 'установлен' : 'не установлен',
+        USE_SQLITE: process.env.USE_SQLITE || 'не установлен',
+        PORT: process.env.PORT || 3000
+    });
+});
+
+// Получить всех пользователей (только для отладки)
+app.get('/api/debug/users', authMiddleware, async (req, res) => {
+    try {
+        // Только админы могут видеть всех пользователей
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Доступ запрещен' });
+        }
+        
+        const users = await db.getAllUsers();
+        res.json({ success: true, users, count: users.length });
+    } catch (error) {
+        console.error('Debug users error:', error);
+        res.status(500).json({ error: 'Ошибка получения пользователей' });
+    }
+});
 app.get('/api/debug-env', async (req, res) => {
     res.json({
         NODE_ENV: process.env.NODE_ENV,
@@ -431,23 +455,35 @@ app.post('/api/create-test-user', async (req, res) => {
 app.post('/api/register', authLimiter, async (req, res) => {
     try {
         const { username, password } = req.body;
+        console.log(`📝 Попытка регистрации пользователя: ${username}`);
         
         if (!username || !password) {
+            console.log(`❌ Регистрация отклонена: пустые поля`);
             return res.status(400).json({ success: false, error: 'Заполните все поля' });
         }
         
         if (!isValidUsername(username)) {
+            console.log(`❌ Регистрация отклонена: невалидный username: ${username}`);
             return res.status(400).json({ success: false, error: 'Ник: 3-20 символов, только буквы, цифры и _' });
         }
         
         if (!isValidPassword(password)) {
+            console.log(`❌ Регистрация отклонена: невалидный пароль`);
             return res.status(400).json({ success: false, error: 'Пароль: от 6 до 100 символов' });
         }
         
+        console.log(`✅ Валидация прошла, создаем пользователя: ${username}`);
         const result = await db.createUser(username, password);
+        
+        if (result.success) {
+            console.log(`🎉 Пользователь ${username} успешно зарегистрирован!`);
+        } else {
+            console.log(`❌ Ошибка регистрации ${username}: ${result.error}`);
+        }
+        
         res.json(result);
     } catch (error) {
-        console.error('Register error:', error);
+        console.error('❌ Register error:', error);
         res.status(500).json({ success: false, error: 'Ошибка сервера' });
     }
 });

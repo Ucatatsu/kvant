@@ -838,13 +838,47 @@ async function initDB(retryCount = 0) {
     }
 }
 
+// === ОТЛАДОЧНЫЕ ФУНКЦИИ ===
+
+async function getAllUsers() {
+    console.log(`🔍 Получение всех пользователей из базы данных`);
+    
+    try {
+        let rows;
+        if (USE_SQLITE) {
+            console.log(`📦 Запрос всех пользователей из SQLite`);
+            rows = sqlite.prepare('SELECT id, username, tag, display_name, role, created_at FROM users ORDER BY created_at DESC').all();
+            console.log(`📦 SQLite: найдено ${rows.length} пользователей`);
+        } else {
+            console.log(`🐘 Запрос всех пользователей из PostgreSQL`);
+            const result = await pool.query('SELECT id, username, tag, display_name, role, created_at FROM users ORDER BY created_at DESC');
+            rows = result.rows;
+            console.log(`🐘 PostgreSQL: найдено ${rows.length} пользователей`);
+        }
+        
+        rows.forEach((user, index) => {
+            console.log(`  ${index + 1}. ${user.username}#${user.tag} (${user.role}) - создан: ${user.created_at}`);
+        });
+        
+        return rows;
+    } catch (error) {
+        console.error('❌ Ошибка получения всех пользователей:', error);
+        return [];
+    }
+}
+
 // === ПОЛЬЗОВАТЕЛИ ===
 
 async function createUser(username, password) {
+    console.log(`🔄 Попытка создания пользователя: ${username}`);
+    
     if (USE_SQLITE) {
         try {
+            console.log(`📦 Используем SQLite для создания пользователя ${username}`);
+            
             const existing = sqlite.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?)').get(username);
             if (existing) {
+                console.log(`❌ Пользователь ${username} уже существует`);
                 return { success: false, error: 'Пользователь уже существует' };
             }
             
@@ -855,7 +889,13 @@ async function createUser(username, password) {
             const adminUsernames = (process.env.ADMIN_USERNAMES || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
             const role = adminUsernames.includes(username.toLowerCase()) ? 'admin' : 'user';
             
+            console.log(`📝 Создаем пользователя: id=${id}, username=${username}, tag=${tag}, role=${role}`);
+            
             sqlite.prepare('INSERT INTO users (id, username, password, tag, role) VALUES (?, ?, ?, ?, ?)').run(id, username, hash, tag, role);
+            
+            // Проверяем что пользователь действительно создался
+            const created = sqlite.prepare('SELECT id, username, tag FROM users WHERE id = ?').get(id);
+            console.log(`✅ Пользователь создан в SQLite:`, created);
             
             if (role === 'admin') {
                 console.log(`👑 Пользователь ${username} назначен админом`);
@@ -863,15 +903,17 @@ async function createUser(username, password) {
             
             return { success: true, user: { id, username, tag } };
         } catch (error) {
-            console.error('Create user error:', error);
+            console.error('❌ Create user error (SQLite):', error);
             return { success: false, error: 'Ошибка создания пользователя' };
         }
     }
     
+    console.log(`🐘 Используем PostgreSQL для создания пользователя ${username}`);
     const client = await pool.connect();
     try {
         const existing = await client.query('SELECT id FROM users WHERE LOWER(username) = LOWER($1)', [username]);
         if (existing.rows.length > 0) {
+            console.log(`❌ Пользователь ${username} уже существует в PostgreSQL`);
             return { success: false, error: 'Пользователь уже существует' };
         }
         
@@ -882,10 +924,16 @@ async function createUser(username, password) {
         const adminUsernames = (process.env.ADMIN_USERNAMES || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
         const role = adminUsernames.includes(username.toLowerCase()) ? 'admin' : 'user';
         
+        console.log(`📝 Создаем пользователя в PostgreSQL: id=${id}, username=${username}, tag=${tag}, role=${role}`);
+        
         await client.query(
             'INSERT INTO users (id, username, password, tag, role) VALUES ($1, $2, $3, $4, $5)',
             [id, username, hash, tag, role]
         );
+        
+        // Проверяем что пользователь действительно создался
+        const created = await client.query('SELECT id, username, tag FROM users WHERE id = $1', [id]);
+        console.log(`✅ Пользователь создан в PostgreSQL:`, created.rows[0]);
         
         if (role === 'admin') {
             console.log(`👑 Пользователь ${username} назначен админом (из ADMIN_USERNAMES)`);
@@ -893,7 +941,7 @@ async function createUser(username, password) {
         
         return { success: true, user: { id, username, tag } };
     } catch (error) {
-        console.error('Create user error:', error);
+        console.error('❌ Create user error (PostgreSQL):', error);
         return { success: false, error: 'Ошибка создания пользователя' };
     } finally {
         client.release();
@@ -1178,17 +1226,36 @@ async function updateUsername(userId, username) {
 }
 
 async function searchUsers(query, excludeUserId) {
+    console.log(`🔍 Поиск пользователей: query="${query}", excludeUserId="${excludeUserId}"`);
+    
     try {
         const sanitized = query.replace(/[%_]/g, '').substring(0, 50);
-        if (sanitized.length < 2) return [];
+        if (sanitized.length < 2) {
+            console.log(`❌ Запрос слишком короткий: "${sanitized}"`);
+            return [];
+        }
         
         let rows;
         if (USE_SQLITE) {
+            console.log(`📦 Поиск в SQLite с запросом: "${sanitized}"`);
+            
+            // Сначала проверим сколько всего пользователей в базе
+            const totalUsers = sqlite.prepare('SELECT COUNT(*) as count FROM users').get();
+            console.log(`📊 Всего пользователей в SQLite: ${totalUsers.count}`);
+            
             rows = sqlite.prepare(`SELECT id, username, tag, display_name, avatar_url, role, premium_until, name_color, custom_id
                 FROM users 
                 WHERE (username LIKE ? OR display_name LIKE ? OR custom_id LIKE ? OR tag LIKE ?) AND id != ?
                 LIMIT 20`).all(`%${sanitized}%`, `%${sanitized}%`, `%${sanitized}%`, `%${sanitized}%`, excludeUserId);
+                
+            console.log(`📦 SQLite поиск вернул ${rows.length} результатов:`, rows.map(r => r.username));
         } else {
+            console.log(`🐘 Поиск в PostgreSQL с запросом: "${sanitized}"`);
+            
+            // Сначала проверим сколько всего пользователей в базе
+            const totalResult = await pool.query('SELECT COUNT(*) as count FROM users');
+            console.log(`📊 Всего пользователей в PostgreSQL: ${totalResult.rows[0].count}`);
+            
             const result = await pool.query(
                 `SELECT id, username, tag, display_name, avatar_url, role, premium_until, name_color, custom_id
                  FROM users 
@@ -1197,13 +1264,19 @@ async function searchUsers(query, excludeUserId) {
                 [`%${sanitized}%`, excludeUserId]
             );
             rows = result.rows;
+            
+            console.log(`🐘 PostgreSQL поиск вернул ${rows.length} результатов:`, rows.map(r => r.username));
         }
-        return rows.map(u => ({
+        
+        const results = rows.map(u => ({
             ...u,
             isPremium: u.role === 'admin' || (u.premium_until && new Date(u.premium_until) > new Date())
         }));
+        
+        console.log(`✅ Поиск завершен, возвращаем ${results.length} пользователей`);
+        return results;
     } catch (error) {
-        console.error('Search users error:', error);
+        console.error('❌ Search users error:', error);
         return [];
     }
 }

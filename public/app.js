@@ -3148,7 +3148,9 @@ async function loadMyProfile() {
 function updateCurrentUserAvatar() {
     const avatarEl = document.getElementById('current-user-avatar');
     if (state.currentUserProfile?.avatar_url) {
-        avatarEl.style.backgroundImage = `url(${state.currentUserProfile.avatar_url})`;
+        // Добавляем timestamp для обхода кэша браузера
+        const avatarUrl = state.currentUserProfile.avatar_url + '?t=' + Date.now();
+        avatarEl.style.backgroundImage = `url(${avatarUrl})`;
         avatarEl.style.backgroundSize = 'cover';
         avatarEl.textContent = '';
     } else {
@@ -3156,6 +3158,40 @@ function updateCurrentUserAvatar() {
         avatarEl.textContent = state.currentUser.username[0].toUpperCase();
     }
 }
+
+// Функция для обновления всех аватаров пользователя в интерфейсе
+function updateAllUserAvatars() {
+    updateCurrentUserAvatar();
+    
+    // Обновляем аватар в настройках
+    const settingsAvatar = document.getElementById('settings-avatar');
+    if (settingsAvatar && state.currentUserProfile?.avatar_url) {
+        const avatarUrl = state.currentUserProfile.avatar_url + '?t=' + Date.now();
+        settingsAvatar.style.backgroundImage = `url(${avatarUrl})`;
+        settingsAvatar.textContent = '';
+    } else if (settingsAvatar) {
+        settingsAvatar.style.backgroundImage = '';
+        settingsAvatar.textContent = state.currentUser.username[0].toUpperCase();
+    }
+    
+    // Обновляем аватары в чатах (сообщения от текущего пользователя)
+    const userMessages = document.querySelectorAll(`.message[data-user-id="${state.currentUser.id}"] .message-avatar`);
+    userMessages.forEach(avatar => {
+        if (state.currentUserProfile?.avatar_url) {
+            const avatarUrl = state.currentUserProfile.avatar_url + '?t=' + Date.now();
+            avatar.style.backgroundImage = `url(${avatarUrl})`;
+            avatar.textContent = '';
+        } else {
+            avatar.style.backgroundImage = '';
+            avatar.textContent = state.currentUser.username[0].toUpperCase();
+        }
+    });
+    
+    console.log('All user avatars updated with timestamp:', Date.now());
+}
+
+// Глобальная функция для тестирования (доступна в консоли)
+window.forceUpdateAvatars = updateAllUserAvatars;
 
 async function openChatWithUser(userId) {
     try {
@@ -5510,10 +5546,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const username = document.getElementById('login-username').value;
         const password = document.getElementById('login-password').value;
         
+        // Показываем анимацию загрузки
+        const loginBtn = document.querySelector('.btn-login');
+        const btnText = loginBtn?.querySelector('.btn-text');
+        const btnLoader = loginBtn?.querySelector('.btn-loader');
+        
+        if (loginBtn && btnText && btnLoader) {
+            loginBtn.disabled = true;
+            btnText.style.opacity = '0';
+            btnLoader.classList.remove('hidden');
+        }
+        
         const result = await login(username, password);
+        
+        // Скрываем анимацию загрузки
+        if (loginBtn && btnText && btnLoader) {
+            loginBtn.disabled = false;
+            btnText.style.opacity = '1';
+            btnLoader.classList.add('hidden');
+        }
         
         if (!result.success) {
             loginError.textContent = result.error;
+            // Добавляем анимацию тряски для ошибки
+            loginError.style.animation = 'none';
+            setTimeout(() => {
+                loginError.style.animation = 'errorShake 0.5s ease-in-out';
+            }, 10);
         }
     });
     
@@ -6273,7 +6332,9 @@ async function showMyProfile() {
     }
     
     if (profile?.avatar_url) {
-        avatarEl.style.backgroundImage = `url(${profile.avatar_url})`;
+        // Добавляем timestamp для обхода кэша браузера
+        const avatarUrl = profile.avatar_url + '?t=' + Date.now();
+        avatarEl.style.backgroundImage = `url(${avatarUrl})`;
         avatarEl.style.backgroundSize = 'cover';
         avatarEl.style.backgroundPosition = 'center';
         avatarEl.textContent = '';
@@ -6284,7 +6345,9 @@ async function showMyProfile() {
     }
     
     if (profile?.banner_url) {
-        bannerEl.style.backgroundImage = `url(${profile.banner_url})`;
+        // Добавляем timestamp для обхода кэша браузера
+        const bannerUrl = profile.banner_url + '?t=' + Date.now();
+        bannerEl.style.backgroundImage = `url(${bannerUrl})`;
         bannerEl.style.backgroundSize = 'cover';
         bannerEl.style.backgroundPosition = 'center';
         bannerEl.className = 'profile-banner';
@@ -6348,7 +6411,9 @@ function showEditProfile() {
     
     const avatarPreview = document.getElementById('edit-avatar-preview');
     if (state.currentUserProfile?.avatar_url) {
-        avatarPreview.style.backgroundImage = `url(${state.currentUserProfile.avatar_url})`;
+        // Добавляем timestamp для обхода кэша браузера
+        const avatarUrl = state.currentUserProfile.avatar_url + '?t=' + Date.now();
+        avatarPreview.style.backgroundImage = `url(${avatarUrl})`;
         avatarPreview.innerHTML = '';
     } else {
         avatarPreview.style.backgroundImage = '';
@@ -6357,7 +6422,9 @@ function showEditProfile() {
     
     const bannerPreview = document.getElementById('edit-banner-preview');
     if (state.currentUserProfile?.banner_url) {
-        bannerPreview.style.backgroundImage = `url(${state.currentUserProfile.banner_url})`;
+        // Добавляем timestamp для обхода кэша браузера
+        const bannerUrl = state.currentUserProfile.banner_url + '?t=' + Date.now();
+        bannerPreview.style.backgroundImage = `url(${bannerUrl})`;
         bannerPreview.style.background = '';
     } else {
         bannerPreview.style.backgroundImage = '';
@@ -6428,14 +6495,30 @@ async function saveProfile() {
         if (pendingAvatarFile) {
             const formData = new FormData();
             formData.append('avatar', pendingAvatarFile);
-            await api.uploadFile(`/api/user/${state.currentUser.id}/avatar`, formData);
+            const avatarRes = await api.uploadFile(`/api/user/${state.currentUser.id}/avatar`, formData);
+            const avatarResult = await avatarRes.json();
+            console.log('Avatar upload result:', avatarResult);
+            if (avatarResult.success && avatarResult.avatarUrl) {
+                // Обновляем state сразу после загрузки
+                if (!state.currentUserProfile) state.currentUserProfile = {};
+                state.currentUserProfile.avatar_url = avatarResult.avatarUrl;
+                console.log('Avatar updated in state:', state.currentUserProfile.avatar_url);
+            }
         }
         
         // Загружаем баннер
         if (pendingBannerFile) {
             const formData = new FormData();
             formData.append('banner', pendingBannerFile);
-            await api.uploadFile(`/api/user/${state.currentUser.id}/banner`, formData);
+            const bannerRes = await api.uploadFile(`/api/user/${state.currentUser.id}/banner`, formData);
+            const bannerResult = await bannerRes.json();
+            console.log('Banner upload result:', bannerResult);
+            if (bannerResult.success && bannerResult.bannerUrl) {
+                // Обновляем state сразу после загрузки
+                if (!state.currentUserProfile) state.currentUserProfile = {};
+                state.currentUserProfile.banner_url = bannerResult.bannerUrl;
+                console.log('Banner updated in state:', state.currentUserProfile.banner_url);
+            }
         }
         
         // Меняем username
@@ -6478,8 +6561,18 @@ async function saveProfile() {
         }
         
         document.getElementById('edit-profile-modal').classList.add('hidden');
+        
+        // Принудительно обновляем UI сразу после загрузки
+        if (pendingAvatarFile || pendingBannerFile) {
+            updateAllUserAvatars();
+        }
+        
+        // Сбрасываем pending файлы
+        pendingAvatarFile = null;
+        pendingBannerFile = null;
+        
         await loadMyProfile();
-        updateCurrentUserAvatar();
+        updateAllUserAvatars(); // Обновляем все аватары еще раз
         showMyProfile();
     } catch (e) {
         console.error('Save profile error:', e);
@@ -7145,7 +7238,9 @@ function showSettings() {
     const settingsUsername = document.getElementById('settings-username');
     
     if (state.currentUserProfile?.avatar_url) {
-        settingsAvatar.style.backgroundImage = `url(${state.currentUserProfile.avatar_url})`;
+        // Добавляем timestamp для обхода кэша браузера
+        const avatarUrl = state.currentUserProfile.avatar_url + '?t=' + Date.now();
+        settingsAvatar.style.backgroundImage = `url(${avatarUrl})`;
         settingsAvatar.textContent = '';
     } else {
         settingsAvatar.style.backgroundImage = '';

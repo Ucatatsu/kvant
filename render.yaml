@@ -9,9 +9,9 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        value: "postgresql://postgres:[ЗАМЕНИТЕ_НА_ВАШ_ПАРОЛЬ]@db.uivqoiqrcaqralwxwsxa.supabase.co:5432/postgres"
+        value: "postgresql://postgres:kvant.msg296@db.uivqoiqrcaqralwxwsxa.supabase.co:5432/postgres"
       - key: JWT_SECRET
-        generateValue: true
+        value: "kvant_super_secret_key_2024_production_do_not_share_this_key_anywhere"
       - key: VAPID_PUBLIC_KEY
         value: BDd3hdZyXYibDIQqf_XtardGtmqaELw5_aO6WFWKFT8iLp4IcrIanZqOCsJrKlOh0BchoGdm8mFh9TbT3kRXtA0
       - key: VAPID_PRIVATE_KEY

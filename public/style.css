@@ -223,12 +223,444 @@ body {
   justify-content: center;
   height: 100%;
   gap: 24px;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* === PREMIUM LOGIN DESIGN === */
+.login-container {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 3rem 2.5rem;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  animation: loginFadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  gap: 0;
+}
+
+.login-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(79, 195, 247, 0.5), transparent);
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.login-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(79, 195, 247, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(25, 118, 210, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(79, 195, 247, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+  animation: particleFloat 8s ease-in-out infinite;
+}
+
+@keyframes particleFloat {
+  0%, 100% {
+    opacity: 0.3;
+    transform: translateY(0px);
+  }
+  50% {
+    opacity: 0.6;
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes loginFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+  animation: loginHeaderFade 1s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
+}
+
+.login-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 1rem 0 0.5rem;
+  background: linear-gradient(135deg, #4fc3f7, #1976d2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.login-subtitle {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1rem;
+  margin: 0;
+  font-weight: 400;
+}
+
+@keyframes loginHeaderFade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.login-form {
+  width: 100%;
+}
+
+.login-fields {
+  margin-bottom: 2rem;
+}
+
+.input-group {
+  position: relative;
+  margin-bottom: 1.5rem;
+  animation: loginFieldFade 1s cubic-bezier(0.4, 0, 0.2, 1) 0.4s both;
+}
+
+.input-group:nth-child(2) {
+  animation-delay: 0.5s;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 1rem 0 1rem 0;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+  color: var(--text);
+  font-size: 1rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+}
+
+.input-group input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.3s ease;
+}
+
+.input-group input:focus {
+  border-bottom-color: var(--accent);
+}
+
+.input-group input:focus::placeholder {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.input-underline {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #4fc3f7, #1976d2);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.input-group input:focus + .input-underline {
+  width: 100%;
+}
+
+@keyframes loginFieldFade {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.login-actions {
+  animation: loginActionsFade 1s cubic-bezier(0.4, 0, 0.2, 1) 0.6s both;
+}
+
+.btn-login {
+  width: 100%;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #4fc3f7, #1976d2);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+}
+
+.btn-login::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.btn-login:hover::before {
+  left: 100%;
+}
+
+.btn-login:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(79, 195, 247, 0.4);
+}
+
+.btn-login:active {
+  transform: translateY(0);
+}
+
+.btn-text {
+  transition: opacity 0.3s ease;
+}
+
+.btn-loader {
+  display: flex;
+  gap: 4px;
+  position: absolute;
+}
+
+.btn-loader.hidden {
+  display: none;
+}
+
+.loader-dot {
+  width: 6px;
+  height: 6px;
+  background: white;
+  border-radius: 50%;
+  animation: loaderBounce 1.4s ease-in-out infinite both;
+}
+
+.loader-dot:nth-child(1) { animation-delay: -0.32s; }
+.loader-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes loaderBounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+.login-divider {
+  text-align: center;
+  margin: 1.5rem 0;
+  position: relative;
+}
+
+.login-divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.login-divider span {
+  background: var(--bg-darkest);
+  padding: 0 1rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
+  position: relative;
+}
+
+.btn-register {
+  width: 100%;
+  padding: 1rem 2rem;
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-register:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(79, 195, 247, 0.1);
+  transform: translateY(-1px);
+}
+
+@keyframes loginActionsFade {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.login-error {
+  margin-top: 1.5rem;
+  text-align: center;
+  animation: errorShake 0.5s ease-in-out;
+}
+
+@keyframes errorShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* === RESPONSIVE LOGIN === */
+@media (max-width: 768px) {
+  .login-container {
+    padding: 2rem 1.5rem;
+    margin: 1rem;
+    border-radius: 20px;
+  }
+  
+  .login-title {
+    font-size: 2rem;
+  }
+  
+  .login-subtitle {
+    font-size: 0.9rem;
+  }
+  
+  .input-group input {
+    font-size: 16px; /* Предотвращает зум на iOS */
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-container {
+    padding: 1rem;
+  }
+  
+  .login-container {
+    padding: 2rem 1rem;
+    margin: 0.5rem;
+  }
+  
+  .login-title {
+    font-size: 1.8rem;
+  }
+}
+
+/* === УЛУЧШЕННЫЙ ФОКУС === */
+.input-group input:focus {
+  outline: none;
+  border-bottom-color: var(--accent);
+}
+
+.btn-login:focus,
+.btn-register:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* === ТЕМНАЯ ТЕМА === */
+@media (prefers-color-scheme: light) {
+  .login-container {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: var(--text-dark, #333);
+  }
+  
+  .login-subtitle {
+    color: rgba(0, 0, 0, 0.6);
+  }
+  
+  .input-group input {
+    color: var(--text-dark, #333);
+    border-bottom-color: rgba(0, 0, 0, 0.2);
+  }
+  
+  .input-group input::placeholder {
+    color: rgba(0, 0, 0, 0.4);
+  }
+  
+  .login-divider::before {
+    background: rgba(0, 0, 0, 0.1);
+  }
+  
+  .login-divider span {
+    background: white;
+    color: rgba(0, 0, 0, 0.5);
+  }
+  
+  .btn-register {
+    border-color: rgba(0, 0, 0, 0.2);
+    color: rgba(0, 0, 0, 0.7);
+  }
 }
 
 .logo-img {
   width: 100px;
   height: 100px;
   object-fit: contain;
+  animation: logoFloat 3s ease-in-out infinite;
+}
+
+@keyframes logoFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.login-container .logo-img {
+  animation: logoFloatLogin 3s ease-in-out infinite;
+  filter: drop-shadow(0 4px 8px rgba(79, 195, 247, 0.3));
+}
+
+@keyframes logoFloatLogin {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-3px) scale(1.02);
+  }
 }
 
 .logo-mini-img {
@@ -3163,6 +3595,8 @@ button {
   padding: 8px 0;
   overflow-y: auto; /* Добавляем прокрутку если нужно */
   max-height: calc(100vh - 200px); /* Ограничиваем высоту */
+  display: flex;
+  flex-direction: column;
 }
 
 .settings-nav-item {
@@ -3199,6 +3633,9 @@ button {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  position: relative;
+  z-index: 5; /* Поверх других элементов */
+  background: var(--bg-darkest); /* Фон чтобы не просвечивало */
 }
 
 .settings-admin-btn {
@@ -11443,17 +11880,29 @@ input[type="range"].volume-slider::before,
 }
 
 /*
- Кнопка выйти в навигации (только мобильные) */
+ Кнопка выйти в навигации */
 .settings-nav-logout {
-  display: flex; /* Показываем всегда */
-  margin-top: 12px; /* Небольшой отступ вместо auto */
+  display: flex !important; /* Показываем всегда */
+  margin-top: auto; /* Прижимаем к низу */
   color: #ef4444 !important;
   border-top: 1px solid var(--glass-border);
   padding-top: 12px;
+  margin-bottom: 8px; /* Отступ снизу */
+  position: relative;
+  z-index: 10; /* Поверх других элементов */
+  cursor: pointer;
 }
 
 .settings-nav-logout:hover {
   background: rgba(239, 68, 68, 0.15) !important;
+}
+
+.settings-nav-logout span {
+  color: #ef4444 !important;
+}
+
+.settings-nav-logout .nav-icon .icon-sm {
+  filter: brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%) !important;
 }
 
 @media (max-width: 768px) {
@@ -11464,6 +11913,18 @@ input[type="range"].volume-slider::before,
   /* Скрываем старую кнопку выйти на мобильных */
   .settings-sidebar-footer .settings-logout-btn {
     display: none;
+  }
+}
+
+/* На десктопе показываем только кнопку выхода в навигации */
+@media (min-width: 769px) {
+  .settings-nav-logout {
+    display: flex !important;
+  }
+  
+  /* Скрываем старую кнопку выйти в footer на всех экранах */
+  .settings-sidebar-footer .settings-logout-btn {
+    display: none !important;
   }
 }
 

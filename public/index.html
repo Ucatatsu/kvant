@@ -24,18 +24,49 @@
 
   <!-- Экран входа -->
   <div id="login-screen" class="screen" role="main">
-    <div class="auth-container">
-      <img src="icon.png" alt="Логотип Квант" class="logo-img">
-      <h1>Квант</h1>
-      <form id="login-form" aria-label="Форма входа">
-        <input type="text" id="login-username" placeholder="Имя пользователя" required 
-               autocomplete="username" aria-label="Имя пользователя">
-        <input type="password" id="login-password" placeholder="Пароль" required 
-               autocomplete="current-password" aria-label="Пароль">
-        <button type="submit" class="btn-primary">Войти</button>
-        <button type="button" id="to-register-btn" class="btn-secondary">Регистрация</button>
+    <div class="auth-container login-container">
+      <div class="login-header">
+        <img src="icon.png" alt="Логотип Квант" class="logo-img">
+        <h1 class="login-title">Квант</h1>
+        <p class="login-subtitle">Добро пожаловать обратно</p>
+      </div>
+      
+      <form id="login-form" class="login-form" aria-label="Форма входа">
+        <div class="login-fields">
+          <div class="input-group">
+            <input type="text" id="login-username" placeholder="Имя пользователя" required 
+                   autocomplete="username" aria-label="Имя пользователя">
+            <div class="input-underline"></div>
+          </div>
+          
+          <div class="input-group">
+            <input type="password" id="login-password" placeholder="Пароль" required 
+                   autocomplete="current-password" aria-label="Пароль">
+            <div class="input-underline"></div>
+          </div>
+        </div>
+        
+        <div class="login-actions">
+          <button type="submit" class="btn-login">
+            <span class="btn-text">Войти</span>
+            <div class="btn-loader hidden">
+              <div class="loader-dot"></div>
+              <div class="loader-dot"></div>
+              <div class="loader-dot"></div>
+            </div>
+          </button>
+          
+          <div class="login-divider">
+            <span>или</span>
+          </div>
+          
+          <button type="button" id="to-register-btn" class="btn-register">
+            Создать аккаунт
+          </button>
+        </div>
       </form>
-      <p id="login-error" class="error" role="alert" aria-live="polite"></p>
+      
+      <p id="login-error" class="error login-error" role="alert" aria-live="polite"></p>
     </div>
   </div>
 
@@ -530,6 +561,7 @@
           </button>
           <button class="settings-logout-btn" id="logout-btn">
             <img src="/assets/power.svg" alt="" class="icon-sm">
+            <span>Выйти</span>
           </button>
         </div>
       </div>
